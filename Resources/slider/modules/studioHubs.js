@@ -66,6 +66,9 @@ const MAP_TTL   = 30 * 24 * 60 * 60 * 1000;
 const IMG_TTL   = 7  * 24 * 60 * 60 * 1000;
 const LS_KEY    = "studioHub_cache_v5";
 const MAP_KEY   = "studioHub_nameIdMap_v5";
+const MISS_KEY  = "studioHub_nameMiss_v1";
+const MISS_TTL  = 6 * 60 * 60 * 1000; // estudio ausente da biblioteca: nao procurar de novo por 6 h
+const MISS_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;
 const IMG_KEY   = "studioHub_backdropMap_v1";
 const STUDIO_ITEMS_LIMIT = 24;
 const STUDIO_RENDER_CONCURRENCY = 4;
@@ -1038,16 +1041,39 @@ export async function renderStudioHubs() {
     if (!cached && studios.length) saveCache(LS_KEY, studios);
 
     const nameMap = loadCache(MAP_KEY, MAP_TTL) || {};
-    const resolved = [];
-    for (const desired of wanted) {
+    // Fork ParticularFlix: estudios que a biblioteca nao tem (ex.: Disney+, Lucasfilm) eram
+    // procurados de novo, em fila, a cada carga da home. Agora o "nao encontrado" fica
+    // guardado por 6 h e as buscas rodam em paralelo (ate 3 estudios por vez).
+    const missMap = loadCache(MISS_KEY, MISS_CACHE_TTL) || {};
+    const nowMs = Date.now();
+    const resolveSignal = __fetchAbort ? __fetchAbort.signal : undefined;
+    const settledResolve = await mapSettledLimit(wanted, 3, async (desired) => {
       const manualEntry = (manualEntries || []).find(entry => nameKey(entry?.name || entry?.Name) === nameKey(desired)) || null;
       const manualId = String(manualEntry?.studioId || manualEntry?.StudioId || "").trim();
-      let studio = manualId
-        ? { Id: manualId, Name: desired }
-        : (nameMap[desired] || studios.find(s => matches(desired, s.Name)) || await searchStudiosByAliases(desired, __fetchAbort.signal));
-      if (studio) { resolved.push({ name: desired, studio }); nameMap[desired] = studio; }
+      if (manualId) return { name: desired, studio: { Id: manualId, Name: desired } };
+      let studio = nameMap[desired] || studios.find(s => matches(desired, s.Name)) || null;
+      if (!studio) {
+        const missAt = Number(missMap[desired] || 0);
+        if (missAt && (nowMs - missAt) < MISS_TTL) return null;
+        const state = { okCount: 0 };
+        studio = await searchStudiosByAliases(desired, resolveSignal, state);
+        if (!studio && state.okCount > 0 && !resolveSignal?.aborted) {
+          missMap[desired] = Date.now();
+        }
+      }
+      return studio ? { name: desired, studio } : null;
+    });
+    const resolved = [];
+    for (const r of settledResolve) {
+      if (r?.status !== "fulfilled" || !r.value) continue;
+      resolved.push(r.value);
+      nameMap[r.value.name] = r.value.studio;
+    }
+    for (const k of Object.keys(missMap)) {
+      if ((nowMs - Number(missMap[k] || 0)) >= MISS_TTL) delete missMap[k];
     }
     saveCache(MAP_KEY, nameMap);
+    saveCache(MISS_KEY, missMap);
 
     const resolvedNames = new Set(resolved.map(({ name }) => nameKey(name)));
     for (const desired of wanted) {
@@ -1305,21 +1331,27 @@ function scoreMatch(desired, candidate) {
 }
 const matches = (desired, cand) => scoreMatch(desired, cand) >= 1.3;
 
-async function searchStudiosByAliases(desired, signal) {
+async function searchStudiosByAliases(desired, signal, state = null) {
   const list = [desired, ...(ALIASES[desired] || [])];
   let best = null, bestScore = 0;
-  for (const term of list) {
+  // Fork ParticularFlix: as buscas dos apelidos saem todas ao mesmo tempo (antes eram uma
+  // depois da outra, e cada uma levava 1 a 3 s). O resultado e avaliado na mesma ordem.
+  const responses = await Promise.all(list.map(async (term) => {
     const url = `/Studios?SearchTerm=${encodeURIComponent(term)}&Limit=20`;
     try {
       const r = await fetch(withServer(url), { headers: hJSON(), signal });
-      if (!r.ok) continue;
+      if (!r.ok) return null;
       const data = await r.json();
-      const items = Array.isArray(data?.Items) ? data.Items : (Array.isArray(data) ? data : []);
-      for (const s of items) {
-        const sc = scoreMatch(desired, s.Name);
-        if (sc > bestScore) { best = s; bestScore = sc; }
-      }
-    } catch {}
+      if (state) state.okCount = (state.okCount || 0) + 1;
+      return Array.isArray(data?.Items) ? data.Items : (Array.isArray(data) ? data : []);
+    } catch { return null; }
+  }));
+  for (const items of responses) {
+    if (!items) continue;
+    for (const s of items) {
+      const sc = scoreMatch(desired, s.Name);
+      if (sc > bestScore) { best = s; bestScore = sc; }
+    }
   }
   if (!best || bestScore < 1.3) return null;
   return { Id: best.Id, Name: best.Name, ImageTags: best.ImageTags || {}, PrimaryImageTag: best.PrimaryImageTag || (best.ImageTags?.Primary) || null };
