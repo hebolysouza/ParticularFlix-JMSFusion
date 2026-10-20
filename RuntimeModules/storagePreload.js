@@ -72,6 +72,9 @@ let suspendSync = false;
 let bootstrappedLocal = false;
 let snapshotLoaded = false;
 let lastLifecycleFlushAt = 0;
+// Fork ParticularFlix: contador de alteracoes do localStorage. Quem guarda copias de
+// configuracao (config.js) o usa para saber se precisa reler os valores.
+let storageVersion = 0;
 
 const storage = window.localStorage;
 const originalGetItem = storage.getItem.bind(storage);
@@ -176,6 +179,7 @@ function registerKeys(keys = []) {
       suspendSync = true;
       try {
         originalRemoveItem(normalized);
+        storageVersion += 1;
       } finally {
         suspendSync = false;
       }
@@ -238,6 +242,7 @@ function applySnapshotToStorage(snapshot) {
       originalSetItem(key, value);
     }
   } finally {
+    storageVersion += 1;
     suspendSync = false;
   }
 }
@@ -357,6 +362,7 @@ function patchLocalStorage() {
     const previousValue = originalGetItem(normalizedKey);
     originalSetItem(normalizedKey, normalizedValue);
     if (previousValue === normalizedValue) return;
+    storageVersion += 1;
     if (suspendSync) return;
     if (!shouldPersistKey(normalizedKey)) return;
     state[normalizedKey] = normalizedValue;
@@ -368,6 +374,7 @@ function patchLocalStorage() {
     const previousValue = originalGetItem(normalizedKey);
     originalRemoveItem(normalizedKey);
     if (previousValue === null) return;
+    storageVersion += 1;
     if (suspendSync) return;
     if (!shouldPersistKey(normalizedKey)) return;
     delete state[normalizedKey];
@@ -376,6 +383,7 @@ function patchLocalStorage() {
 
   storage.clear = function patchedClear() {
     originalClear();
+    storageVersion += 1;
     if (suspendSync) return;
     let changed = false;
     for (const key of [...managedKeys]) {
@@ -484,6 +492,9 @@ const bridge = {
   get serverSnapshotEmpty() {
     return serverSnapshotEmpty;
   },
+  get version() {
+    return storageVersion;
+  },
   get state() {
     return { ...state };
   }
@@ -491,6 +502,8 @@ const bridge = {
 
 window.__JMS_MANAGED_STORAGE__ = bridge;
 patchLocalStorage();
+// Alteracoes feitas por outras abas tambem invalidam as copias de configuracao.
+window.addEventListener("storage", () => { storageVersion += 1; });
 window.addEventListener("pagehide", flushPendingSnapshotOnPageLifecycle, { capture: true });
 window.addEventListener("beforeunload", flushPendingSnapshotOnPageLifecycle, { capture: true });
 document.addEventListener("visibilitychange", () => {

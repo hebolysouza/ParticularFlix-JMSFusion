@@ -493,7 +493,65 @@ function readSmartAutoPause() {
   return sapLegacy;
 }
 
+// Fork ParticularFlix: getConfig() relia dezenas de chaves do localStorage e registrava
+// centenas de chaves a cada chamada, e ela e chamada por varios observadores durante a
+// rolagem. A copia guardada vale ate 1 s e so e reaproveitada se nada relevante mudou:
+// contador de alteracoes do localStorage, objeto de configuracao global, usuario atual e
+// seu perfil de administrador. Sem o contador (storagePreload ausente) nao ha cache.
+const CONFIG_CACHE_TTL_MS = 1000;
+let __configCache = null;
+let __configCacheKey = null;
+let __configCacheAt = 0;
+
+function readConfigCacheKey() {
+  try {
+    const version = window.__JMS_MANAGED_STORAGE__?.version;
+    if (typeof version !== "number") return null;
+    const user = window.ApiClient?._currentUser || null;
+    const pol = user?.Policy || user?.UserPolicy || null;
+    return {
+      version,
+      override: __globalOverride,
+      userId: String(user?.Id || ""),
+      admin: pol ? `${pol.IsAdministrator}|${pol.IsAdmin}|${pol.IsAdminUser}` : ""
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isSameConfigCacheKey(a, b) {
+  return !!a && !!b &&
+    a.version === b.version &&
+    a.override === b.override &&
+    a.userId === b.userId &&
+    a.admin === b.admin;
+}
+
 export function getConfig() {
+  if (window.__JMS_GLOBAL_CONFIG__) return window.__JMS_GLOBAL_CONFIG__;
+
+  const key = readConfigCacheKey();
+  const now = Date.now();
+  if (__configCache && isSameConfigCacheKey(key, __configCacheKey) && (now - __configCacheAt) < CONFIG_CACHE_TTL_MS) {
+    return { ...__configCache };
+  }
+
+  const cfg = computeConfig();
+
+  const keyAfter = readConfigCacheKey();
+  if (keyAfter) {
+    __configCache = { ...cfg };
+    __configCacheKey = keyAfter;
+    __configCacheAt = now;
+  } else {
+    __configCache = null;
+    __configCacheKey = null;
+  }
+  return cfg;
+}
+
+function computeConfig() {
   const forceGlobal = __globalOverride?.forceGlobal === true;
   if (window.__JMS_GLOBAL_CONFIG__) {
     return window.__JMS_GLOBAL_CONFIG__;
