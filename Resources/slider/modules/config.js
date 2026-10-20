@@ -904,6 +904,12 @@ function computeConfig() {
       return Math.min(3000, Math.max(200, Math.round(n)));
     })(),
     showCardInfoButton: localStorage.getItem('showCardInfoButton') === 'true',
+    cardActionsPosition: (() => {
+      const v = localStorage.getItem('cardActionsPosition');
+      return ['top-left', 'top-center', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(v)
+        ? v
+        : 'middle-right';
+    })(),
     previewTrailerStartMuted: localStorage.getItem('previewTrailerStartMuted') === 'true',
     previewTrailerVolumeLimit: localStorage.getItem('previewTrailerVolumeLimit') === 'true',
     previewTrailerVolumePercent: (() => {

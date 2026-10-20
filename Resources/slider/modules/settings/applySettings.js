@@ -459,6 +459,11 @@ const USER_ONLY_KEYS = [
             showCardInfoButton: hasNamedControl('showCardInfoButton')
               ? formData.get('showCardInfoButton') === 'on'
               : config.showCardInfoButton === true,
+            cardActionsPosition: (() => {
+              const allowed = ['top-left', 'top-center', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'];
+              const v = hasNamedControl('cardActionsPosition') ? formData.get('cardActionsPosition') : config.cardActionsPosition;
+              return allowed.includes(v) ? v : 'middle-right';
+            })(),
             previewTrailerStartMuted: formData.get('previewTrailerStartMuted') === 'on',
             previewTrailerVolumeLimit: formData.get('previewTrailerVolumeLimit') === 'on',
             previewTrailerVolumePercent: Math.max(

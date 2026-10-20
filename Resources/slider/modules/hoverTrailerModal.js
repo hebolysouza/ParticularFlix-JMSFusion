@@ -1090,14 +1090,14 @@ function installHoverOpenSuppressors() {
 
   const kill = () => suppressHoverOpens(1200);
   const cardDown = (e) => {
-    if (e.target?.closest?.('.jms-trailer-badge, .yt-first-touch-shield')) return;
+    if (e.target?.closest?.('.jms-trailer-badge, .jms-card-actions, .yt-first-touch-shield')) return;
     if (e.target?.closest?.('.cardImageContainer,[data-id]')) kill();
   };
   ['pointerdown','mousedown','touchstart','click'].forEach(t => {
     document.addEventListener(t, cardDown, { capture: true, passive: false });
   });
   const linkDown = (e) => {
-    if (e.target?.closest?.('.jms-trailer-badge, .yt-first-touch-shield')) return;
+    if (e.target?.closest?.('.jms-trailer-badge, .jms-card-actions, .yt-first-touch-shield')) return;
     if (e.target?.closest?.('a[href],button,[role="link"]')) kill();
   };
   ['pointerdown','mousedown','touchstart','click'].forEach(t => {
@@ -1627,8 +1627,6 @@ function ensureCardActionsCSS() {
   s.textContent = `
   .jms-card-actions {
     position: absolute;
-    top: 8px;
-    right: 8px;
     z-index: 3;
     display: none;
     gap: 6px;
@@ -1636,6 +1634,14 @@ function ensureCardActionsCSS() {
     pointer-events: none;
     transition: opacity .15s ease;
   }
+  html[data-jms-card-pos="top-left"] .jms-card-actions { top: 8px; left: 8px; flex-direction: row; }
+  html[data-jms-card-pos="top-center"] .jms-card-actions { top: 8px; left: 50%; transform: translateX(-50%); flex-direction: row; }
+  html[data-jms-card-pos="top-right"] .jms-card-actions { top: 8px; right: 8px; flex-direction: row; }
+  html[data-jms-card-pos="middle-left"] .jms-card-actions { top: 50%; left: 8px; transform: translateY(-50%); flex-direction: column; }
+  html[data-jms-card-pos="middle-right"] .jms-card-actions { top: 50%; right: 8px; transform: translateY(-50%); flex-direction: column; }
+  html[data-jms-card-pos="bottom-left"] .jms-card-actions { bottom: 8px; left: 8px; flex-direction: row; }
+  html[data-jms-card-pos="bottom-center"] .jms-card-actions { bottom: 8px; left: 50%; transform: translateX(-50%); flex-direction: row; }
+  html[data-jms-card-pos="bottom-right"] .jms-card-actions { bottom: 8px; right: 8px; flex-direction: row; }
   html.jms-card-info-on .jms-card-actions,
   html.jms-card-preview-on .jms-card-actions { display: flex; }
   .cardImageContainer:hover .jms-card-actions,
@@ -1665,8 +1671,24 @@ function ensureCardActionsCSS() {
   document.head.appendChild(s);
 }
 
+const CARD_ACTION_POSITIONS = new Set([
+  'top-left', 'top-center', 'top-right',
+  'middle-left', 'middle-right',
+  'bottom-left', 'bottom-center', 'bottom-right'
+]);
+
+function getCardActionsPosition() {
+  try {
+    const p = getConfig()?.cardActionsPosition;
+    if (CARD_ACTION_POSITIONS.has(p)) return p;
+  } catch {}
+  return 'middle-right';
+}
+
 function syncCardActionClasses() {
   const root = document.documentElement;
+  const pos = getCardActionsPosition();
+  if (root.getAttribute('data-jms-card-pos') !== pos) root.setAttribute('data-jms-card-pos', pos);
   let infoOn = false;
   try { infoOn = getConfig()?.showCardInfoButton === true; } catch {}
   const previewOn = getHoverOpenMode() === 'click';
@@ -1733,6 +1755,7 @@ function mountCardActions(card) {
   previewBtn.addEventListener('click', (e) => {
     stop(e);
     if (getHoverOpenMode() !== 'click') return;
+    modalState.__suppressOpenUntil = 0;
     forceHoverOpenFor(2500);
     const host = card.closest('.card') || card;
     const fire = (el) => {

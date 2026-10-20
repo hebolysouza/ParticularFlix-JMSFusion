@@ -59,6 +59,22 @@ export function createHoverTrailerPanel(config, labels) {
     config.showCardInfoButton === true
   ));
 
+  section.appendChild(createSelect(
+    'cardActionsPosition',
+    labels.cardActionsPosition || 'Posicao dos botoes no cartao',
+    [
+      { value: 'top-left',      text: labels.cardPosTopLeft      || 'Superior esquerdo' },
+      { value: 'top-center',    text: labels.cardPosTopCenter    || 'Superior centro' },
+      { value: 'top-right',     text: labels.cardPosTopRight     || 'Superior direito' },
+      { value: 'middle-left',   text: labels.cardPosMiddleLeft   || 'Meio, lado esquerdo' },
+      { value: 'middle-right',  text: labels.cardPosMiddleRight  || 'Meio, lado direito' },
+      { value: 'bottom-left',   text: labels.cardPosBottomLeft   || 'Inferior esquerdo' },
+      { value: 'bottom-center', text: labels.cardPosBottomCenter || 'Inferior centro' },
+      { value: 'bottom-right',  text: labels.cardPosBottomRight  || 'Inferior direito' }
+    ],
+    config.cardActionsPosition || 'middle-right'
+  ));
+
   const modeWrap = document.createElement('div');
   modeWrap.className = 'field-group';
   modeWrap.style.margin = '8px 0 4px';
