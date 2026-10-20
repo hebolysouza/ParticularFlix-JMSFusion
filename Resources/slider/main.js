@@ -5070,6 +5070,12 @@ export async function slidesInit() {
                 windowMonths: normalizeWindowMonths(config.sliderSourceWindowMonths),
                 resolveLimit: Math.max(30, savedLimit * 2),
                 concurrency: Math.max(1, Number(config?.seasonDetailFetchConcurrency) || 4),
+                itemFilter: (() => {
+                  const requestedImageTypes = parseImageTypesFromQuery(queryString);
+                  return requestedImageTypes.length
+                    ? (it) => requestedImageTypes.every((t) => itemHasImageType(it, t))
+                    : null;
+                })(),
                 fetchJson: (url) => cachedFetchJson({
                   keyParts: ["sourcePool", sliderSourceMode, userId, url],
                   url,

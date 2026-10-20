@@ -203,7 +203,13 @@ async function mapLimit(arr, limit, mapper) {
 // Carrega a lista final de itens (Movie e Series) na ordem correta.
 //   fetchJson(url)        -> resposta da API (com cache, fornecido pelo main.js)
 //   fetchItemDetails(id)  -> detalhes completos do item (com cache)
-//   resolveLimit          -> quantos descritores no maximo viram itens completos
+//   resolveLimit          -> quantos itens completos a lista final deve ter, no maximo
+//   itemFilter(item)      -> filtro opcional aplicado ao item completo (por exemplo, exigir
+//                            capa de fundo e logo). Os candidatos sao resolvidos em lotes,
+//                            na ordem de data, ate juntar itens suficientes que passem no
+//                            filtro; assim os titulos mais novos, ainda sem imagens, nao
+//                            esvaziam a lista.
+//   maxResolve            -> teto de itens resolvidos (protege contra excesso de requisicoes)
 export async function loadSourceItems({
   mode,
   userId,
@@ -212,7 +218,9 @@ export async function loadSourceItems({
   fetchJson,
   fetchItemDetails,
   resolveLimit = 60,
-  concurrency = 4
+  concurrency = 4,
+  itemFilter = null,
+  maxResolve = 240
 } = {}) {
   const requests = buildSourceRequests({ mode, userId, now, windowMonths });
   if (!requests.length) return [];
@@ -229,9 +237,12 @@ export async function loadSourceItems({
   );
   const results = Object.fromEntries(responses);
 
-  const descriptors = mergeSourceResults(mode, results).slice(0, Math.max(1, resolveLimit));
+  const candidates = mergeSourceResults(mode, results).slice(0, Math.max(1, maxResolve));
+  const wanted = Math.max(1, resolveLimit);
+  const batchSize = Math.max(concurrency * 4, 16);
+  const safeMode = normalizeSourceMode(mode);
 
-  const resolved = await mapLimit(descriptors, concurrency, async (d) => {
+  const resolveOne = async (d) => {
     try {
       const detail = await fetchItemDetails(d.id);
       const source = detail || (d.kind === "Movie" ? d.item : null);
@@ -239,7 +250,7 @@ export async function loadSourceItems({
       const base = { ...source }; // copia: o objeto em cache nao pode carregar a marca de outro modo
       // marca de origem usada pela interface (por exemplo, selo "Nova temporada")
       base.__jmsSourceMeta = {
-        mode: normalizeSourceMode(mode),
+        mode: safeMode,
         effectiveDate: new Date(d.effectiveDate).toISOString(),
         seasonNumber: d.seasonNumber ?? null,
         episodeNumber: d.episodeNumber ?? null,
@@ -250,7 +261,22 @@ export async function loadSourceItems({
       console.warn("[JMS] falha ao resolver item da fonte:", d.id, err);
       return d.kind === "Movie" ? d.item : null;
     }
-  });
+  };
 
-  return resolved.filter(Boolean);
+  const out = [];
+  let cursor = 0;
+  while (out.length < wanted && cursor < candidates.length) {
+    const slice = candidates.slice(cursor, cursor + batchSize);
+    cursor += batchSize;
+    const resolved = await mapLimit(slice, concurrency, resolveOne);
+    for (const item of resolved) {
+      if (!item) continue;
+      if (typeof itemFilter === "function" && !itemFilter(item)) continue;
+      out.push(item);
+      if (out.length >= wanted) break;
+    }
+  }
+
+  console.debug("[JMS] fonte do slider:", safeMode, "candidatos:", candidates.length, "resolvidos ate:", Math.min(cursor, candidates.length), "aceitos:", out.length);
+  return out;
 }
