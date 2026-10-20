@@ -549,7 +549,7 @@ export function createAboutPanel(labels) {
     resultSpan.textContent = '';
 
     try {
-      const { version: latest, html_url } = await fetchLatestGitHubVersion("G-grbz", "Jellyfin-MonWUI-Plugin");
+      const { version: latest, html_url } = await fetchLatestGitHubVersion("hebolysouza", "ParticularFlix-JMSFusion");
       if (!latest) {
         statusP.textContent = labels.updateUnknown || 'Son sürüm bilgisi alınamadı.';
       } else {

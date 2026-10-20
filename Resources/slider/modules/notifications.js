@@ -1244,7 +1244,7 @@ function getDetailFor(n) {
       <div class="time">${formatTime(n.timestamp)}</div>
     </div>
     <div class="actions">
-      <a class="lnk" target="_blank" rel="noopener" href="${escapeHtml(n.url || "https://github.com/G-grbz/Jellyfin-MonWUI-Plugin/releases")}">
+      <a class="lnk" target="_blank" rel="noopener" href="${escapeHtml(n.url || "https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases")}">
         ${escapeHtml(config.languageLabels?.viewOnGithub || "GitHub’da Gör / İndir")}
       </a>
       ${!n.read ? `
@@ -2262,7 +2262,7 @@ export function renderUpdateBanner() {
 
   txt.textContent = `${config.languageLabels?.updateAvailable || "Yeni sürüm mevcut"}: ${data.latest}`;
   lnk.textContent = config.languageLabels?.viewOnGithub || "GitHub'da Gör / İndir";
-  lnk.href = data.url || "https://github.com/G-grbz/Jellyfin-MonWUI-Plugin/releases";
+  lnk.href = data.url || "https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases";
 
   dis.onclick = () => {
     el.style.display = "none";
@@ -2586,7 +2586,7 @@ function formatEpisodeHeading({
   function addUpdate() {
     if (!S.enabled) return;
     const v = `v${(Math.random()*3+1).toFixed(1)}.${Math.floor(Math.random()*10)}`;
-    try { window.jfNotifyUpdateAvailable({ latest:v, url:"https://github.com/G-grbz/Jellyfin-MonWUI-Plugin/releases", remindMs:0 }); } catch {}
+    try { window.jfNotifyUpdateAvailable({ latest:v, url:"https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases", remindMs:0 }); } catch {}
     if (S.autoOpenModal) openModalHard();
   }
   function clearToasts() {
