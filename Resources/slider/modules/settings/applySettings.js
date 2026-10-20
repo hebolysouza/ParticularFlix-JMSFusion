@@ -448,6 +448,17 @@ const USER_ONLY_KEYS = [
             dicebearParams: config.dicebearParams || {},
             previewModal: formData.get('previewModal') === 'on',
             allPreviewModal: formData.get('allPreviewModal') === 'on',
+            hoverOpenMode: (() => {
+              if (!hasNamedControl('hoverOpenMode')) return config.hoverOpenMode || 'hover';
+              const v = formData.get('hoverOpenMode');
+              return (v === 'click' || v === 'off') ? v : 'hover';
+            })(),
+            hoverOpenDelayMs: hasNamedControl('hoverOpenDelayMs')
+              ? _clamp(_intOr(formData.get('hoverOpenDelayMs'), 500), 200, 3000)
+              : _clamp(_intOr(config.hoverOpenDelayMs, 500), 200, 3000),
+            showCardInfoButton: hasNamedControl('showCardInfoButton')
+              ? formData.get('showCardInfoButton') === 'on'
+              : config.showCardInfoButton === true,
             previewTrailerStartMuted: formData.get('previewTrailerStartMuted') === 'on',
             previewTrailerVolumeLimit: formData.get('previewTrailerVolumeLimit') === 'on',
             previewTrailerVolumePercent: Math.max(

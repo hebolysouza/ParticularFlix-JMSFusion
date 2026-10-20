@@ -25,6 +25,43 @@ const HARD_CLOSE_BUFFER_MS = 20;
 export const REOPEN_COOLDOWN_MS    = 400;
 const CROSS_ITEM_SETTLE_MS  = 80;
 export const OPEN_HOVER_DELAY_MS   = 500;
+
+// Fork ParticularFlix: modo de abertura (hover, click, off) e atraso configuraveis.
+// No modo "click" o hover so abre quando o botao de previa do cartao e acionado;
+// forceHoverOpenFor() libera uma janela curta em que a abertura passa a ser permitida.
+let __forceHoverOpenUntil = 0;
+
+export function getHoverOpenMode() {
+  try {
+    const m = getConfig()?.hoverOpenMode;
+    return (m === 'click' || m === 'off') ? m : 'hover';
+  } catch {
+    return 'hover';
+  }
+}
+
+export function forceHoverOpenFor(ms = 2500) {
+  __forceHoverOpenUntil = Date.now() + Math.max(0, Number(ms) || 0);
+}
+
+export function isHoverOpenForced() {
+  return Date.now() < __forceHoverOpenUntil;
+}
+
+export function isHoverOpenAllowed() {
+  const mode = getHoverOpenMode();
+  if (mode === 'hover') return true;
+  return mode === 'click' && isHoverOpenForced();
+}
+
+export function getHoverOpenDelayMs() {
+  if (isHoverOpenForced()) return 0;
+  try {
+    const n = Number(getConfig()?.hoverOpenDelayMs);
+    if (Number.isFinite(n) && n > 0) return Math.min(3000, Math.max(200, Math.round(n)));
+  } catch {}
+  return OPEN_HOVER_DELAY_MS;
+}
 const config = getConfig();
 const currentLang = config.defaultLanguage || getDefaultLanguage();
 if (!config.languageLabels) {
@@ -1575,6 +1612,156 @@ function mountTrailerBadge(card, text = 'Fragman') {
   });
 }
 
+// Fork ParticularFlix: botoes no cartao, independentes do hover de trailer.
+// "i" abre o painel de detalhes; o botao de previa (so no modo "click") abre o hover
+// de trailer sob demanda. O clique normal no cartao continua abrindo a pagina do Jellyfin.
+// Os botoes sao criados sob demanda, quando o mouse passa por cima do cartao, sem varrer
+// a pagina nem observar mutacoes (nao pesa na rolagem).
+const CARD_ACTION_TYPES = new Set(['Movie', 'Series', 'Episode', 'Season']);
+let __cardActionsInstalled = false;
+
+function ensureCardActionsCSS() {
+  if (document.getElementById('jms-card-actions-css')) return;
+  const s = document.createElement('style');
+  s.id = 'jms-card-actions-css';
+  s.textContent = `
+  .jms-card-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 3;
+    display: none;
+    gap: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s ease;
+  }
+  html.jms-card-info-on .jms-card-actions,
+  html.jms-card-preview-on .jms-card-actions { display: flex; }
+  .cardImageContainer:hover .jms-card-actions,
+  .jms-card-actions:focus-within { opacity: 1; pointer-events: auto; }
+  .jms-card-action {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(20, 22, 35, 0.72);
+    color: #fff;
+    border: 1px solid rgba(194, 194, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    backdrop-filter: saturate(140%) blur(6px);
+    cursor: pointer;
+    user-select: none;
+  }
+  html.jms-card-info-on .jms-card-action--info,
+  html.jms-card-preview-on .jms-card-action--preview { display: flex; }
+  .jms-card-action:hover, .jms-card-action:focus-visible { background: rgba(229, 9, 20, 0.88); outline: none; }
+  .jms-card-action svg { width: 16px; height: 16px; pointer-events: none; }
+  html.touch-device .jms-card-actions { display: none !important; }
+  `;
+  document.head.appendChild(s);
+}
+
+function syncCardActionClasses() {
+  const root = document.documentElement;
+  let infoOn = false;
+  try { infoOn = getConfig()?.showCardInfoButton === true; } catch {}
+  const previewOn = getHoverOpenMode() === 'click';
+  if (root.classList.contains('jms-card-info-on') !== infoOn) root.classList.toggle('jms-card-info-on', infoOn);
+  if (root.classList.contains('jms-card-preview-on') !== previewOn) root.classList.toggle('jms-card-preview-on', previewOn);
+  return infoOn || previewOn;
+}
+
+function getCardActionType(card) {
+  return card?.closest?.('[data-type]')?.dataset?.type || card?.dataset?.type || '';
+}
+
+function mountCardActions(card) {
+  card.__jmsCardActionsMounted = true;
+  ensureCardActionsCSS();
+  try { if (getComputedStyle(card).position === 'static') card.style.position = 'relative'; } catch {}
+
+  const wrap = document.createElement('div');
+  wrap.className = 'jms-card-actions';
+
+  const stop = (e) => {
+    if (e.cancelable) e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation?.();
+  };
+  const makeButton = (extraClass, title, svg) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'jms-card-action ' + extraClass;
+    b.title = title;
+    b.setAttribute('aria-label', title);
+    b.innerHTML = svg;
+    b.addEventListener('contextmenu', (e) => { e.stopPropagation(); }, { passive: true });
+    return b;
+  };
+
+  const infoBtn = makeButton(
+    'jms-card-action--info',
+    L('cardDetailsButtonTitle', 'Detalhes'),
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>'
+  );
+  infoBtn.addEventListener('click', async (e) => {
+    stop(e);
+    const itemId = getItemIdFromCard(card);
+    if (!itemId) return;
+    suppressHoverOpens(1600);
+    try { await ensureOverlaysClosed(); } catch {}
+    if (typeof openDetailsModal === 'function') {
+      try {
+        await openDetailsModal({ itemId, originEl: card });
+        return;
+      } catch (err) {
+        console.warn('openDetailsModal failed (card button):', err);
+      }
+    }
+    goToDetailsPageSafe(itemId);
+  });
+
+  const previewBtn = makeButton(
+    'jms-card-action--preview',
+    L('cardPreviewButtonTitle', 'Pre-visualizar'),
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>'
+  );
+  previewBtn.addEventListener('click', (e) => {
+    stop(e);
+    if (getHoverOpenMode() !== 'click') return;
+    forceHoverOpenFor(2500);
+    const host = card.closest('.card') || card;
+    const fire = (el) => {
+      try { el.dispatchEvent(new PointerEvent('pointerenter', { bubbles: false, pointerType: 'mouse' })); } catch {}
+    };
+    fire(host);
+    if (host !== card) fire(card);
+  });
+
+  wrap.append(infoBtn, previewBtn);
+  card.appendChild(wrap);
+}
+
+function installCardActionsDelegate() {
+  if (__cardActionsInstalled) return;
+  __cardActionsInstalled = true;
+  document.addEventListener('pointerover', (e) => {
+    const card = e.target?.closest?.('.cardImageContainer');
+    if (!card) return;
+    const enabled = syncCardActionClasses();
+    if (!enabled || card.__jmsCardActionsMounted) return;
+    if (isTouchRuntime() || isLiveTvCardElement(card)) return;
+    const type = getCardActionType(card);
+    if (type && !CARD_ACTION_TYPES.has(type)) return;
+    if (!getItemIdFromCard(card)) return;
+    mountCardActions(card);
+  }, { passive: true, capture: true });
+}
+
 function scanAndMarkCardsForTrailers() {
   if (!shouldRunTrailerBadge()) return;
   ensureTrailerBadgeCSS();
@@ -1757,6 +1944,7 @@ async function gatePlaybackStart(expectedItemId) {
 
 export function scheduleOpenForItem(itemEl, itemId, signal, openFn) {
   if (Date.now() < (modalState.__suppressOpenUntil || 0)) return;
+  if (!isTouchRuntime() && !isHoverOpenAllowed()) return;
   if (modalState._hoverOpenTimer) {
     clearTimeout(modalState._hoverOpenTimer);
     modalState._hoverOpenTimer = null;
@@ -1769,7 +1957,8 @@ export function scheduleOpenForItem(itemEl, itemId, signal, openFn) {
   const settleLeft = Math.max(0, CROSS_ITEM_SETTLE_MS);
   const closingLeft = getClosingRemaining();
 
-  let delay = Math.max(OPEN_HOVER_DELAY_MS, needCooldown, settleLeft, closingLeft);
+  const baseDelay = isTouchRuntime() ? OPEN_HOVER_DELAY_MS : getHoverOpenDelayMs();
+  let delay = Math.max(baseDelay, needCooldown, settleLeft, closingLeft);
 
   const run = async () => {
     if (Date.now() < (modalState.__suppressOpenUntil || 0)) return;
@@ -2853,6 +3042,7 @@ async function getItemTypeCached(itemId){
 
 export function setupHoverForAllItems() {
   if (isLiveTvRouteActive()) return;
+  installCardActionsDelegate();
   const isTouch = isTouchRuntime();
   if (isTouch && (shouldDisableTouchLongPressPreview() || config?.allPreviewModal !== false)) {
     installTouchContextMenuGuard();

@@ -1,5 +1,5 @@
 import { getConfig } from "../config.js";
-import { createCheckbox, createSection, bindCheckboxKontrol } from "./shared.js";
+import { createCheckbox, createSection, bindCheckboxKontrol, createSelect } from "./shared.js";
 import { applySettings } from "./applySettings.js";
 
 const cfg = getConfig();
@@ -16,6 +16,48 @@ export function createHoverTrailerPanel(config, labels) {
     config.allPreviewModal
   );
   section.appendChild(allPreviewModalCheckbox);
+
+  // Fork ParticularFlix: modo de abertura, atraso e botao de detalhes no cartao.
+  section.appendChild(createSelect(
+    'hoverOpenMode',
+    labels.hoverOpenMode || 'Abertura do trailer ao passar o mouse',
+    [
+      { value: 'hover', text: labels.hoverOpenModeHover || 'Ao passar o mouse (com atraso)' },
+      { value: 'click', text: labels.hoverOpenModeClick || 'Somente ao clicar no botao do cartao' },
+      { value: 'off',   text: labels.hoverOpenModeOff   || 'Desligado' }
+    ],
+    config.hoverOpenMode || 'hover'
+  ));
+
+  const delayWrap = document.createElement('div');
+  delayWrap.className = 'input-container';
+  const delayLabel = document.createElement('label');
+  delayLabel.htmlFor = 'hoverOpenDelayMs';
+  delayLabel.textContent = labels.hoverOpenDelay || 'Atraso para abrir o trailer (ms)';
+  const delayInput = document.createElement('input');
+  delayInput.type = 'range';
+  delayInput.id = 'hoverOpenDelayMs';
+  delayInput.name = 'hoverOpenDelayMs';
+  delayInput.min = '200';
+  delayInput.max = '3000';
+  delayInput.step = '100';
+  const startDelay = Number(config.hoverOpenDelayMs);
+  delayInput.value = String(Number.isFinite(startDelay) && startDelay > 0 ? Math.min(3000, Math.max(200, startDelay)) : 500);
+  const delayValue = document.createElement('span');
+  delayValue.style.marginLeft = '10px';
+  delayValue.textContent = delayInput.value + ' ms';
+  delayInput.addEventListener('input', () => { delayValue.textContent = delayInput.value + ' ms'; });
+  delayInput.addEventListener('change', () => {
+    try { localStorage.setItem('hoverOpenDelayMs', delayInput.value); } catch {}
+  });
+  delayWrap.append(delayLabel, delayInput, delayValue);
+  section.appendChild(delayWrap);
+
+  section.appendChild(createCheckbox(
+    'showCardInfoButton',
+    labels.showCardInfoButton || 'Mostrar botao de detalhes (i) nos cartoes',
+    config.showCardInfoButton === true
+  ));
 
   const modeWrap = document.createElement('div');
   modeWrap.className = 'field-group';

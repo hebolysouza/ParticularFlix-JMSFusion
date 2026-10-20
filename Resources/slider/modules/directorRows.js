@@ -3,7 +3,7 @@ import { getConfig, getHomeSectionsRuntimeConfig } from "./config.js";
 import { getLanguageLabels } from "../language/index.js";
 import { attachMiniPosterHover } from "./studioHubsUtils.js";
 import { openDirectorExplorer } from "./genreExplorer.js";
-import { REOPEN_COOLDOWN_MS, OPEN_HOVER_DELAY_MS } from "./hoverTrailerModal.js";
+import { REOPEN_COOLDOWN_MS, getHoverOpenDelayMs, isHoverOpenAllowed } from "./hoverTrailerModal.js";
 import { createTrailerIframe, formatOfficialRatingLabel } from "./utils.js";
 import { openDetailsModal } from "./detailsModalLoader.js";
 import {
@@ -1366,6 +1366,7 @@ function attachHoverTrailer(cardEl, itemLike) {
 
   const onEnter = (e) => {
     const isTouch = e?.pointerType === 'touch';
+    if (!isTouch && !isHoverOpenAllowed()) return;
     const until = __cooldownUntil.get(cardEl) || 0;
     if (Date.now() < until) return;
 
@@ -1394,7 +1395,7 @@ function attachHoverTrailer(cardEl, itemLike) {
         __touchLastOpenTS = Date.now();
       }
       if (!isTouch) schedulePostOpenGuard(cardEl, token, 300);
-    }, OPEN_HOVER_DELAY_MS);
+    }, isTouch ? 500 : getHoverOpenDelayMs());
 
     __enterTimers.set(cardEl, timer);
   };

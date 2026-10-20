@@ -893,6 +893,17 @@ function computeConfig() {
     randomDicebearAvatar: localStorage.getItem('randomDicebearAvatar') !== 'false',
     previewModal: localStorage.getItem('previewModal') !== 'false',
     allPreviewModal: localStorage.getItem('allPreviewModal') !== 'false',
+    // Fork ParticularFlix: controle de abertura do hover de trailer e botao de detalhes no cartao.
+    hoverOpenMode: (() => {
+      const v = localStorage.getItem('hoverOpenMode');
+      return (v === 'click' || v === 'off') ? v : 'hover';
+    })(),
+    hoverOpenDelayMs: (() => {
+      const n = Number(localStorage.getItem('hoverOpenDelayMs'));
+      if (!Number.isFinite(n) || n <= 0) return 500;
+      return Math.min(3000, Math.max(200, Math.round(n)));
+    })(),
+    showCardInfoButton: localStorage.getItem('showCardInfoButton') === 'true',
     previewTrailerStartMuted: localStorage.getItem('previewTrailerStartMuted') === 'true',
     previewTrailerVolumeLimit: localStorage.getItem('previewTrailerVolumeLimit') === 'true',
     previewTrailerVolumePercent: (() => {
