@@ -79,6 +79,58 @@ const originalSetItem = storage.setItem.bind(storage);
 const originalRemoveItem = storage.removeItem.bind(storage);
 const originalClear = storage.clear.bind(storage);
 
+// Fork ParticularFlix: identifica o usuario Jellyfin logado para que cada perfil tenha
+// o proprio snapshot de configuracoes no servidor.
+function readAuthContext() {
+  try {
+    const raw = originalGetItem("jellyfin_credentials");
+    if (!raw) return { token: "", userId: "" };
+    const servers = JSON.parse(raw)?.Servers;
+    if (!Array.isArray(servers)) return { token: "", userId: "" };
+    const origin = window.location.origin.toLowerCase();
+    const match =
+      servers.find(sv => sv?.AccessToken && String(sv?.ManualAddress || sv?.LocalAddress || "").toLowerCase().startsWith(origin)) ||
+      servers.find(sv => sv?.AccessToken);
+    return {
+      token: String(match?.AccessToken || ""),
+      userId: String(match?.UserId || "").replace(/-/g, "").toLowerCase()
+    };
+  } catch {
+    return { token: "", userId: "" };
+  }
+}
+
+function buildAuthHeaders() {
+  const { token, userId } = readAuthContext();
+  const headers = {};
+  if (token) headers["X-Emby-Token"] = token;
+  if (userId) headers["X-Emby-UserId"] = userId;
+  return headers;
+}
+
+let loadedUserId = null;
+
+// Se o usuario logado mudou depois que o snapshot foi carregado (login, troca de perfil,
+// logout), recarrega a pagina para carregar o snapshot certo e nunca grava o estado de
+// um usuario no snapshot de outro.
+function userChangedSinceLoad() {
+  if (loadedUserId === null) return false;
+  const current = readAuthContext().userId;
+  if (current === loadedUserId) return false;
+  try {
+    const key = "jms:userSwitchReload";
+    const last = JSON.parse(sessionStorage.getItem(key) || "null");
+    const recent = last && last.to === current && (Date.now() - Number(last.at || 0)) < 15000;
+    if (!recent) {
+      sessionStorage.setItem(key, JSON.stringify({ to: current, at: Date.now() }));
+      window.location.reload();
+    }
+  } catch {
+    window.location.reload();
+  }
+  return true;
+}
+
 function detectProfile() {
   try {
     const coarse = window.matchMedia?.("(pointer: coarse)")?.matches === true;
@@ -188,6 +240,9 @@ function buildSnapshotFromStorage() {
 }
 
 async function persistSnapshot(snapshot, options = {}) {
+  if (userChangedSinceLoad()) {
+    return { ok: true, skipped: true, reason: "user-changed", profile, rev };
+  }
   const payload = normalizeSnapshot(snapshot);
   const payloadJson = JSON.stringify(payload);
   state = payload;
@@ -211,7 +266,8 @@ async function persistSnapshot(snapshot, options = {}) {
     cache: "no-store",
     headers: {
       "Accept": "application/json",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...buildAuthHeaders()
     },
     body: JSON.stringify({
       global: payload,
@@ -318,6 +374,7 @@ function patchLocalStorage() {
 }
 
 async function loadServerSnapshot() {
+  loadedUserId = readAuthContext().userId;
   try {
     const payload = await loadSharedUserSettingsSnapshot(profile);
     forceGlobal = payload?.forceGlobal === true;
@@ -353,7 +410,8 @@ function loadSharedUserSettingsSnapshot(targetProfile) {
     method: "GET",
     cache: "no-store",
     headers: {
-      "Accept": "application/json"
+      "Accept": "application/json",
+      ...buildAuthHeaders()
     }
   })
     .then((response) => {

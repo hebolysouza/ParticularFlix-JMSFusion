@@ -1,8 +1,13 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
+using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Database.Implementations.Enums;
+using MediaBrowser.Controller.Library;
 
 namespace Jellyfin.Plugin.JMSFusion.Controllers
 {
@@ -10,6 +15,50 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
     [Route("Plugins/JMSFusion/UserSettings")]
     public class UserSettingsController : ControllerBase
     {
+        private const int MaxUserSnapshotEntries = 500;
+
+        private readonly IUserManager _users;
+
+        public UserSettingsController(IUserManager users)
+        {
+            _users = users;
+        }
+
+        // Fork ParticularFlix: identifica o usuario Jellyfin que fez a requisicao.
+        // 1) claim da autenticacao do Jellyfin (token enviado pelo navegador);
+        // 2) cabecalho X-Emby-UserId, o mesmo que o resto do plugin ja usa.
+        private bool TryResolveUserId(out Guid userId)
+        {
+            userId = Guid.Empty;
+
+            var claim = HttpContext?.User?.Claims?.FirstOrDefault(c =>
+                string.Equals(c.Type, "Jellyfin-UserId", StringComparison.OrdinalIgnoreCase))?.Value;
+            if (Guid.TryParse(claim, out userId) && userId != Guid.Empty)
+            {
+                return true;
+            }
+
+            var header =
+                Request.Headers["X-Emby-UserId"].FirstOrDefault() ??
+                Request.Headers["X-MediaBrowser-UserId"].FirstOrDefault();
+            return Guid.TryParse(header, out userId) && userId != Guid.Empty;
+        }
+
+        private bool IsAdmin(Guid userId)
+        {
+            var user = _users.GetUserById(userId);
+            return user?.Permissions.Any(permission =>
+                permission.Kind == PermissionKind.IsAdministrator && permission.Value) == true;
+        }
+
+        private static UserSettingsSnapshotEntry? FindEntry(JMSFusionConfiguration cfg, string userId, string profile)
+        {
+            cfg.UserSettingsSnapshots ??= new();
+            return cfg.UserSettingsSnapshots.FirstOrDefault(e =>
+                string.Equals(e?.UserId, userId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(NormalizeProfile(e?.Profile), profile, StringComparison.OrdinalIgnoreCase));
+        }
+
         private void NoCache()
         {
             Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
@@ -178,10 +227,25 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             var json = prof == "mobile"
                 ? (cfg.GlobalUserSettingsJsonMobile ?? "{}")
                 : (cfg.GlobalUserSettingsJsonDesktop ?? "{}");
-            var sanitizedJson = SanitizeSnapshotJson(json);
             var rev = prof == "mobile"
                 ? cfg.GlobalUserSettingsRevisionMobile
                 : cfg.GlobalUserSettingsRevisionDesktop;
+
+            // Fork ParticularFlix: com "forcar configuracoes globais" desligado, cada usuario
+            // le o proprio snapshot. O snapshot global vira apenas o modelo inicial.
+            var personal = false;
+            if (!cfg.ForceGlobalUserSettings && TryResolveUserId(out var requestUserId))
+            {
+                var entry = FindEntry(cfg, requestUserId.ToString("D"), prof);
+                if (entry is not null)
+                {
+                    json = entry.Json ?? "{}";
+                    rev = entry.Revision;
+                    personal = true;
+                }
+            }
+
+            var sanitizedJson = SanitizeSnapshotJson(json);
 
             object globalObj;
             try
@@ -199,6 +263,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                 profile = prof,
                 rev,
                 forceGlobal = cfg.ForceGlobalUserSettings,
+                personal,
                 global = globalObj
             });
         }
@@ -221,33 +286,81 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             var json = SerializeSanitizedSnapshot(req.Global);
             var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-            if (prof == "mobile")
+            var hasUser = TryResolveUserId(out var requestUserId);
+
+            if (cfg.ForceGlobalUserSettings)
             {
-                if (string.Equals(cfg.GlobalUserSettingsJsonMobile ?? "{}", json, StringComparison.Ordinal))
+                // Com configuracoes globais forcadas, so o administrador publica o snapshot global.
+                if (!hasUser || !IsAdmin(requestUserId))
                 {
                     NoCache();
-                    return Ok(new { ok = true, profile = prof, rev = cfg.GlobalUserSettingsRevisionMobile, skipped = true });
+                    return Ok(new { ok = true, profile = prof, ignored = true });
                 }
 
-                cfg.GlobalUserSettingsJsonMobile = json;
-                cfg.GlobalUserSettingsRevisionMobile = now;
+                if (prof == "mobile")
+                {
+                    if (string.Equals(cfg.GlobalUserSettingsJsonMobile ?? "{}", json, StringComparison.Ordinal))
+                    {
+                        NoCache();
+                        return Ok(new { ok = true, profile = prof, rev = cfg.GlobalUserSettingsRevisionMobile, skipped = true });
+                    }
+
+                    cfg.GlobalUserSettingsJsonMobile = json;
+                    cfg.GlobalUserSettingsRevisionMobile = now;
+                }
+                else
+                {
+                    if (string.Equals(cfg.GlobalUserSettingsJsonDesktop ?? "{}", json, StringComparison.Ordinal))
+                    {
+                        NoCache();
+                        return Ok(new { ok = true, profile = prof, rev = cfg.GlobalUserSettingsRevisionDesktop, skipped = true });
+                    }
+
+                    cfg.GlobalUserSettingsJsonDesktop = json;
+                    cfg.GlobalUserSettingsRevisionDesktop = now;
+                }
+
+                plugin.UpdateConfiguration(cfg);
+                NoCache();
+                return Ok(new { ok = true, profile = prof, rev = now });
             }
-            else
+
+            // Fork ParticularFlix: cada usuario grava somente o proprio snapshot.
+            if (!hasUser)
             {
-                if (string.Equals(cfg.GlobalUserSettingsJsonDesktop ?? "{}", json, StringComparison.Ordinal))
+                NoCache();
+                return Unauthorized(new { ok = false, error = "Usuario nao identificado." });
+            }
+
+            var userId = requestUserId.ToString("D");
+            var existing = FindEntry(cfg, userId, prof);
+            if (existing is not null && string.Equals(existing.Json ?? "{}", json, StringComparison.Ordinal))
+            {
+                NoCache();
+                return Ok(new { ok = true, profile = prof, rev = existing.Revision, skipped = true, personal = true });
+            }
+
+            if (existing is null)
+            {
+                if (cfg.UserSettingsSnapshots.Count >= MaxUserSnapshotEntries)
                 {
                     NoCache();
-                    return Ok(new { ok = true, profile = prof, rev = cfg.GlobalUserSettingsRevisionDesktop, skipped = true });
+                    return StatusCode(StatusCodes.Status507InsufficientStorage, new { ok = false, error = "Limite de snapshots atingido." });
                 }
 
-                cfg.GlobalUserSettingsJsonDesktop = json;
-                cfg.GlobalUserSettingsRevisionDesktop = now;
+                existing = new UserSettingsSnapshotEntry { UserId = userId, Profile = prof };
+                cfg.UserSettingsSnapshots.Add(existing);
             }
+
+            existing.UserName = _users.GetUserById(requestUserId)?.Username;
+            existing.Json = json;
+            existing.Revision = now;
+            existing.UpdatedAtUtc = now;
 
             plugin.UpdateConfiguration(cfg);
 
             NoCache();
-            return Ok(new { ok = true, profile = prof, rev = now });
+            return Ok(new { ok = true, profile = prof, rev = now, personal = true });
         }
     }
 }

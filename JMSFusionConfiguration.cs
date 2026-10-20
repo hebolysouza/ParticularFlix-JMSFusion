@@ -122,6 +122,11 @@ namespace Jellyfin.Plugin.JMSFusion
         [JsonPropertyName("studioHubManualEntries")]
         public List<StudioHubManualEntry> StudioHubManualEntries { get; set; } = new();
 
+        // Fork ParticularFlix: snapshot de configuracoes da interface por usuario e perfil de tela.
+        // JsonIgnore: nao sai nas respostas JSON da API, so e gravado no XML do plugin.
+        [JsonIgnore]
+        public List<UserSettingsSnapshotEntry> UserSettingsSnapshots { get; set; } = new();
+
         [JsonPropertyName("studioHubVisibilityEntries")]
         public List<StudioHubVisibilityEntry> StudioHubVisibilityEntries { get; set; } = new();
 
@@ -433,6 +438,16 @@ namespace Jellyfin.Plugin.JMSFusion
 
         [JsonPropertyName("addedByUserId")]
         public string? AddedByUserId { get; set; }
+    }
+
+    public class UserSettingsSnapshotEntry
+    {
+        public string UserId { get; set; } = string.Empty;
+        public string? UserName { get; set; }
+        public string Profile { get; set; } = "desktop";
+        public string Json { get; set; } = "{}";
+        public long Revision { get; set; } = 0;
+        public long UpdatedAtUtc { get; set; } = 0;
     }
 
     public class StudioHubVisibilityEntry
