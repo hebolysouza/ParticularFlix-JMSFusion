@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +32,20 @@ namespace Jellyfin.Plugin.JMSFusion
                 trailerAutomation.StartBackgroundToolBootstrap();
 
                 app.UseMiddleware<PathRewriteMiddleware>();
+
+                // Este filtro roda antes do UseResponseCompression do Jellyfin, entao os modulos
+                // de /slider saiam sem gzip/brotli. Comprime so esse caminho, e so se o servico
+                // de compressao do Jellyfin existir (se nao existir, nada muda).
+                if (app.ApplicationServices.GetService<IResponseCompressionProvider>() != null)
+                {
+                    app.UseWhen(
+                        ctx => ctx.Request.Path.StartsWithSegments("/slider", StringComparison.OrdinalIgnoreCase),
+                        branch => branch.UseResponseCompression());
+                }
+                else
+                {
+                    logger.LogWarning("[JMSFusion] Servico de compressao do Jellyfin nao encontrado; /slider seguira sem compressao.");
+                }
 
                 var asm = typeof(JMSStartupFilter).Assembly;
                 var embedded = new ManifestEmbeddedFileProvider(asm, "Resources/slider");
