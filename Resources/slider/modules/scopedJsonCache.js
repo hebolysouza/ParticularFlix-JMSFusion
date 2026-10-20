@@ -30,17 +30,32 @@ function readSessionMirror(cacheType, scope) {
   }
 }
 
-function writeSessionMirror(cacheType, scope, payload) {
-  if (!canUseSessionMirror(cacheType)) return;
-
+function writeSessionMirrorNow(cacheType, scope, payload, savedAt) {
   try {
     sessionStorage.setItem(sessionMirrorKey(cacheType, scope), JSON.stringify({
-      savedAt: Date.now(),
+      savedAt,
       payload: payload && typeof payload === "object" ? payload : {}
     }));
   } catch {
     try { sessionStorage.removeItem(sessionMirrorKey(cacheType, scope)); } catch {}
   }
+}
+
+// Fork ParticularFlix: o espelho em sessionStorage serializa o payload inteiro de forma
+// sincrona (centenas de ms em payloads grandes). Agora a gravacao roda quando o
+// navegador esta ocioso; a leitura continua igual e o espelho e apenas um atalho.
+function writeSessionMirror(cacheType, scope, payload) {
+  if (!canUseSessionMirror(cacheType)) return;
+
+  const savedAt = Date.now();
+  const run = () => writeSessionMirrorNow(cacheType, scope, payload, savedAt);
+  try {
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(run, { timeout: 4000 });
+      return;
+    }
+  } catch {}
+  setTimeout(run, 300);
 }
 
 function normalizeIgnoreSet(values = []) {

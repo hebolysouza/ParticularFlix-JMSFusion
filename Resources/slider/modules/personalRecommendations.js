@@ -3012,7 +3012,7 @@ export function progressivelyRenderCardRow({
     try { onComplete?.({ rendered, total, aborted }); } catch {}
   };
 
-  const appendNext = (count) => {
+  const appendNext = (count, deadline = null) => {
     if (!isAlive()) return false;
     const frag = document.createDocumentFragment();
     let appended = 0;
@@ -3023,6 +3023,13 @@ export function progressivelyRenderCardRow({
       if (!card) continue;
       frag.appendChild(card);
       appended += 1;
+      // Fork ParticularFlix: com a janela ociosa quase acabando, entrega o que ja
+      // foi montado e deixa o resto para o proximo ciclo (evita quadros longos).
+      if (deadline && appended < count) {
+        try {
+          if (deadline.timeRemaining() < 8) break;
+        } catch {}
+      }
     }
 
     if (!appended) return false;
@@ -3031,7 +3038,7 @@ export function progressivelyRenderCardRow({
     return true;
   };
 
-  const pump = () => {
+  const pump = (deadline = null) => {
     clearScheduled();
     if (!isAlive()) {
       finish({ aborted: true });
@@ -3042,7 +3049,7 @@ export function progressivelyRenderCardRow({
       return;
     }
     const nextChunkSize = Math.max(1, chunkSize | 0);
-    const appended = appendNext(nextChunkSize);
+    const appended = appendNext(nextChunkSize, deadline);
     if (!appended || rendered >= total) {
       finish({ aborted: !appended });
       return;
@@ -3063,10 +3070,10 @@ export function progressivelyRenderCardRow({
     const waitMs = Math.max(16, Number(delayMs) || (IS_MOBILE ? 80 : 32));
     if (typeof window.requestIdleCallback === "function") {
       usedIdle = true;
-      idleId = window.requestIdleCallback(() => {
+      idleId = window.requestIdleCallback((deadline) => {
         idleId = 0;
         usedIdle = false;
-        pump();
+        pump(deadline);
       }, { timeout: Math.max(80, waitMs) });
       return;
     }
@@ -3833,10 +3840,22 @@ export function setupScroller(row) {
     });
   };
 
-  const mo = new MutationObserver(() => scheduleUpdate());
+  // Fork ParticularFlix: cartoes e imagens chegam em rajada; agrupa as
+  // atualizacoes dos botoes em uma so, em vez de uma leitura de layout por evento.
+  let _soonTimer = 0;
+  const scheduleUpdateSoon = () => {
+    if (_soonTimer || _rafToken) return;
+    _soonTimer = window.setTimeout(() => {
+      _soonTimer = 0;
+      if (!row.isConnected) return;
+      scheduleUpdate();
+    }, 150);
+  };
+
+  const mo = new MutationObserver(() => scheduleUpdateSoon());
   mo.observe(row, { childList: true });
 
-  const onLoadCapture = () => scheduleUpdate();
+  const onLoadCapture = () => scheduleUpdateSoon();
   row.addEventListener("load", onLoadCapture, true);
 
   const onWheel = (e) => {
@@ -3868,7 +3887,7 @@ export function setupScroller(row) {
     row.addEventListener("scrollend", onScrollEnd, { passive: true });
   }
 
-  const ro = new ResizeObserver(() => scheduleUpdate());
+  const ro = new ResizeObserver(() => scheduleUpdateSoon());
   ro.observe(row);
   row.__scroller = {
     dynamicButtons: true,

@@ -2914,6 +2914,9 @@ export function initSubtitleCustomizer() {
     }
     heavyApplyTimeoutId = window.setTimeout(() => {
       heavyApplyTimeoutId = null;
+      // Fork ParticularFlix: fora da tela de reproducao nao ha legenda para ajustar;
+      // evita refazer estilos e leituras de layout na Home (ex.: videos de trailer).
+      if (!isPlaybackScreenActive()) return;
       applyNow();
     }, delayMs);
   };
