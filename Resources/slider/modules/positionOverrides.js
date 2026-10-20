@@ -384,12 +384,22 @@ export function forceHomeSectionsTop() {
     // A home recebe centenas de mutacoes enquanto as fileiras carregam. Antes cada lote de
     // mutacoes executava applyHomeTop na hora (consultas ao DOM e escritas de estilo);
     // agora os lotes de um mesmo quadro viram uma unica execucao, ainda antes da pintura.
-    homeTopObserver = new MutationObserver(() => {
-      if (homeTopRafId) return;
+    // Fork ParticularFlix: alem de agrupar por quadro, limita a uma execucao a cada 250 ms
+    // (o ultimo lote sempre roda, entao o estado final fica correto).
+    let homeTopTimer = 0;
+    let homeTopLastAt = 0;
+    const runHomeTop = () => {
       homeTopRafId = requestAnimationFrame(() => {
         homeTopRafId = 0;
+        homeTopLastAt = Date.now();
         try { applyHomeTop?.(); } catch {}
       });
+    };
+    homeTopObserver = new MutationObserver(() => {
+      if (homeTopRafId || homeTopTimer) return;
+      const wait = 250 - (Date.now() - homeTopLastAt);
+      if (wait <= 0) { runHomeTop(); return; }
+      homeTopTimer = setTimeout(() => { homeTopTimer = 0; runHomeTop(); }, wait);
     });
     reconnectObserver(homeTopObserver);
   } else {

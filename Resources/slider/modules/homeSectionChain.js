@@ -352,7 +352,14 @@ function handleHomeMutationActivity() {
   if (HOME_SCROLL_TRACKER.mutationTimer) return;
   HOME_SCROLL_TRACKER.mutationTimer = setTimeout(() => {
     HOME_SCROLL_TRACKER.mutationTimer = 0;
-    scheduleHomeScrollIntentCheck();
+    // Mutacao nao muda a posicao de rolagem (isso chega pelos eventos de scroll). Ler scrollTop
+    // aqui forcaria layout sem necessidade; so refaz a lista de alvos se estiver velha.
+    const nowTs = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+    if ((nowTs - HOME_SCROLL_TRACKER.lastRefreshAt) > HOME_SCROLL_TARGETS_REFRESH_MS) {
+      HOME_SCROLL_TRACKER.lastRoot = getActiveHomeRoot();
+      HOME_SCROLL_TRACKER.lastRefreshAt = nowTs;
+      refreshHomeScrollTrackerTargets();
+    }
   }, HOME_SCROLL_MUTATION_COALESCE_MS);
 }
 

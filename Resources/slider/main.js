@@ -6861,15 +6861,28 @@ window.slidesInit = slidesInit;
   lockLayoutInlineImportant();
 
   let __rafLock = 0;
+  let __patchTimer = 0;
+  let __lastPatchAt = 0;
+  // Fork ParticularFlix: no maximo uma passada a cada 300 ms (antes rodava a cada quadro com mutacao).
+  const PATCH_MIN_INTERVAL_MS = 300;
   const runPatchPass = () => {
     __rafLock = 0;
+    __lastPatchAt = Date.now();
     scanAndInject();
     lockLayoutInlineImportant();
   };
   const mo = new MutationObserver((mutations) => {
     if (!mutationsTouchSelectors(mutations, CARD_OVERLAY_FIX_TRIGGER_SELECTOR_TEXT)) return;
-    if (__rafLock) return;
-    __rafLock = requestAnimationFrame(runPatchPass);
+    if (__rafLock || __patchTimer) return;
+    const wait = PATCH_MIN_INTERVAL_MS - (Date.now() - __lastPatchAt);
+    if (wait <= 0) {
+      __rafLock = requestAnimationFrame(runPatchPass);
+      return;
+    }
+    __patchTimer = setTimeout(() => {
+      __patchTimer = 0;
+      __rafLock = requestAnimationFrame(runPatchPass);
+    }, wait);
   });
   mo.observe(getDomObserveRoot(), { childList: true, subtree: true });
 })();
