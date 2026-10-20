@@ -2418,7 +2418,18 @@ function installHomeTabSliderOnlyGate() {
 
   apply();
 
-  const mo = new MutationObserver(() => apply());
+  // Fork ParticularFlix: o observador dispara a cada mudanca do DOM e apply() le a
+  // configuracao inteira (getConfig). Agrupa as chamadas em uma por 120 ms.
+  let applyTimer = 0;
+  const scheduleApply = () => {
+    if (applyTimer) return;
+    applyTimer = window.setTimeout(() => {
+      applyTimer = 0;
+      apply();
+    }, 120);
+  };
+
+  const mo = new MutationObserver(scheduleApply);
   mo.observe(getDomObserveRoot(), { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
 
   const tick = () => apply();
@@ -2428,6 +2439,10 @@ function installHomeTabSliderOnlyGate() {
 
   window.__cleanupHomeTabSliderOnlyGate = () => {
     try { mo.disconnect(); } catch {}
+    if (applyTimer) {
+      try { clearTimeout(applyTimer); } catch {}
+      applyTimer = 0;
+    }
     window.removeEventListener("popstate", tick);
     window.removeEventListener("pageshow", tick);
     window.removeEventListener("focus", tick);

@@ -142,14 +142,29 @@ function detectProfile() {
   }
 }
 
-function isDeniedKey(key) {
-  const normalized = String(key || "").trim();
+// Fork ParticularFlix: o resultado depende somente do nome da chave (listas fixas),
+// e getConfig() registra centenas de chaves a cada chamada. O cache evita refazer
+// as comparacoes e a expressao regular para a mesma chave.
+const deniedKeyCache = new Map();
+
+function computeDeniedKey(normalized) {
   const lowered = normalized.toLowerCase();
-  if (!normalized) return true;
   if (DENY_KEYS.has(normalized)) return true;
   if (DENY_PREFIXES.some(prefix => lowered.startsWith(prefix))) return true;
   if (/token|credential|session/i.test(normalized)) return true;
   return false;
+}
+
+function isDeniedKey(key) {
+  const normalized = String(key || "").trim();
+  if (!normalized) return true;
+  let denied = deniedKeyCache.get(normalized);
+  if (denied === undefined) {
+    denied = computeDeniedKey(normalized);
+    if (deniedKeyCache.size >= 4000) deniedKeyCache.clear();
+    deniedKeyCache.set(normalized, denied);
+  }
+  return denied;
 }
 
 function registerKeys(keys = []) {

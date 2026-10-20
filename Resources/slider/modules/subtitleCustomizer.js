@@ -3094,12 +3094,24 @@ export function initSubtitleCustomizer() {
   applyNow();
   ensureButtons();
 
+  // Fork ParticularFlix: o observador dispara a cada mudanca do DOM e a verificacao
+  // da tela de reproducao faz varias consultas ao documento. Agrupa em uma por 250 ms
+  // (o proprio ticker de legendas ja roda a cada 250 ms).
+  let syncTickerTimer = 0;
+  const scheduleSyncLiveSubtitleTicker = () => {
+    if (syncTickerTimer) return;
+    syncTickerTimer = window.setTimeout(() => {
+      syncTickerTimer = 0;
+      syncLiveSubtitleTicker();
+    }, 250);
+  };
+
   observer = new MutationObserver((mutations) => {
     if (document.hidden) {
       suspendHiddenSubtitleWork();
       return;
     }
-    syncLiveSubtitleTicker();
+    scheduleSyncLiveSubtitleTicker();
     if (!isRelevantSubtitleMutation(mutations)) return;
     scheduleLightApply();
     if (mutationNeedsHeavyRefresh(mutations)) {
@@ -3153,6 +3165,10 @@ export function initSubtitleCustomizer() {
 
     cancelScheduledApplies();
     stopLiveSubtitleTicker();
+    if (syncTickerTimer) {
+      try { clearTimeout(syncTickerTimer); } catch {}
+      syncTickerTimer = 0;
+    }
 
     try {
       closeDialog?.();
