@@ -1962,13 +1962,25 @@ function clearPreviewPlaybackFlag() {
           }
         }
       };
+      // Fork ParticularFlix: durante a rolagem o evento dispara a cada quadro; a checagem
+      // (getBoundingClientRect) agora roda no maximo a cada 150 ms e so no slide ativo.
+      let viewportCheckTimer = 0;
       const queueViewportVisibilityCheck = () => {
-        if (viewportCheckRaf) return;
-        viewportCheckRaf = requestAnimationFrame(runViewportVisibilityCheck);
+        if (viewportCheckRaf || viewportCheckTimer) return;
+        if (!isActiveSlide() && !autoPreviewActive && !autoPreviewPending) return;
+        viewportCheckTimer = window.setTimeout(() => {
+          viewportCheckTimer = 0;
+          if (viewportCheckRaf) return;
+          viewportCheckRaf = requestAnimationFrame(runViewportVisibilityCheck);
+        }, 150);
       };
       window.addEventListener("scroll", queueViewportVisibilityCheck, { passive: true, capture: true });
       window.addEventListener("resize", queueViewportVisibilityCheck, { passive: true });
       cleanups.push(() => {
+        if (viewportCheckTimer) {
+          try { clearTimeout(viewportCheckTimer); } catch {}
+          viewportCheckTimer = 0;
+        }
         if (viewportCheckRaf) {
           try { cancelAnimationFrame(viewportCheckRaf); } catch {}
           viewportCheckRaf = 0;
