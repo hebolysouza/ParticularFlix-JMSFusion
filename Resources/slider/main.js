@@ -5076,13 +5076,15 @@ export async function slidesInit() {
                     ? (it) => requestedImageTypes.every((t) => itemHasImageType(it, t))
                     : null;
                 })(),
+                // O tipo "itemsPool" faz o cache descartar DateCreated e PremiereDate, campos que
+                // esta lista precisa para ordenar. Por isso usa um tipo proprio (sem compactacao).
                 fetchJson: (url) => cachedFetchJson({
-                  keyParts: ["sourcePool", sliderSourceMode, userId, url],
+                  keyParts: ["sliderSourcePoolV2", sliderSourceMode, userId, url],
                   url,
                   opts: { headers: authHeaders },
                   fetchJson: fetchJsonViaSafeFetch,
                   ttlMs: itemsPoolTtlMs,
-                  entryMeta: { kind: "itemsPool", userId, queryString: url },
+                  entryMeta: { kind: "sliderSourcePool", userId, queryString: url },
                   allowStaleOnError: true,
                 }),
                 fetchItemDetails: (id) => fetchItemDetailsCached(id),
