@@ -47,7 +47,15 @@ const HOME_SCROLL_TRACKER = {
   nextTokenId: 0,
   pendingTokenId: 0,
   consumedTokenId: 0,
+  lastRefreshAt: 0,
+  lastRoot: null,
+  forceRefresh: true,
+  mutationTimer: 0,
 };
+// Fork ParticularFlix: a lista de elementos rolaveis (getComputedStyle em toda a cadeia de pais)
+// nao precisa ser refeita a cada quadro de rolagem ou mutacao; reaproveita por este tempo.
+const HOME_SCROLL_TARGETS_REFRESH_MS = 1500;
+const HOME_SCROLL_MUTATION_COALESCE_MS = 200;
 const MANAGED_RENDER_QUEUE = {
   tasks: [],
   draining: false,
@@ -314,7 +322,18 @@ function scheduleHomeScrollIntentCheck({ fromUser = false } = {}) {
   if (HOME_SCROLL_TRACKER.rafId) return;
   HOME_SCROLL_TRACKER.rafId = requestAnimationFrame(() => {
     HOME_SCROLL_TRACKER.rafId = 0;
-    refreshHomeScrollTrackerTargets();
+    const nowTs = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+    const root = getActiveHomeRoot();
+    if (
+      HOME_SCROLL_TRACKER.forceRefresh ||
+      root !== HOME_SCROLL_TRACKER.lastRoot ||
+      (nowTs - HOME_SCROLL_TRACKER.lastRefreshAt) > HOME_SCROLL_TARGETS_REFRESH_MS
+    ) {
+      HOME_SCROLL_TRACKER.forceRefresh = false;
+      HOME_SCROLL_TRACKER.lastRoot = root;
+      HOME_SCROLL_TRACKER.lastRefreshAt = nowTs;
+      refreshHomeScrollTrackerTargets();
+    }
     checkHomeScrollIntentNow();
   });
 }
@@ -324,7 +343,17 @@ function handleHomeUserActivity() {
 }
 
 function handleHomePassiveActivity() {
+  // resize e hashchange podem mudar a cadeia de elementos rolaveis: refaz a lista.
+  HOME_SCROLL_TRACKER.forceRefresh = true;
   scheduleHomeScrollIntentCheck();
+}
+
+function handleHomeMutationActivity() {
+  if (HOME_SCROLL_TRACKER.mutationTimer) return;
+  HOME_SCROLL_TRACKER.mutationTimer = setTimeout(() => {
+    HOME_SCROLL_TRACKER.mutationTimer = 0;
+    scheduleHomeScrollIntentCheck();
+  }, HOME_SCROLL_MUTATION_COALESCE_MS);
 }
 
 function ensureHomeScrollIntentTracking() {
@@ -346,7 +375,7 @@ function ensureHomeScrollIntentTracking() {
   const observerTarget = document.body || document.documentElement || null;
   if (observerTarget && typeof MutationObserver === "function") {
     HOME_SCROLL_TRACKER.mutationObserver = new MutationObserver(() => {
-      handleHomePassiveActivity();
+      handleHomeMutationActivity();
     });
     try {
       HOME_SCROLL_TRACKER.mutationObserver.observe(observerTarget, {
