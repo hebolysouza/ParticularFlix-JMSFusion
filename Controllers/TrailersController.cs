@@ -107,6 +107,11 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         [HttpGet("status")]
         public IActionResult Status()
         {
+            if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
+            {
+                return ApiError(403, ApiAdminRequiredCode, "Sadece admin kullanıcılar çalıştırabilir.");
+            }
+
             if (!TryGetRequestUserId(out var userId))
             {
                 return ApiError(401, ApiUserHeaderRequiredCode, "X-Emby-UserId header gerekli.");
@@ -141,6 +146,11 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         [HttpPost("cancel")]
         public IActionResult Cancel()
         {
+            if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
+            {
+                return ApiError(403, ApiAdminRequiredCode, "Sadece admin kullanıcılar çalıştırabilir.");
+            }
+
             if (!TryGetRequestUserId(out var userId))
             {
                 return ApiError(401, ApiUserHeaderRequiredCode, "X-Emby-UserId header gerekli.");
@@ -166,6 +176,11 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         [HttpPost("run")]
         public IActionResult Run([FromBody] RunRequest req, CancellationToken outerCt)
         {
+            if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
+            {
+                return ApiError(403, ApiAdminRequiredCode, "Sadece admin kullanıcılar çalıştırabilir.");
+            }
+
             try
             {
                 var cfg = JMSFusionPlugin.Instance?.Configuration;
@@ -393,6 +408,11 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         [HttpGet("diag")]
         public IActionResult Diag()
         {
+            if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
+            {
+                return ApiError(403, ApiAdminRequiredCode, "Sadece admin kullanıcılar çalıştırabilir.");
+            }
+
             var cfg = JMSFusionPlugin.Instance?.Configuration;
             var hasYtDlp = _trailerService.HasCommand("yt-dlp");
             var hasDeno = _trailerService.HasCommand("deno");

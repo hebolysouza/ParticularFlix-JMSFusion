@@ -1,3 +1,4 @@
+using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -40,6 +41,13 @@ public class ConfigController : ControllerBase
     private const int MinConcurrentDownloads = 1;
     private const int MaxConcurrentDownloads = 8;
 
+    private readonly IUserManager _users;
+
+    public ConfigController(IUserManager users)
+    {
+        _users = users;
+    }
+
     [HttpGet]
     public IActionResult Get()
     {
@@ -48,7 +56,8 @@ public class ConfigController : ControllerBase
         Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
         Response.Headers["Pragma"] = "no-cache";
         Response.Headers["Expires"] = "0";
-        return Ok(new { rev = cfg.GlobalUserSettingsRevision, cfg });
+        var level = RequestAuth.GetLevel(HttpContext, _users);
+        return Ok(new { rev = cfg.GlobalUserSettingsRevision, cfg = RequestAuth.Redact(cfg, level) });
     }
 
     [HttpPost]
@@ -56,6 +65,28 @@ public class ConfigController : ControllerBase
     {
         var plugin = JMSFusionPlugin.Instance ?? throw new InvalidOperationException("Plugin not available.");
         var cfg = plugin.Configuration;
+
+        // Fork ParticularFlix: so administradores alteram a configuracao. Usuarios comuns
+        // podem apenas atualizar a lista de radios compartilhadas (recurso do player).
+        var level = RequestAuth.GetLevel(HttpContext, _users);
+        if (level == RequestAuth.Level.Anonymous)
+        {
+            return Unauthorized(new { ok = false, error = "Authentication required." });
+        }
+
+        if (level != RequestAuth.Level.Admin)
+        {
+            if (incoming is null || incoming.RadioStations is null || HasNonRadioChanges(incoming))
+            {
+                return StatusCode(403, new { ok = false, error = "This action is only available to administrators." });
+            }
+
+            cfg.RadioStations = incoming.RadioStations.Take(300).ToList();
+            cfg.GlobalUserSettingsRevision = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            plugin.UpdateConfiguration(cfg);
+            Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
+            return Ok(new { ok = true, saved = true, rev = cfg.GlobalUserSettingsRevision, cfg = RequestAuth.Redact(cfg, level) });
+        }
         if (incoming.AllowScriptExecution.HasValue)    cfg.AllowScriptExecution    = incoming.AllowScriptExecution.Value;
         if (incoming.EnableTrailerDownloader.HasValue) cfg.EnableTrailerDownloader = incoming.EnableTrailerDownloader.Value;
         if (incoming.EnableTrailerUrlNfo.HasValue)     cfg.EnableTrailerUrlNfo     = incoming.EnableTrailerUrlNfo.Value;
@@ -111,6 +142,32 @@ public class ConfigController : ControllerBase
         Response.Headers["Expires"] = "0";
 
         return Ok(new { ok = true, saved = true, rev = cfg.GlobalUserSettingsRevision, cfg });
+    }
+
+    private static bool HasNonRadioChanges(ConfigUpdateDto dto)
+    {
+        foreach (var prop in typeof(ConfigUpdateDto).GetProperties())
+        {
+            if (prop.Name == nameof(ConfigUpdateDto.RadioStations))
+            {
+                continue;
+            }
+
+            var value = prop.GetValue(dto);
+            if (value is null)
+            {
+                continue;
+            }
+
+            if (value is string text && string.IsNullOrWhiteSpace(text))
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private static void NormalizeTrailerResolutionRange(ref int minResolution, ref int maxResolution)

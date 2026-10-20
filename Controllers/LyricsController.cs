@@ -90,6 +90,9 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         [HttpGet("status")]
         public IActionResult Status()
         {
+            if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
+                return StatusCode(403, new { ok = false, error = "Sadece admin kullanıcılar çalıştırabilir." });
+
             var uid = ReadUserId();
             if (uid == Guid.Empty) return Unauthorized(new { ok = false, error = "X-Emby-UserId gerekli" });
 
@@ -120,6 +123,9 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         [HttpPost("cancel")]
         public IActionResult Cancel()
         {
+            if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
+                return StatusCode(403, new { ok = false, error = "Sadece admin kullanıcılar çalıştırabilir." });
+
             var uid = ReadUserId();
             if (uid == Guid.Empty) return Unauthorized(new { ok = false, error = "X-Emby-UserId gerekli" });
 
@@ -136,6 +142,9 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         [HttpPost("run")]
         public IActionResult Run([FromBody] RunRequest req, CancellationToken outerCt)
         {
+            if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
+                return StatusCode(403, new { ok = false, error = "Sadece admin kullanıcılar çalıştırabilir." });
+
             var cfg = JMSFusionPlugin.Instance?.Configuration
                       ?? throw new InvalidOperationException("Plugin configuration not available.");
 

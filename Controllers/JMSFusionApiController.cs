@@ -1,3 +1,4 @@
+using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
@@ -19,10 +20,34 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
     public class JMSFusionApiController : ControllerBase
     {
         private readonly ILogger<JMSFusionApiController> _logger;
-        public JMSFusionApiController(ILogger<JMSFusionApiController> logger) => _logger = logger;
+        private readonly IUserManager _users;
+
+        public JMSFusionApiController(ILogger<JMSFusionApiController> logger, IUserManager users)
+        {
+            _logger = logger;
+            _users = users;
+        }
+
+        // Fork ParticularFlix: acoes que alteram o servidor so valem para administradores.
+        private IActionResult? RequireAdmin()
+        {
+            var level = RequestAuth.GetLevel(HttpContext, _users);
+            if (level == RequestAuth.Level.Admin)
+            {
+                return null;
+            }
+
+            return level == RequestAuth.Level.Anonymous
+                ? Unauthorized(new { success = false, error = "Authentication required." })
+                : StatusCode(403, new { success = false, error = "This action is only available to administrators." });
+        }
 
         [HttpGet("Configuration")]
-        public ActionResult<JMSFusionConfiguration> GetConfiguration() => Ok(JMSFusionPlugin.Instance.Configuration);
+        public ActionResult<JMSFusionConfiguration> GetConfiguration()
+        {
+            var level = RequestAuth.GetLevel(HttpContext, _users);
+            return Ok(RequestAuth.Redact(JMSFusionPlugin.Instance.Configuration, level));
+        }
 
         public sealed class UpdateRequest
         {
@@ -35,6 +60,9 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         [HttpPost("Configuration")]
         public IActionResult UpdateConfiguration([FromBody] UpdateRequest req)
         {
+            var denied = RequireAdmin();
+            if (denied is not null) return denied;
+
             try
             {
                 var plugin = JMSFusionPlugin.Instance;
@@ -107,6 +135,9 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         [HttpGet("Env")]
         public IActionResult GetEnv()
         {
+            var denied = RequireAdmin();
+            if (denied is not null) return denied;
+
             var user = GetRunningUser();
             var webRoot = DetectWebRoot();
 
@@ -236,6 +267,9 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         [HttpPost("Patch")]
         public IActionResult Patch()
         {
+            var denied = RequireAdmin();
+            if (denied is not null) return denied;
+
             try
             {
                 var webRoot = DetectWebRoot();
@@ -275,6 +309,9 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         [HttpPost("Unpatch")]
         public IActionResult Unpatch()
         {
+            var denied = RequireAdmin();
+            if (denied is not null) return denied;
+
             try
             {
                 var webRoot = DetectWebRoot();
