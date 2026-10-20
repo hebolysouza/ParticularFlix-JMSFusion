@@ -1,6 +1,7 @@
 import { getConfig } from './config.js';
 
 let homeTopObserver = null;
+let homeTopRafId = 0;
 let skinHeaderObserver = null;
 let applyHomeTop = null;
 let applySkinHeader = null;
@@ -298,9 +299,13 @@ function applyTopToElements(value, affectFavoritesTab = true, visualTopValue = '
   const targets = getHomeTopTargets(affectFavoritesTab);
   for (const el of targets) {
     if (!el) continue;
+    // So escreve no estilo quando o valor realmente muda (escrita repetida invalida o estilo).
+    const currentVisualTop = el.style.getPropertyValue(SLIDER_VISUAL_TOP_VAR);
     if (visualTopValue) {
-      el.style.setProperty(SLIDER_VISUAL_TOP_VAR, visualTopValue);
-    } else {
+      if (currentVisualTop !== visualTopValue) {
+        el.style.setProperty(SLIDER_VISUAL_TOP_VAR, visualTopValue);
+      }
+    } else if (currentVisualTop) {
       el.style.removeProperty(SLIDER_VISUAL_TOP_VAR);
     }
     if (el.style.top !== value) {
@@ -376,8 +381,15 @@ export function forceHomeSectionsTop() {
       scheduleBurst(applyAlways);
     }
 
+    // A home recebe centenas de mutacoes enquanto as fileiras carregam. Antes cada lote de
+    // mutacoes executava applyHomeTop na hora (consultas ao DOM e escritas de estilo);
+    // agora os lotes de um mesmo quadro viram uma unica execucao, ainda antes da pintura.
     homeTopObserver = new MutationObserver(() => {
-      try { applyHomeTop?.(); } catch {}
+      if (homeTopRafId) return;
+      homeTopRafId = requestAnimationFrame(() => {
+        homeTopRafId = 0;
+        try { applyHomeTop?.(); } catch {}
+      });
     });
     reconnectObserver(homeTopObserver);
   } else {
