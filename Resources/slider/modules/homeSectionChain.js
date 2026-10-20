@@ -51,7 +51,10 @@ const HOME_SCROLL_TRACKER = {
   lastRoot: null,
   forceRefresh: true,
   mutationTimer: 0,
+  checkTimer: 0,
+  lastCheckAt: 0,
 };
+const HOME_SCROLL_CHECK_MIN_INTERVAL_MS = 100;
 // Fork ParticularFlix: a lista de elementos rolaveis (getComputedStyle em toda a cadeia de pais)
 // nao precisa ser refeita a cada quadro de rolagem ou mutacao; reaproveita por este tempo.
 const HOME_SCROLL_TARGETS_REFRESH_MS = 1500;
@@ -319,9 +322,20 @@ function scheduleHomeScrollIntentCheck({ fromUser = false } = {}) {
   if (fromUser) {
     HOME_SCROLL_TRACKER.pendingUserCheck = true;
   }
-  if (HOME_SCROLL_TRACKER.rafId) return;
+  if (HOME_SCROLL_TRACKER.rafId || HOME_SCROLL_TRACKER.checkTimer) return;
+  // Fork ParticularFlix: no maximo uma checagem a cada 100 ms (ler scrollTop forca layout;
+  // a ultima checagem sempre roda, entao o fim da rolagem continua sendo detectado).
+  const sinceLast = Date.now() - (HOME_SCROLL_TRACKER.lastCheckAt || 0);
+  if (sinceLast < HOME_SCROLL_CHECK_MIN_INTERVAL_MS) {
+    HOME_SCROLL_TRACKER.checkTimer = setTimeout(() => {
+      HOME_SCROLL_TRACKER.checkTimer = 0;
+      scheduleHomeScrollIntentCheck();
+    }, HOME_SCROLL_CHECK_MIN_INTERVAL_MS - sinceLast);
+    return;
+  }
   HOME_SCROLL_TRACKER.rafId = requestAnimationFrame(() => {
     HOME_SCROLL_TRACKER.rafId = 0;
+    HOME_SCROLL_TRACKER.lastCheckAt = Date.now();
     const nowTs = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
     const root = getActiveHomeRoot();
     if (
