@@ -1666,6 +1666,13 @@ function ensureCardActionsCSS() {
   html.jms-card-preview-on .jms-card-action--preview { display: flex; }
   .jms-card-action:hover, .jms-card-action:focus-visible { background: rgba(229, 9, 20, 0.88); outline: none; }
   .jms-card-action svg { width: 16px; height: 16px; pointer-events: none; }
+  .jms-card-action--preview .jms-pi { display: none; pointer-events: none; }
+  html[data-jms-card-icon="clapper"] .jms-pi--clapper,
+  html[data-jms-card-icon="film"] .jms-pi--film,
+  html[data-jms-card-icon="screen"] .jms-pi--screen,
+  html[data-jms-card-icon="camera"] .jms-pi--camera { display: block; }
+  html[data-jms-card-icon="text"] .jms-pi--text { display: block; font-size: 11px; font-weight: 700; letter-spacing: .3px; line-height: 1; }
+  html[data-jms-card-icon="text"] .jms-card-action--preview { width: auto; padding: 0 11px; border-radius: 16px; }
   html.touch-device .jms-card-actions { display: none !important; }
   `;
   document.head.appendChild(s);
@@ -1685,10 +1692,22 @@ function getCardActionsPosition() {
   return 'middle-right';
 }
 
+const CARD_PREVIEW_ICONS = new Set(['clapper', 'film', 'screen', 'camera', 'text']);
+
+function getCardPreviewIcon() {
+  try {
+    const v = getConfig()?.cardPreviewIcon;
+    if (CARD_PREVIEW_ICONS.has(v)) return v;
+  } catch {}
+  return 'clapper';
+}
+
 function syncCardActionClasses() {
   const root = document.documentElement;
   const pos = getCardActionsPosition();
   if (root.getAttribute('data-jms-card-pos') !== pos) root.setAttribute('data-jms-card-pos', pos);
+  const icon = getCardPreviewIcon();
+  if (root.getAttribute('data-jms-card-icon') !== icon) root.setAttribute('data-jms-card-icon', icon);
   let infoOn = false;
   try { infoOn = getConfig()?.showCardInfoButton === true; } catch {}
   const previewOn = getHoverOpenMode() === 'click';
@@ -1749,8 +1768,8 @@ function mountCardActions(card) {
 
   const previewBtn = makeButton(
     'jms-card-action--preview',
-    L('cardPreviewButtonTitle', 'Pre-visualizar'),
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>'
+    L('cardPreviewButtonTitle', 'Pre-visualizar trailer'),
+    '<svg class="jms-pi jms-pi--clapper" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg><svg class="jms-pi jms-pi--film" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18 3v2h-2V3H8v2H6V3H4v18h2v-2h2v2h8v-2h2v2h2V3h-2zM8 17H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm10 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/></svg><svg class="jms-pi jms-pi--screen" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10 8v8l5-4-5-4zm9-5H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/></svg><svg class="jms-pi jms-pi--camera" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg><span class="jms-pi jms-pi--text">' + L('cardPreviewTextLabel', 'Trailer') + '</span>'
   );
   previewBtn.addEventListener('click', (e) => {
     stop(e);

@@ -60,6 +60,19 @@ export function createHoverTrailerPanel(config, labels) {
   ));
 
   section.appendChild(createSelect(
+    'cardPreviewIcon',
+    labels.cardPreviewIcon || 'Icone do botao de trailer',
+    [
+      { value: 'clapper', text: labels.cardIconClapper || 'Claquete' },
+      { value: 'film',    text: labels.cardIconFilm    || 'Rolo de filme' },
+      { value: 'screen',  text: labels.cardIconScreen  || 'Tela com play' },
+      { value: 'camera',  text: labels.cardIconCamera  || 'Camera' },
+      { value: 'text',    text: labels.cardIconText    || 'Texto "Trailer"' }
+    ],
+    config.cardPreviewIcon || 'clapper'
+  ));
+
+  section.appendChild(createSelect(
     'cardActionsPosition',
     labels.cardActionsPosition || 'Posicao dos botoes no cartao',
     [
