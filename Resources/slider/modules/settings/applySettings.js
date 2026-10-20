@@ -402,6 +402,10 @@ const USER_ONLY_KEYS = [
             albumArtBackgroundOpacity: parseFloat(formData.get('albumArtBackgroundOpacity')),
             shuffleSeedLimit: parseInt(formData.get('shuffleSeedLimit'), 10),
             balanceItemTypes: formData.get('balanceItemTypes') === 'on',
+            sliderSourceMode: ['query', 'currentReleases', 'premieres'].includes(formData.get('sliderSourceMode'))
+              ? formData.get('sliderSourceMode')
+              : 'query',
+            sliderSourceWindowMonths: Math.max(1, Math.min(60, parseInt(formData.get('sliderSourceWindowMonths'), 10) || 6)),
             showCast,
             showProgressBar: false,
             showProgressAsSeconds: formData.get('showProgressAsSeconds') === 'on',

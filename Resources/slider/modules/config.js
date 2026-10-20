@@ -697,6 +697,8 @@ export function getConfig() {
     onlyShowSliderOnHomeTab: localStorage.getItem('onlyShowSliderOnHomeTab') !== 'false',
     showLanguageInfo: localStorage.getItem('showLanguageInfo') !== 'false',
     balanceItemTypes: localStorage.getItem('balanceItemTypes') !== 'false',
+    sliderSourceMode: localStorage.getItem('sliderSourceMode') || 'query',
+    sliderSourceWindowMonths: Math.max(1, Math.min(60, parseInt(localStorage.getItem('sliderSourceWindowMonths'), 10) || 6)),
     showRatingInfo: localStorage.getItem('showRatingInfo') !== 'false',
     showMatchPercentage: localStorage.getItem('showMatchPercentage') !== 'false',
     metaIconColors: localStorage.getItem('metaIconColors') === 'true' ? true : false,

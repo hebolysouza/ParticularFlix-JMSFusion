@@ -352,6 +352,64 @@ export function createQueryPanel(config, labels) {
         labels.customQueryStringPlaceholder ||
         "IncludeItemTypes=Movie&Recursive=true&hasOverview=true&imageTypes=Backdrop,Logo";
 
+    // Fork ParticularFlix: fonte da lista do slider
+    const sourceModeWrap = document.createElement("div");
+    sourceModeWrap.className = "form-group query-sort-card";
+    sourceModeWrap.style.flexDirection = "column";
+    sourceModeWrap.style.alignItems = "stretch";
+
+    const sourceModeTitle = createSubsectionTitle(
+        labels.sliderSourceModeTitle || "Fonte da lista do slider"
+    );
+    const sourceModeDesc = createSubsectionDescription(
+        labels.sliderSourceModeDesc ||
+        "Consulta personalizada: usa os filtros acima. Lançamentos atuais: só estreias recentes, ordenados pela data em que foram adicionados ao Jellyfin (filmes e séries com episódio novo). Estreias recentes: ordenados pela data de estreia, e a estreia de uma temporada conta como lançamento da série."
+    );
+    const sourceModeSelect = document.createElement("select");
+    sourceModeSelect.id = "sliderSourceModeSelect";
+    sourceModeSelect.name = "sliderSourceMode";
+    sourceModeSelect.className = "form-control";
+    [
+        ["query", labels.sliderSourceModeQuery || "Consulta personalizada (padrão)"],
+        ["currentReleases", labels.sliderSourceModeCurrent || "Adicionados recentemente, somente lançamentos atuais"],
+        ["premieres", labels.sliderSourceModePremieres || "Estreias recentes (temporada nova conta)"]
+    ].forEach(([value, text]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = text;
+        sourceModeSelect.appendChild(option);
+    });
+    sourceModeSelect.value = ["query", "currentReleases", "premieres"].includes(config.sliderSourceMode)
+        ? config.sliderSourceMode
+        : "query";
+
+    const sourceWindowDiv = document.createElement("div");
+    sourceWindowDiv.className = "setting-item limit-container";
+    const sourceWindowLabel = document.createElement("label");
+    sourceWindowLabel.textContent = labels.sliderSourceWindowMonths || "Janela de lançamentos (meses):";
+    const sourceWindowInput = document.createElement("input");
+    sourceWindowInput.type = "number";
+    sourceWindowInput.name = "sliderSourceWindowMonths";
+    sourceWindowInput.id = "sliderSourceWindowMonthsInput";
+    sourceWindowInput.min = 1;
+    sourceWindowInput.max = 60;
+    sourceWindowInput.value = typeof config.sliderSourceWindowMonths !== "undefined" ? config.sliderSourceWindowMonths : 6;
+    sourceWindowLabel.htmlFor = "sliderSourceWindowMonthsInput";
+    sourceWindowDiv.append(sourceWindowLabel, sourceWindowInput);
+    const sourceWindowDesc = createSubsectionDescription(
+        labels.sliderSourceWindowMonthsDesc ||
+        "Lançamentos atuais: vale o ano atual ou os últimos N meses, o que abranger mais (evita lista vazia em janeiro). Estreias recentes: vale somente os últimos N meses. O Jellyfin guarda a data de estreia, não a data de lançamento digital."
+    );
+
+    function refreshSourceModeState() {
+        const custom = sourceModeSelect.value === "query";
+        sourceWindowInput.disabled = custom;
+        sourceWindowDiv.style.opacity = custom ? "0.5" : "";
+    }
+    sourceModeSelect.addEventListener("change", refreshSourceModeState);
+    refreshSourceModeState();
+    sourceModeWrap.append(sourceModeTitle, sourceModeDesc, sourceModeSelect, sourceWindowDesc, sourceWindowDiv);
+
     const balanceTypesDiv = document.createElement("div");
     balanceTypesDiv.className = "setting-item balance-types-container";
     const balanceTypesCheckbox = createCheckbox(
@@ -563,6 +621,7 @@ export function createQueryPanel(config, labels) {
         queryStringDesc,
         queryStringHiddenInput,
         queryStringTextarea,
+        sourceModeWrap,
         balanceTypesDesc,
         balanceTypesDiv,
         onlyUnwatchedDesc,
@@ -618,6 +677,8 @@ export function createQueryPanel(config, labels) {
         playingLimitInput.disabled = !isRandom;
         sortSelect.disabled = !isRandom;
         sortingTextarea.disabled = !isRandom;
+        sourceModeSelect.disabled = !isRandom;
+        sourceWindowInput.disabled = !isRandom || sourceModeSelect.value === "query";
     }
 
     [randomContentCheckbox, useManualListCheckbox].forEach((chkDiv) => {

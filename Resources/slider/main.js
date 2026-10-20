@@ -15,6 +15,7 @@ import { changeSlide, createDotNavigation, enablePeakNeighborActivation, getPeak
 import { attachMouseEvents } from "./modules/events.js";
 import { getSessionInfo, getAuthHeader, waitForAuthReadyStrict, isAuthReadyStrict, AUTH_PROFILE_CHANGED_EVENT, USERDATA_CHANGED_EVENT } from "../Plugins/JMSFusion/runtime/api.js";
 import { cacheGetUserDataMap, cachePatchItemUserData, cachePutUserDataItems, cachedFetchJson, createCachedItemDetailsFetcher, releaseSliderCacheMemory, startLibraryDeltaWatcher } from "./modules/sliderCache.js";
+import { SOURCE_MODE_QUERY, normalizeSourceMode, normalizeWindowMonths, loadSourceItems } from "./modules/sliderSources.js";
 import { forceHomeSectionsTop, forceSkinHeaderPointerEvents } from "./modules/positionOverrides.js";
 import { initAvatarSystem } from "./modules/userAvatar.js";
 import { initializeQualityBadges, primeQualityFromItems, annotateDomWithQualityHints } from "./modules/qualityBadges.js";
@@ -5007,10 +5008,16 @@ export async function slidesInit() {
           : baseQS;
 
         const includeItemTypes = extractItemTypesFromQuery(queryString);
+        // Fork ParticularFlix: fontes alternativas (lancamentos atuais / estreias).
+        // Nesses modos a ordem vem da data efetiva, entao nao embaralha nem balanceia.
+        const sliderSourceMode = normalizeSourceMode(config.sliderSourceMode);
+        const useSliderSource = sliderSourceMode !== SOURCE_MODE_QUERY;
         const shouldBalanceTypes =
+          !useSliderSource &&
           config.balanceItemTypes &&
           (hasAllTypes(includeItemTypes, ["Movie", "Series"]) || hasAllTypes(includeItemTypes, ["Movie", "Series", "BoxSet"]));
         const hasExplicitSort =
+          useSliderSource ||
           /(?:^|[?&])sortby=/i.test(queryString) ||
           /(?:^|[?&])sortorder=/i.test(queryString);
         const shouldShuffle = !hasExplicitSort && !config.sortingKeywords?.some(
@@ -5053,12 +5060,34 @@ export async function slidesInit() {
 
         const configuredShufflingLimit = parseInt(config.maxShufflingLimit || "500", 10);
         const maxShufflingLimit = Math.max(50, Math.min(HOME_ITEMS_POOL_MAX_LIMIT, Number.isFinite(configuredShufflingLimit) ? configuredShufflingLimit : 500));
-        const data = await cachedFetchJson({
+        const itemsPoolTtlMs = normalizeDurationMs(config?.itemsPoolCacheTtlMs, HOME_ITEMS_POOL_CACHE_TTL_MS);
+        const data = useSliderSource
+          ? {
+              // Fork ParticularFlix: lista montada por varias consultas e ordenada pela data efetiva
+              Items: await loadSourceItems({
+                mode: sliderSourceMode,
+                userId,
+                windowMonths: normalizeWindowMonths(config.sliderSourceWindowMonths),
+                resolveLimit: Math.max(30, savedLimit * 2),
+                concurrency: Math.max(1, Number(config?.seasonDetailFetchConcurrency) || 4),
+                fetchJson: (url) => cachedFetchJson({
+                  keyParts: ["sourcePool", sliderSourceMode, userId, url],
+                  url,
+                  opts: { headers: authHeaders },
+                  fetchJson: fetchJsonViaSafeFetch,
+                  ttlMs: itemsPoolTtlMs,
+                  entryMeta: { kind: "itemsPool", userId, queryString: url },
+                  allowStaleOnError: true,
+                }),
+                fetchItemDetails: (id) => fetchItemDetailsCached(id),
+              })
+            }
+          : await cachedFetchJson({
         keyParts: ["itemsPool", userId, queryString, maxShufflingLimit],
         url: `/Users/${userId}/Items?${queryString}&Limit=${maxShufflingLimit}&EnableTotalRecordCount=false`,
         opts: { headers: authHeaders },
         fetchJson: fetchJsonViaSafeFetch,
-        ttlMs: normalizeDurationMs(config?.itemsPoolCacheTtlMs, HOME_ITEMS_POOL_CACHE_TTL_MS),
+        ttlMs: itemsPoolTtlMs,
         entryMeta: {
           kind: "itemsPool",
           userId,
