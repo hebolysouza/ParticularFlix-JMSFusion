@@ -1549,6 +1549,7 @@ export const languageLabels = {
   previewTrailerVolumeLimit: "予告編の開始音量を制限",
   previewTrailerVolumePercent: "予告編の開始音量 (%)",
   previewTrailerVolumeToggle: "予告編の音声を切り替え",
+  previewTrailerFullscreen: "全画面表示",
   enableHomeSectionsMaster: "MonWui UI カードを有効にする",
   enablePauseFeaturesMaster: "一時停止モジュールを有効にする",
   enableSubtitleCustomizerModule: "字幕カスタマイズモジュールを有効にする",

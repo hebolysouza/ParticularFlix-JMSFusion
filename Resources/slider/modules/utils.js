@@ -187,6 +187,62 @@ function ensureAudioPreviewCssOnce() {
       cursor: pointer;
       width: 124px;
     }
+    .monwui-preview-fullscreen-toggle {
+      align-items: center;
+      background: rgba(8,12,18,.5);
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 999px;
+      box-shadow: 0 8px 20px rgba(0,0,0,.24);
+      color: #fff;
+      cursor: pointer;
+      display: none;
+      height: 34px;
+      justify-content: center;
+      opacity: .75;
+      position: absolute;
+      top: 96px;
+      transition: opacity .15s ease;
+      width: 34px;
+      z-index: 8;
+      backdrop-filter: blur(8px);
+    }
+    .monwui-preview-fullscreen-toggle:hover {
+      opacity: 1;
+    }
+    .monwui-preview-fullscreen-toggle i {
+      font-size: 12px;
+      line-height: 1;
+    }
+    .intro-video-container:fullscreen {
+      border-radius: 0 !important;
+      height: 100% !important;
+      inset: 0 !important;
+      mask-image: none !important;
+      -webkit-mask-image: none !important;
+      width: 100% !important;
+    }
+    .intro-video-container:-webkit-full-screen {
+      border-radius: 0 !important;
+      height: 100% !important;
+      inset: 0 !important;
+      mask-image: none !important;
+      -webkit-mask-image: none !important;
+      width: 100% !important;
+    }
+    .monwui-slide .intro-video-container:fullscreen video {
+      height: 100% !important;
+      min-height: 0 !important;
+      min-width: 0 !important;
+      object-fit: contain !important;
+      width: 100% !important;
+    }
+    .monwui-slide .intro-video-container:-webkit-full-screen video {
+      height: 100% !important;
+      min-height: 0 !important;
+      min-width: 0 !important;
+      object-fit: contain !important;
+      width: 100% !important;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -770,7 +826,11 @@ export function createTrailerIframe({
   videoContainer.style.display = "none";
 
   const videoElement = document.createElement("video");
-  videoElement.controls = true;
+  videoElement.controls = false;
+  videoElement.controlsList = "nodownload nofullscreen noremoteplayback noplaybackrate";
+  videoElement.disablePictureInPicture = true;
+  videoElement.disableRemotePlayback = true;
+  videoElement.addEventListener("contextmenu", (event) => event.preventDefault());
   videoElement.dataset.jmsPreview = "1";
   videoElement.dataset.jmsIgnorePauseOverlay = "1";
   videoElement.autoplay = true;
@@ -844,6 +904,7 @@ function clearPreviewPlaybackFlag() {
   let autoToggleButton = null;
   let previewVolumeWrap = null;
   let previewVolumeButton = null;
+  let fullscreenButton = null;
   let previewVolumeRange = null;
   let ytPlayer = null;
   let ytMuted = getPreviewTrailerAudioState({ config }).muted;
@@ -856,6 +917,7 @@ function clearPreviewPlaybackFlag() {
     soundOn: true,
     ignoreStartMuted: true
   }).effectivePercent;
+  let lastAudiblePercent = runtimePreviewVolumePercent > 0 ? runtimePreviewVolumePercent : 100;
 
   const clearYtRevealTimer = () => {
     if (!ytRevealTimer) return;
@@ -1120,7 +1182,108 @@ function clearPreviewPlaybackFlag() {
       wrap.style.right = alignWithAutoToggle ? "64px" : "48px";
       wrap.style.display = visible ? "block" : "none";
     }
+    syncFullscreenButtonVisibility(visible, wrap ? wrap.style.right : "48px");
   }
+
+  function getFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+
+  function isPreviewFullscreen() {
+    return getFullscreenElement() === videoContainer;
+  }
+
+  function ensureFullscreenButton() {
+    if (fullscreenButton) return fullscreenButton;
+    const labels = config?.languageLabels || {};
+    const label = labels.previewTrailerFullscreen || "Fullscreen";
+    fullscreenButton = document.createElement("button");
+    fullscreenButton.type = "button";
+    fullscreenButton.className = "monwui-preview-fullscreen-toggle";
+    fullscreenButton.setAttribute("aria-label", label);
+    fullscreenButton.title = label;
+    fullscreenButton.innerHTML = '<i class="fa-solid fa-expand"></i>';
+    fullscreenButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      togglePreviewFullscreen();
+    });
+    (backdropContainer || slide).appendChild(fullscreenButton);
+    return fullscreenButton;
+  }
+
+  function syncFullscreenButtonVisibility(visible, right) {
+    const canFullscreen = visible && playingKind !== "remoteTrailer" &&
+      typeof videoContainer.requestFullscreen === "function";
+    const btn = canFullscreen ? ensureFullscreenButton() : fullscreenButton;
+    if (!btn) return;
+    btn.style.right = right || "48px";
+    btn.style.display = canFullscreen ? "flex" : "none";
+  }
+
+  function syncFullscreenButtonIcon() {
+    if (!fullscreenButton) return;
+    fullscreenButton.innerHTML = isPreviewFullscreen()
+      ? '<i class="fa-solid fa-compress"></i>'
+      : '<i class="fa-solid fa-expand"></i>';
+  }
+
+  // While the trailer is fullscreen only videoContainer is visible, so the plugin controls
+  // (pause, volume, fullscreen) are moved inside it and moved back on exit.
+  function relocatePreviewControls() {
+    const host = isPreviewFullscreen() ? videoContainer : (backdropContainer || slide);
+    [previewVolumeWrap, autoToggleButton, fullscreenButton].forEach((el) => {
+      if (el && el.parentNode !== host) host.appendChild(el);
+    });
+    syncFullscreenButtonIcon();
+  }
+
+  function onPreviewFullscreenChange() {
+    relocatePreviewControls();
+    if (!isPreviewFullscreen()) {
+      document.removeEventListener("fullscreenchange", onPreviewFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", onPreviewFullscreenChange);
+    }
+  }
+
+  async function togglePreviewFullscreen() {
+    try {
+      if (isPreviewFullscreen()) {
+        await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        return;
+      }
+      document.addEventListener("fullscreenchange", onPreviewFullscreenChange);
+      document.addEventListener("webkitfullscreenchange", onPreviewFullscreenChange);
+      await (videoContainer.requestFullscreen || videoContainer.webkitRequestFullscreen).call(videoContainer);
+    } catch {
+      document.removeEventListener("fullscreenchange", onPreviewFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", onPreviewFullscreenChange);
+    }
+  }
+
+  function leavePreviewFullscreen() {
+    try {
+      if (isPreviewFullscreen()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } catch {}
+    document.removeEventListener("fullscreenchange", onPreviewFullscreenChange);
+    document.removeEventListener("webkitfullscreenchange", onPreviewFullscreenChange);
+    relocatePreviewControls();
+  }
+
+  // In fullscreen a click on the picture pauses/resumes (the native controls are hidden).
+  videoElement.addEventListener("click", (event) => {
+    if (!isPreviewFullscreen()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (autoPreviewActive && isSliderAutoTrailerEnabled()) {
+      toggleAutoTrailerPlayback();
+      return;
+    }
+    try {
+      if (videoElement.paused) videoElement.play();
+      else videoElement.pause();
+    } catch {}
+  });
 
   function syncPreviewVolumeButton(muted = null) {
     const btn = previewVolumeButton;
@@ -1170,6 +1333,7 @@ function clearPreviewPlaybackFlag() {
   function setPreviewVolumePercent(percent, { unmute = true } = {}) {
     const value = Math.max(0, Math.min(100, Number.isFinite(percent) ? percent : runtimePreviewVolumePercent));
     runtimePreviewVolumePercent = value;
+    if (value > 0) lastAudiblePercent = value;
     if (previewVolumeRange) previewVolumeRange.value = String(Math.round(value));
     const muted = value <= 0 || !unmute;
 
@@ -1197,25 +1361,33 @@ function clearPreviewPlaybackFlag() {
     syncPreviewVolumeButton(muted);
   }
 
+  function rememberAudibleVolume() {
+    try {
+      const current = getCurrentPreviewVolumePercent();
+      if (Number.isFinite(current) && current > 0) lastAudiblePercent = current;
+    } catch {}
+  }
+
   function setPreviewVolumeMuted(muted) {
+    if (muted) rememberAudibleVolume();
+    const restorePercent = Math.max(
+      1,
+      Math.min(100, Math.round(lastAudiblePercent > 0 ? lastAudiblePercent : (runtimePreviewVolumePercent || 100)))
+    );
+
     if (playingKind === "remoteTrailer") {
       ytMuted = !!muted;
       if (ytMuted) {
         try { ytPlayer?.mute?.(); } catch {}
         postYoutubeCommand("mute");
       } else {
-        const audioState = applyPreviewTrailerAudioToYouTubePlayer(ytPlayer, {
-          config,
-          soundOn: true,
-          ignoreStartMuted: true
-        });
-        postPreviewTrailerAudioToYouTubeIframe(ytIframe, {
-          config,
-          soundOn: true,
-          ignoreStartMuted: true
-        });
-        ytMuted = audioState.muted;
-        runtimePreviewVolumePercent = audioState.effectivePercent;
+        try {
+          ytPlayer?.unMute?.();
+          ytPlayer?.setVolume?.(restorePercent);
+        } catch {}
+        postYoutubeCommand("unMute");
+        postYoutubeCommand("setVolume", [restorePercent]);
+        runtimePreviewVolumePercent = restorePercent;
       }
       syncPreviewVolumeButton(ytMuted);
       return;
@@ -1230,13 +1402,12 @@ function clearPreviewPlaybackFlag() {
       return;
     }
 
-    const audioState = applyPreviewTrailerAudioToVideo(videoElement, {
-      config,
-      soundOn: true,
-      ignoreStartMuted: true
-    });
-    runtimePreviewVolumePercent = audioState.effectivePercent;
-    syncPreviewVolumeButton(audioState.muted);
+    try {
+      videoElement.muted = false;
+      videoElement.volume = restorePercent / 100;
+    } catch {}
+    runtimePreviewVolumePercent = restorePercent;
+    syncPreviewVolumeButton(false);
   }
 
   function togglePreviewVolume() {
@@ -1614,6 +1785,7 @@ function clearPreviewPlaybackFlag() {
     resetAutoTrailerSuspension();
     clearAutoTrailerResumeTimer();
     clearAutoCompletionTimer();
+    leavePreviewFullscreen();
     setAutoToggleVisible(false);
     setPreviewVolumeVisible(false);
     hardStopVideo({ immediate: false });
@@ -1645,6 +1817,7 @@ function clearPreviewPlaybackFlag() {
     videoElement.src = introUrl;
     const audioState = applyPreviewTrailerAudioToVideo(videoElement, { config });
     runtimePreviewVolumePercent = audioState.effectivePercent;
+    if (audioState.effectivePercent > 0) lastAudiblePercent = audioState.effectivePercent;
     videoElement.load();
     const onMeta = () => {
       videoElement.removeEventListener("loadedmetadata", onMeta);

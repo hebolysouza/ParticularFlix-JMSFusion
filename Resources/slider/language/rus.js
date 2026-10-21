@@ -1549,6 +1549,7 @@ export const languageLabels = {
   previewTrailerVolumeLimit: "Ограничить начальную громкость трейлеров",
   previewTrailerVolumePercent: "Начальная громкость трейлера (%)",
   previewTrailerVolumeToggle: "Включить/выключить звук трейлера",
+  previewTrailerFullscreen: "Полноэкранный режим",
   enableHomeSectionsMaster: "Включить карточки интерфейса MonWui",
   enablePauseFeaturesMaster: "Включить модуль паузы",
   enableSubtitleCustomizerModule: "Включить модуль настройки субтитров",

@@ -1576,6 +1576,7 @@ export const languageLabels = {
   previewTrailerVolumeLimit: "Limitar el volumen inicial de los tráileres",
   previewTrailerVolumePercent: "Volumen inicial del tráiler (%)",
   previewTrailerVolumeToggle: "Activar/desactivar sonido del tráiler",
+  previewTrailerFullscreen: "Pantalla completa",
   enableHomeSectionsMaster: "Activar las tarjetas de la interfaz MonWui",
   enablePauseFeaturesMaster: "Activar el módulo de pausa",
   enableSubtitleCustomizerModule: "Activar el módulo de personalización de subtítulos",

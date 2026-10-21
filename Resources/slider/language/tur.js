@@ -1549,6 +1549,7 @@ export const languageLabels = {
   previewTrailerVolumeLimit: "Fragman başlangıç ses seviyesini sınırla",
   previewTrailerVolumePercent: "Fragman başlangıç ses seviyesi (%)",
   previewTrailerVolumeToggle: "Fragman sesini aç/kapat",
+  previewTrailerFullscreen: "Tam ekran",
   enableHomeSectionsMaster: "MonWui ui kartlarını etkinleştir",
   enablePauseFeaturesMaster: "Duraklatma modülünü etkinleştir",
   enableSubtitleCustomizerModule: "Altyazı özelleştirme modülünü etkinleştir",

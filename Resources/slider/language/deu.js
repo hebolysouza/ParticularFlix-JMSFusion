@@ -1549,6 +1549,7 @@ export const languageLabels = {
   previewTrailerVolumeLimit: "Startlautstärke der Trailer begrenzen",
   previewTrailerVolumePercent: "Startlautstärke des Trailers (%)",
   previewTrailerVolumeToggle: "Trailer-Ton ein-/ausschalten",
+  previewTrailerFullscreen: "Vollbild",
   enableHomeSectionsMaster: "MonWui UI-Karten aktivieren",
   enablePauseFeaturesMaster: "Pausenmodul aktivieren",
   enableSubtitleCustomizerModule: "Modul zur Untertitel-Anpassung aktivieren",
