@@ -59,7 +59,7 @@ public sealed class TrailerSyncTask : IScheduledTask
         var pending = new List<BaseItem>();
         foreach (var item in all)
         {
-            if (!string.IsNullOrWhiteSpace(item.Path) && !HasLocalTrailer(item))
+            if (!string.IsNullOrWhiteSpace(item.Path) && !IsExcludedPath(item.Path) && !HasLocalTrailer(item))
             {
                 pending.Add(item);
             }
@@ -98,6 +98,23 @@ public sealed class TrailerSyncTask : IScheduledTask
         _logger.LogInformation("[JMS trailers] Simulacao concluida: {Com} itens com trailer candidato no TMDb, {Sem} sem candidato. Nada foi baixado.",
             withPlan, withoutPlan);
         progress.Report(100);
+    }
+
+    // Biblioteca adulta (/media/xxx) e qualquer pasta chamada xxx ficam fora, sempre.
+    private static bool IsExcludedPath(string path)
+    {
+        var parts = path.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            if (part.Equals("xxx", StringComparison.OrdinalIgnoreCase)
+                || part.Equals("adult", StringComparison.OrdinalIgnoreCase)
+                || part.Equals("adultos", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool HasLocalTrailer(BaseItem item)
