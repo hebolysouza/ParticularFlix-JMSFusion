@@ -255,17 +255,17 @@ public sealed class NativeTrailerSync
         var achou = false;
         var fonte = string.Empty;
 
-        // A) Trailer oficial em portugues listado no TMDb
+        // A1) Prioridade maxima: trailer oficial do Brasil (pt, pais BR) listado no TMDb
         if (!string.IsNullOrWhiteSpace(tmdbId) && !achou)
         {
-            var chaves = await GetTmdbTrailerKeysAsync(kind, tmdbId!, "pt-BR", "pt", tmdbKey, ct).ConfigureAwait(false);
-            if (chaves.Count == 0) { Log("   TMDb pt-BR: nenhum trailer oficial listado"); }
+            var chaves = await GetTmdbTrailerKeysAsync(kind, tmdbId!, "pt-BR", "pt", tmdbKey, 1, ct).ConfigureAwait(false);
+            if (chaves.Count == 0) { Log("   TMDb Brasil: nenhum trailer oficial listado"); }
             foreach (var key in chaves)
             {
                 Log("   Tentando trailer pt-BR do TMDb: https://www.youtube.com/watch?v=" + key);
                 if (await InvokeYtAsync(tk, cookies, folder, "https://www.youtube.com/watch?v=" + key, filtroSoDuracao, null, simulate, ct).ConfigureAwait(false))
                 {
-                    achou = true; fonte = "TMDb pt-BR"; break;
+                    achou = true; fonte = "TMDb Brasil"; break;
                 }
             }
         }
@@ -289,10 +289,24 @@ public sealed class NativeTrailerSync
             }
         }
 
+        // A2) Sem trailer do Brasil: segue a regra do script, trailer oficial em portugues de outro pais
+        if (!string.IsNullOrWhiteSpace(tmdbId) && !achou)
+        {
+            var chaves = await GetTmdbTrailerKeysAsync(kind, tmdbId!, "pt-BR", "pt", tmdbKey, 2, ct).ConfigureAwait(false);
+            foreach (var key in chaves)
+            {
+                Log("   Tentando trailer em portugues (outro pais) do TMDb: https://www.youtube.com/watch?v=" + key);
+                if (await InvokeYtAsync(tk, cookies, folder, "https://www.youtube.com/watch?v=" + key, filtroSoDuracao, null, simulate, ct).ConfigureAwait(false))
+                {
+                    achou = true; fonte = "TMDb pt (outro pais)"; break;
+                }
+            }
+        }
+
         // C) Trailer oficial em ingles listado no TMDb
         if (!string.IsNullOrWhiteSpace(tmdbId) && !achou)
         {
-            var chaves = await GetTmdbTrailerKeysAsync(kind, tmdbId!, "en-US", "en", tmdbKey, ct).ConfigureAwait(false);
+            var chaves = await GetTmdbTrailerKeysAsync(kind, tmdbId!, "en-US", "en", tmdbKey, 0, ct).ConfigureAwait(false);
             if (chaves.Count == 0) { Log("   TMDb en-US: nenhum trailer oficial listado"); }
             foreach (var key in chaves)
             {
@@ -467,7 +481,7 @@ public sealed class NativeTrailerSync
         }
     }
 
-    private async Task<List<string>> GetTmdbTrailerKeysAsync(string kind, string id, string lang, string iso, string tmdbKey, CancellationToken ct)
+    private async Task<List<string>> GetTmdbTrailerKeysAsync(string kind, string id, string lang, string iso, string tmdbKey, int brFilter, CancellationToken ct)
     {
         var v = await GetJsonAsync("https://api.themoviedb.org/3/" + kind + "/" + id + "/videos?api_key=" + Uri.EscapeDataString(tmdbKey) + "&language=" + lang, ct).ConfigureAwait(false);
         var results = v?["results"]?.AsArray();
@@ -497,12 +511,17 @@ public sealed class NativeTrailerSync
             var name = (string?)r["name"] ?? string.Empty;
             var dub = Regex.IsMatch(name, "(?i)dublad") ? 2 : Regex.IsMatch(name, "(?i)legendad") ? 1 : 0;
             var br = string.Equals((string?)r["iso_3166_1"], "BR", StringComparison.Ordinal) ? 1 : 0;
+            if ((brFilter == 1 && br == 0) || (brFilter == 2 && br == 1))
+            {
+                continue;
+            }
+
             list.Add((key!, dub, br, 1, (string?)r["published_at"] ?? string.Empty));
         }
 
         return list
-            .OrderByDescending(x => x.Dub)
-            .ThenByDescending(x => x.Br)
+            .OrderByDescending(x => x.Br)
+            .ThenByDescending(x => x.Dub)
             .ThenByDescending(x => x.Official)
             .ThenByDescending(x => x.Published, StringComparer.Ordinal)
             .Take(4)
