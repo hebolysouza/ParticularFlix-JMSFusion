@@ -5,6 +5,17 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.7.4.0 (fork release, in progress)
+
+Same plugin GUID, no setting changes, nothing to reconfigure.
+
+### Changes
+
+- **Upcoming releases row fixed.** The "Coming soon" / "In theaters" badge is now decided by the release date first, so films already released no longer show as upcoming; the "TMDb 0.0" chip is hidden when there is no score; fallback labels are in English instead of Turkish.
+- **Top rank loads faster.** The ranking queries (one per sort mode plus the genre profile) now run in parallel instead of one after another.
+- **Fewer requests per slide.** The slider no longer fetches the full details of every slide just to look for a trailer when the item already carries its trailer list.
+- **Translations.** Keyboard-shortcut help of the player, several settings texts and server messages were hardcoded in Turkish and now use translation keys or English; Portuguese (pt-BR) got the missing keys and four Turkish leftovers were translated.
+
 ## 3.7.3.0 (fork release)
 
 Speed release on top of 3.7.2.0. Same plugin GUID, no setting changes, nothing to reconfigure.

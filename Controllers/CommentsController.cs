@@ -188,7 +188,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                 var comment = cfg.ItemComments.FirstOrDefault(entry => Same(entry.Id, cleanCommentId));
                 if (comment is null)
                 {
-                    return NotFound(new { ok = false, error = "yorum bulunamadı" });
+                    return NotFound(new { ok = false, error = "Comment not found" });
                 }
 
                 if (!Same(comment.OwnerUserId, user.UserId))

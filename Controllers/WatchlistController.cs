@@ -348,7 +348,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
 
             if (req is null)
             {
-                return BadRequest(new { ok = false, error = "İstek gövdesi gerekli" });
+                return BadRequest(new { ok = false, error = "Request body is required" });
             }
 
             var itemId = Clean(req.ItemId);
@@ -370,7 +370,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
 
             if (targets.Count == 0)
             {
-                return BadRequest(new { ok = false, error = "En az bir kullanıcı seçilmeli" });
+                return BadRequest(new { ok = false, error = "Select at least one user" });
             }
 
             lock (SyncRoot)
@@ -466,12 +466,12 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                 var share = cfg.WatchlistShares.FirstOrDefault(candidate => Same(candidate.Id, cleanShareId));
                 if (share is null)
                 {
-                    return NotFound(new { ok = false, error = "Paylaşım bulunamadı" });
+                    return NotFound(new { ok = false, error = "Share not found" });
                 }
 
                 if (!Same(share.OwnerUserId, user.UserId) && !Same(share.TargetUserId, user.UserId))
                 {
-                    return StatusCode(403, new { ok = false, error = "Bu paylaşımı kaldıramazsın" });
+                    return StatusCode(403, new { ok = false, error = "You cannot remove this share" });
                 }
 
                 changed |= cfg.WatchlistShares.RemoveAll(candidate => Same(candidate.Id, cleanShareId)) > 0;
@@ -525,8 +525,8 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             var message = responseItems.Count > 0
                 ? string.Empty
                 : hasAnySignal
-                    ? "İzlenmemiş veya dinlenmemiş uygun içerik bulunamadı."
-                    : "Akıllı öneri üretmek için yeterli izleme geçmişi bulunamadı.";
+                    ? "No suitable unwatched or unplayed content found."
+                    : "Not enough watch history to generate smart recommendations.";
 
             NoCache();
             return Ok(new
@@ -2059,7 +2059,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             var user = _users.GetUserById(userId);
             if (user is null)
             {
-                return (null, null, Unauthorized(new { ok = false, error = "Kullanıcı bulunamadı" }));
+                return (null, null, Unauthorized(new { ok = false, error = "User not found" }));
             }
 
             if (string.IsNullOrWhiteSpace(context.UserName))

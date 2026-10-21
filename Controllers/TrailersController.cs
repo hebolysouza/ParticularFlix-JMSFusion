@@ -109,7 +109,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         {
             if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
             {
-                return ApiError(403, ApiAdminRequiredCode, "Sadece admin kullanıcılar çalıştırabilir.");
+                return ApiError(403, ApiAdminRequiredCode, "Only admin users can run this.");
             }
 
             if (!TryGetRequestUserId(out var userId))
@@ -148,7 +148,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         {
             if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
             {
-                return ApiError(403, ApiAdminRequiredCode, "Sadece admin kullanıcılar çalıştırabilir.");
+                return ApiError(403, ApiAdminRequiredCode, "Only admin users can run this.");
             }
 
             if (!TryGetRequestUserId(out var userId))
@@ -166,11 +166,11 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                 {
                 }
 
-                SetLocalizedLastMessage(job, LastCancelRequestedCode, "İş iptal istendi.");
-                return ApiOkMessage(ApiCancelInProgressCode, "İş iptal ediliyor...");
+                SetLocalizedLastMessage(job, LastCancelRequestedCode, "Job cancellation requested.");
+                return ApiOkMessage(ApiCancelInProgressCode, "Cancelling job...");
             }
 
-            return ApiOkMessage(ApiNoRunningJobCode, "Koşan iş yok.");
+            return ApiOkMessage(ApiNoRunningJobCode, "No job is running.");
         }
 
         [HttpPost("run")]
@@ -178,7 +178,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         {
             if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
             {
-                return ApiError(403, ApiAdminRequiredCode, "Sadece admin kullanıcılar çalıştırabilir.");
+                return ApiError(403, ApiAdminRequiredCode, "Only admin users can run this.");
             }
 
             try
@@ -208,12 +208,12 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                 var user = _users.GetUserById(userId);
                 if (user is null)
                 {
-                    return ApiError(401, ApiUserNotFoundCode, "Kullanıcı bulunamadı.");
+                    return ApiError(401, ApiUserNotFoundCode, "User not found.");
                 }
 
                 if (!IsAdminUser(user))
                 {
-                    return ApiError(403, ApiAdminRequiredCode, "Sadece admin kullanıcılar çalıştırabilir.");
+                    return ApiError(403, ApiAdminRequiredCode, "Only admin users can run this.");
                 }
 
                 if (!cfg.AllowScriptExecution)
@@ -234,13 +234,13 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
 
                 if (steps.Count == 0)
                 {
-                    return ApiError(400, ApiNoTaskEnabledCode, "Hiçbir görev etkin değil.");
+                    return ApiError(400, ApiNoTaskEnabledCode, "No task is enabled.");
                 }
 
                 if (_jobs.TryGetValue(userId, out var existing) && existing.Running)
                 {
                     var payload = CreatePayload(ok: false);
-                    AddLocalizedField(payload, "error", ApiAlreadyRunningCode, "Zaten çalışan bir iş var.");
+                    AddLocalizedField(payload, "error", ApiAlreadyRunningCode, "A job is already running.");
                     payload["running"] = true;
                     payload["startedAt"] = existing.StartedAt;
                     payload["progress01"] = Math.Round(existing.Progress01, 4);
@@ -375,7 +375,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
 
                     if (job.Cts!.IsCancellationRequested)
                     {
-                        SetLocalizedLastMessage(job, LastCancelledCode, "İş iptal edildi.");
+                        SetLocalizedLastMessage(job, LastCancelledCode, "Job cancelled.");
                     }
                     else
                     {
@@ -398,7 +398,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             catch (Exception ex)
             {
                 var payload = CreatePayload(ok: false);
-                AddLocalizedField(payload, "error", ApiUnexpectedErrorCode, "Beklenmeyen hata oluştu.");
+                AddLocalizedField(payload, "error", ApiUnexpectedErrorCode, "An unexpected error occurred.");
                 payload["detail"] = ex.Message;
                 payload["stack"] = ex.ToString();
                 return StatusCode(500, payload);
@@ -410,7 +410,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         {
             if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
             {
-                return ApiError(403, ApiAdminRequiredCode, "Sadece admin kullanıcılar çalıştırabilir.");
+                return ApiError(403, ApiAdminRequiredCode, "Only admin users can run this.");
             }
 
             var cfg = JMSFusionPlugin.Instance?.Configuration;

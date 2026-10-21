@@ -182,7 +182,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             var cleanName = NormalizeCollectionName(request?.Name);
             if (string.IsNullOrWhiteSpace(studioId) || string.IsNullOrWhiteSpace(cleanName))
             {
-                return BadRequest(new { ok = false, error = "StudioId ve başlık gerekli." });
+                return BadRequest(new { ok = false, error = "StudioId and title are required." });
             }
 
             var plugin = JMSFusionPlugin.Instance ?? throw new InvalidOperationException("Plugin not available.");
@@ -261,7 +261,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             var existing = cfg.StudioHubManualEntries.FirstOrDefault(entry => IdEquals(entry?.StudioId, cleanStudioId));
             if (existing is null)
             {
-                return NotFound(new { ok = false, error = "Manuel koleksiyon bulunamadı." });
+                return NotFound(new { ok = false, error = "Manual collection not found." });
             }
 
             var logosDir = plugin.GetStorageDirectory("studio-hub-logos");
@@ -363,7 +363,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             var entry = cfg.StudioHubManualEntries.FirstOrDefault(item => IdEquals(item?.StudioId, cleanStudioId));
             if (entry is null)
             {
-                return NotFound(new { ok = false, error = "Manuel koleksiyon bulunamadı." });
+                return NotFound(new { ok = false, error = "Manual collection not found." });
             }
 
             DeleteLooseFile(plugin.GetStorageDirectory("studio-hub-logos"), entry.LogoFileName);
@@ -410,7 +410,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             var cleanName = NormalizeCollectionName(name);
             if (string.IsNullOrWhiteSpace(cleanName))
             {
-                return BadRequest(new { ok = false, error = "Koleksiyon adı gerekli." });
+                return BadRequest(new { ok = false, error = "Collection name is required." });
             }
 
             if (file is null || file.Length <= 0)
@@ -476,7 +476,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             var cleanName = NormalizeCollectionName(name);
             if (string.IsNullOrWhiteSpace(cleanName))
             {
-                return BadRequest(new { ok = false, error = "Koleksiyon adı gerekli." });
+                return BadRequest(new { ok = false, error = "Collection name is required." });
             }
 
             var plugin = JMSFusionPlugin.Instance ?? throw new InvalidOperationException("Plugin not available.");
@@ -486,7 +486,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             var existing = cfg.StudioHubVideoEntries.FirstOrDefault(entry => NameEquals(entry?.Name, cleanName));
             if (existing is null)
             {
-                return NotFound(new { ok = false, error = "Bu koleksiyon için kayıtlı hover video bulunamadı." });
+                return NotFound(new { ok = false, error = "No saved hover video found for this collection." });
             }
 
             var videosDir = plugin.GetStorageDirectory("studio-hub-videos");
@@ -548,7 +548,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
 
             if (!IsAdminUser(userCheck.User))
             {
-                return (null, Guid.Empty, StatusCode(403, new { ok = false, error = "Bu işlem sadece admin kullanıcılar içindir." }));
+                return (null, Guid.Empty, StatusCode(403, new { ok = false, error = "Only admin users can do this." }));
             }
 
             return userCheck;
@@ -564,7 +564,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             var user = _users.GetUserById(userId);
             if (user is null)
             {
-                return (null, Guid.Empty, Unauthorized(new { ok = false, error = "Kullanıcı bulunamadı." }));
+                return (null, Guid.Empty, Unauthorized(new { ok = false, error = "User not found." }));
             }
 
             return (user, userId, null);

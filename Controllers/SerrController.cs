@@ -3452,20 +3452,20 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         private static string BuildDuplicateMessage(SerrRequestEntry entry, Guid userId)
         {
             var owner = Same(entry.JellyfinUserId, userId.ToString("D"))
-                ? "Bu istek zaten sizin tarafınızdan oluşturuldu"
-                : "Bu istek başka bir kullanıcı tarafından oluşturuldu";
-            return owner + " ve " + DuplicateStatusText(entry.Status) + ".";
+                ? "This request was already created by you"
+                : "This request was created by another user";
+            return owner + " and " + DuplicateStatusText(entry.Status) + ".";
         }
 
         private static string DuplicateStatusText(string? status)
         {
-            if (Same(status, "pending")) return "onay bekliyor";
-            if (Same(status, "processing")) return "onaylandı";
-            if (Same(status, "completed") || Same(status, "available")) return "tamamlandı";
-            if (Same(status, "declined")) return "reddedildi";
-            if (Same(status, "failed")) return "hatalı";
-            if (Same(status, "withdrawn")) return "geri çekildi";
-            return "onaylandı";
+            if (Same(status, "pending")) return "is pending approval";
+            if (Same(status, "processing")) return "was approved";
+            if (Same(status, "completed") || Same(status, "available")) return "is completed";
+            if (Same(status, "declined")) return "was declined";
+            if (Same(status, "failed")) return "failed";
+            if (Same(status, "withdrawn")) return "was withdrawn";
+            return "was approved";
         }
 
         private readonly record struct SerrRequestScope(bool All, HashSet<int> Seasons);

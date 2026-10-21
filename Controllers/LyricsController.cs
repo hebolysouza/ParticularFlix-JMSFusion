@@ -91,7 +91,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         public IActionResult Status()
         {
             if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
-                return StatusCode(403, new { ok = false, error = "Sadece admin kullanıcılar çalıştırabilir." });
+                return StatusCode(403, new { ok = false, error = "Only admin users can run this." });
 
             var uid = ReadUserId();
             if (uid == Guid.Empty) return Unauthorized(new { ok = false, error = "X-Emby-UserId gerekli" });
@@ -124,7 +124,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         public IActionResult Cancel()
         {
             if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
-                return StatusCode(403, new { ok = false, error = "Sadece admin kullanıcılar çalıştırabilir." });
+                return StatusCode(403, new { ok = false, error = "Only admin users can run this." });
 
             var uid = ReadUserId();
             if (uid == Guid.Empty) return Unauthorized(new { ok = false, error = "X-Emby-UserId gerekli" });
@@ -132,18 +132,18 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             if (_jobs.TryGetValue(uid, out var job) && job.Running)
             {
                 try { job.Cts?.Cancel(); } catch { }
-                job.Log("İptal istendi.");
-                job.LastMessage = "İptal istendi";
-                return Ok(new { ok = true, message = "İptal gönderildi" });
+                job.Log("Cancellation requested.");
+                job.LastMessage = "Cancellation requested";
+                return Ok(new { ok = true, message = "Cancellation sent" });
             }
-            return Ok(new { ok = true, message = "Koşan iş yok" });
+            return Ok(new { ok = true, message = "No job is running" });
         }
 
         [HttpPost("run")]
         public IActionResult Run([FromBody] RunRequest req, CancellationToken outerCt)
         {
             if (RequestAuth.GetLevel(HttpContext, _users) != RequestAuth.Level.Admin)
-                return StatusCode(403, new { ok = false, error = "Sadece admin kullanıcılar çalıştırabilir." });
+                return StatusCode(403, new { ok = false, error = "Only admin users can run this." });
 
             var cfg = JMSFusionPlugin.Instance?.Configuration
                       ?? throw new InvalidOperationException("Plugin configuration not available.");
@@ -158,14 +158,14 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
 
             var user = _users.GetUserById(uid);
             if (user is null)
-                return Unauthorized(new { ok = false, error = "Kullanıcı bulunamadı" });
+                return Unauthorized(new { ok = false, error = "User not found" });
 
             if (!IsAdminUser(user))
-                return StatusCode(403, new { ok = false, error = "Sadece admin kullanıcılar çalıştırabilir." });
+                return StatusCode(403, new { ok = false, error = "Only admin users can run this." });
 
             if (_jobs.TryGetValue(uid, out var running) && running.Running)
             {
-                return StatusCode(409, new { ok = false, error = "Zaten çalışan bir iş var." });
+                return StatusCode(409, new { ok = false, error = "A job is already running." });
             }
 
             var mode = (req.mode ?? "prefer-synced").ToLowerInvariant();
@@ -284,8 +284,8 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                 {
                     job.Running = false;
                     job.FinishedAt = DateTimeOffset.UtcNow;
-                    job.LastMessage = "İptal edildi";
-                    job.Log("İptal edildi");
+                    job.LastMessage = "Cancelled";
+                    job.Log("Cancelled");
                 }
                 catch (Exception ex)
                 {
