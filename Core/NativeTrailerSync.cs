@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -37,6 +38,10 @@ public sealed class NativeTrailerSync
     private static readonly string[] VideoExtensions = { ".mkv", ".mp4", ".avi", ".m4v", ".mov", ".wmv", ".ts" };
     private static readonly HttpClient Http = CreateHttp();
 
+    private static readonly SemaphoreSlim RunLock = new(1, 1);
+    private static readonly ConcurrentDictionary<string, DateTime> LastFailure = new(StringComparer.Ordinal);
+    private static readonly TimeSpan RetryAfterFailure = TimeSpan.FromHours(5);
+
     private readonly ILibraryManager _libraryManager;
     private readonly TrailerAutomationService _tools;
     private readonly ILogger _logger;
@@ -58,7 +63,26 @@ public sealed class NativeTrailerSync
 
     private void Log(string message) => _logger.LogInformation("[JMS trailers] {Mensagem}", message);
 
-    public async Task RunAsync(NativeTrailerMode mode, bool sample, int limit, string tmdbKey, IProgress<double> progress, CancellationToken ct)
+    public async Task RunAsync(NativeTrailerMode mode, bool sample, int limit, string tmdbKey, bool retryFailed, IProgress<double> progress, CancellationToken ct)
+    {
+        if (!await RunLock.WaitAsync(0, ct).ConfigureAwait(false))
+        {
+            Log("Ja existe uma sincronizacao de trailers em andamento; esta execucao foi dispensada.");
+            progress.Report(100);
+            return;
+        }
+
+        try
+        {
+            await RunCoreAsync(mode, sample, limit, tmdbKey, retryFailed, progress, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            RunLock.Release();
+        }
+    }
+
+    private async Task RunCoreAsync(NativeTrailerMode mode, bool sample, int limit, string tmdbKey, bool retryFailed, IProgress<double> progress, CancellationToken ct)
     {
         var simulate = mode == NativeTrailerMode.Simulate;
         var all = _libraryManager.GetItemList(new InternalItemsQuery
@@ -69,6 +93,8 @@ public sealed class NativeTrailerSync
         });
 
         var work = new List<BaseItem>();
+        var skippedReadOnly = 0;
+        var skippedRecent = 0;
         foreach (var item in all)
         {
             if (string.IsNullOrWhiteSpace(item.Path) || IsExcludedPath(item.Path))
@@ -82,10 +108,27 @@ public sealed class NativeTrailerSync
                 continue;
             }
 
-            if (sample || !HasFinishedTrailer(folder))
+            if (!sample && HasFinishedTrailer(folder))
             {
-                work.Add(item);
+                continue;
             }
+
+            if (!simulate)
+            {
+                if (!retryFailed && LastFailure.TryGetValue(folder, out var when) && DateTime.UtcNow - when < RetryAfterFailure)
+                {
+                    skippedRecent++;
+                    continue;
+                }
+
+                if (!CanWrite(folder))
+                {
+                    skippedReadOnly++;
+                    continue;
+                }
+            }
+
+            work.Add(item);
         }
 
         var count = Math.Min(work.Count, limit);
@@ -93,6 +136,12 @@ public sealed class NativeTrailerSync
             + " itens na biblioteca, " + work.Count.ToString(CultureInfo.InvariantCulture)
             + (sample ? " elegiveis (amostra, com ou sem trailer)" : " sem trailer")
             + ", processando " + count.ToString(CultureInfo.InvariantCulture) + ". Biblioteca adulta fora.");
+
+        if (skippedReadOnly > 0 || skippedRecent > 0)
+        {
+            Log("Ignorados: " + skippedReadOnly.ToString(CultureInfo.InvariantCulture) + " em pasta somente leitura e "
+                + skippedRecent.ToString(CultureInfo.InvariantCulture) + " que falharam ha menos de 5 horas.");
+        }
 
         if (count == 0)
         {
@@ -109,8 +158,27 @@ public sealed class NativeTrailerSync
         Log("yt-dlp " + (toolkit.YtDlpVersion ?? "?") + ", deno " + (toolkit.DenoVersion ?? "?")
             + ", ffmpeg " + (toolkit.FfmpegDir ?? "nao encontrado"));
 
-        var cookies = CookiesCandidates.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c) && File.Exists(c));
-        Log(cookies == null ? "Aviso: cookies.txt do YouTube nao encontrado; o YouTube pode recusar alguns videos." : "Cookies do YouTube: " + cookies);
+        var cookiesOriginal = CookiesCandidates.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c) && File.Exists(c));
+        string? cookies = null;
+        if (cookiesOriginal == null)
+        {
+            Log("Aviso: cookies.txt do YouTube nao encontrado; o YouTube pode recusar alguns videos.");
+        }
+        else
+        {
+            // O yt-dlp regrava o arquivo de cookies; trabalha numa copia para nunca alterar (nem falhar em) o original.
+            try
+            {
+                cookies = Path.Combine(Path.GetTempPath(), "jms-cookies-" + Guid.NewGuid().ToString("N") + ".txt");
+                File.Copy(cookiesOriginal, cookies, true);
+                Log("Cookies do YouTube: " + cookiesOriginal + " (copia temporaria)");
+            }
+            catch (Exception ex)
+            {
+                cookies = null;
+                Log("Aviso: nao consegui copiar o cookies.txt (" + ex.Message + "); seguindo sem cookies.");
+            }
+        }
 
         var found = 0;
         for (var i = 0; i < count; i++)
@@ -118,13 +186,24 @@ public sealed class NativeTrailerSync
             ct.ThrowIfCancellationRequested();
             try
             {
+                var folderKey = GetItemFolder(work[i]) ?? string.Empty;
                 if (await ProcessItemAsync(work[i], toolkit, cookies, tmdbKey, simulate, ct).ConfigureAwait(false))
                 {
                     found++;
+                    LastFailure.TryRemove(folderKey, out _);
+                }
+                else if (!simulate)
+                {
+                    LastFailure[folderKey] = DateTime.UtcNow;
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
+                if (cookies != null)
+                {
+                    TryDelete(cookies);
+                }
+
                 throw;
             }
             catch (Exception ex)
@@ -133,6 +212,11 @@ public sealed class NativeTrailerSync
             }
 
             progress.Report((i + 1) * 100.0 / count);
+        }
+
+        if (cookies != null)
+        {
+            TryDelete(cookies);
         }
 
         Log((simulate ? "Simulacao concluida" : "Sincronizacao concluida") + ": trailer "
