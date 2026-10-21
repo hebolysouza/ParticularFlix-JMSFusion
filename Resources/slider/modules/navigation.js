@@ -190,7 +190,28 @@ function ensureFlickerFixCSS() {
   document.head.appendChild(st);
 }
 
+// Fork ParticularFlix: o resultado so muda com resize/orientacao; antes cada chamada avaliava
+// 6 media queries (matchMedia pode forcar recalculo de estilo; 312 ms no trace mobile).
+let __lowPowerPeakCache = null;
+let __lowPowerPeakBound = false;
 function isLowPowerPeakRuntime() {
+  if (!__lowPowerPeakBound) {
+    __lowPowerPeakBound = true;
+    try {
+      const reset = () => { __lowPowerPeakCache = null; };
+      window.addEventListener('resize', reset, { passive: true });
+      window.addEventListener('orientationchange', reset, { passive: true });
+    } catch {}
+  }
+  if (__lowPowerPeakCache !== null && Date.now() - __lowPowerPeakCache.at < 10000) {
+    return __lowPowerPeakCache.value;
+  }
+  const value = computeLowPowerPeakRuntime();
+  __lowPowerPeakCache = { value, at: Date.now() };
+  return value;
+}
+
+function computeLowPowerPeakRuntime() {
   try {
     const ua = String((typeof navigator !== 'undefined' && navigator.userAgent) || '');
     const uaMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua);
