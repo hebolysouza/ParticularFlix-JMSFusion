@@ -282,8 +282,14 @@ async function scan() {
     removeBridge();
     return;
   }
+  // Fork ParticularFlix: confere a rota (barato) antes de procurar o campo de busca
+  // (getComputedStyle + getBoundingClientRect, forcava layout a cada mutacao do DOM).
+  if (!isSearchRoute()) {
+    removeBridge();
+    return;
+  }
   const query = currentSearchQuery();
-  if (!query || query.length < 2 || !isSearchRoute()) {
+  if (!query || query.length < 2) {
     removeBridge();
     return;
   }

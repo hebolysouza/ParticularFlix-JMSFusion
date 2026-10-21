@@ -1976,6 +1976,7 @@ export const languageLabels = {
   youtubetrailer: "Apri il trailer su YouTube",
   settingsLink: "Impostazioni",
   sezon: "Stagioni",
+  newSeason: "Nuova stagione",
   seri: "Film",
   film: "Film",
   dizi: "Serie",

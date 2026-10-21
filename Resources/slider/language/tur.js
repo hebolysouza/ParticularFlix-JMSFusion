@@ -1976,6 +1976,7 @@ export const languageLabels = {
   youtubetrailer: "Fragmanı Youtube'da Aç",
   settingsLink: "Ayarlar",
   sezon: "Sezon",
+  newSeason: "Yeni sezon",
   seri: "Film",
   film: "Film",
   dizi: "Dizi",

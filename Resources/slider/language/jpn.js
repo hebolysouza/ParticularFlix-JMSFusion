@@ -1976,6 +1976,7 @@ export const languageLabels = {
   youtubetrailer: "YouTube で予告編を開く",
   settingsLink: "設定",
   sezon: "シーズン",
+  newSeason: "新シーズン",
   seri: "映画",
   film: "映画",
   dizi: "シリーズ",

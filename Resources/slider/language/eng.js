@@ -2007,6 +2007,7 @@ export const languageLabels = {
   youtubetrailer: "Open Trailer on YouTube",
   settingsLink: "Settings",
   sezon: "Seasons",
+  newSeason: "New season",
   seri: "Movie",
   film: "Movie",
   dizi: "Series",

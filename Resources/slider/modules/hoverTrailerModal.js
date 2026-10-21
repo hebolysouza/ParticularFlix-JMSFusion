@@ -654,7 +654,7 @@ export function closeVideoModal() {
       clearTransientOverlays(m);
       m.style.display = 'none';
       m.classList.remove('video-preview-modal--hidden');
-      try { clearWillChange(m); } catch {}
+      try { clearWillChange(m, true); } catch {}
     }
     modalState._lastModalHideAt = Date.now();
     modalState._isModalClosing = false;
@@ -668,6 +668,7 @@ export function closeVideoModal() {
         if (m.style.display !== 'none' || modalState._isModalClosing) return;
         if (modalState._lastModalHideAt !== stamp) return;
         try { hardWipeModalDom(m); } catch {}
+        try { scanSheetsForWillChange(); } catch {}
       };
       if (typeof requestIdleCallback === 'function') requestIdleCallback(wipe, { timeout: 400 });
       else setTimeout(wipe, 50);
@@ -3885,23 +3886,7 @@ if (typeof window !== 'undefined') {
 
 const __willChangeScanned = new WeakMap();
 
-function clearWillChange(modal) {
-  if (!modal) return;
-  try {
-    modal.style.removeProperty('will-change');
-    modal.querySelectorAll('[style*="will-change"]').forEach(el => {
-      el.style.removeProperty('will-change');
-    });
-  } catch {}
-  try {
-    const pop = document.querySelector('.mini-trailer-popover');
-    if (pop) {
-      pop.style.removeProperty('will-change');
-      pop.querySelectorAll('[style*="will-change"]').forEach(el => {
-        el.style.removeProperty('will-change');
-      });
-    }
-  } catch {}
+function scanSheetsForWillChange() {
   const SELECTORS = [
     '.video-preview-modal',
     '.preview-iframe-wrapper',
@@ -3933,7 +3918,29 @@ function clearWillChange(modal) {
       }
     }
   } catch {}
-  try { modal.offsetHeight; } catch {}
+}
+
+function clearWillChange(modal, skipSheets = false) {
+  if (!modal) return;
+  try {
+    modal.style.removeProperty('will-change');
+    modal.querySelectorAll('[style*="will-change"]').forEach(el => {
+      el.style.removeProperty('will-change');
+    });
+  } catch {}
+  try {
+    const pop = document.querySelector('.mini-trailer-popover');
+    if (pop) {
+      pop.style.removeProperty('will-change');
+      pop.querySelectorAll('[style*="will-change"]').forEach(el => {
+        el.style.removeProperty('will-change');
+      });
+    }
+  } catch {}
+  if (!skipSheets) {
+    scanSheetsForWillChange();
+    try { modal.offsetHeight; } catch {}
+  }
 }
 
 function nextFrame(cb) {

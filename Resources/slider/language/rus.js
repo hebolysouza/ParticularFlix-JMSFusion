@@ -1976,6 +1976,7 @@ export const languageLabels = {
   youtubetrailer: "Открыть трейлер на YouTube",
   settingsLink: "Настройки",
   sezon: "Сезон",
+  newSeason: "Новый сезон",
   seri: "Фильм",
   film: "Фильм",
   dizi: "Сериал",

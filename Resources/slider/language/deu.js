@@ -1978,6 +1978,7 @@ export const languageLabels = {
   youtubetrailer: "Trailer auf YouTube öffnen",
   settingsLink: "Einstellungen",
   sezon: "Jahreszeiten",
+  newSeason: "Neue Staffel",
   seri: "Film",
   film: "Film",
   dizi: "Serie",

@@ -9,6 +9,7 @@ import { createTomatoIconElement } from "./customIcons.js";
 import { openDetailsModal } from "./detailsModalLoader.js";
 import { getWatchlistButtonText } from "./watchlist.js";
 import { fetchItemDetailsFromSliderCache } from "./sliderCache.js";
+import { applyNewSeasonBadge } from "./newSeasonBadge.js";
 
 const S = (u) => withServer(u);
 const config = getConfig();
@@ -898,6 +899,7 @@ async function createSlide(item, options = {}) {
   slide.dataset.metaColorSeed = metaColorSeed;
   const statusContainer = createStatusContainer(config, UserData, RunTimeTicks);
   const formatContainer = createFormatContainer(itemType, config, ChildCount, MediaStreams, metaColorSeed);
+  if (formatContainer && itemType === "Series") applyNewSeasonBadge(formatContainer, item, config.languageLabels);
   const actorSlider = await createActorSlider(People, config, item);
   const infoContainer = createInfoContainer({ config, Genres, ProductionYear, ProductionLocations });
   const directorContainer = await createDirectorContainer({ config, People, item });

@@ -1999,6 +1999,7 @@ export const languageLabels = {
   youtubetrailer: "Abrir Tráiler en YouTube",
   settingsLink: "Configuración",
   sezon: "Temporadas",
+  newSeason: "Nueva temporada",
   seri: "Película",
   film: "Película",
   dizi: "Serie",

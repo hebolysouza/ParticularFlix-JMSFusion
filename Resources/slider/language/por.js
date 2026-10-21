@@ -2003,6 +2003,7 @@ export const languageLabels = {
   youtubetrailer: "Abra o trailer no YouTube",
   settingsLink: "Configurações",
   sezon: "Temporadas",
+  newSeason: "Nova temporada",
   seri: "Filme",
   film: "Filme",
   dizi: "Série",
