@@ -837,7 +837,7 @@ export const languageLabels = {
   jfBaseAutoNote: "Jellyfin URL is detected automatically from the active session.",
   tmdbApiKey: "TMDb API Key",
   tmdbManagedInSlider: "Managed from the single field in the Monwui tab, and the global config is used here.",
-  nativeTrailersInfo: "Trailers are now downloaded automatically by the scheduled task \"JMSFusion: sincronizar trailers\" (Dashboard > Scheduled Tasks) and whenever a new movie or series is added. Brazilian Portuguese trailers are preferred. The YouTube cookies file is optional: /config/cookies.txt or the JMSFUSION_COOKIES variable.",
+  nativeTrailersInfo: "Trailers are now downloaded automatically by the scheduled task \"JMSFusion: sincronizar trailers\" (Dashboard > Scheduled Tasks) and whenever a new movie or series is added. The main preference is the Brazilian Portuguese (BR) trailer; if none is found, the search continues in the background with the English trailer. The YouTube cookies file is optional: /config/cookies.txt or the JMSFUSION_COOKIES variable.",
   preferredLang: "Preferred language",
   fallbackLang: "Fallback language",
   trailerMinResolution: "Minimum trailer resolution",

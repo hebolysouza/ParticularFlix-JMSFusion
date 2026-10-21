@@ -827,6 +827,7 @@ export const languageLabels = {
   jfBaseAutoNote: "Jellyfin URL aktif oturumdan otomatik algılanır.",
   tmdbApiKey: "TMDb API Key",
   tmdbManagedInSlider: "Monwui sekmesindeki tek alandan yönetilir ve burada global config kullanılır.",
+  nativeTrailersInfo: "Fragmanlar artık \"JMSFusion: sincronizar trailers\" zamanlanmış görevi (Kontrol Paneli > Zamanlanmış Görevler) tarafından ve yeni bir film veya dizi eklendiğinde otomatik olarak indirilir. Birincil tercih Brezilya Portekizcesi (BR) fragmandır; bulunamazsa arama arka planda İngilizce fragmanla devam eder. YouTube çerez dosyası isteğe bağlıdır: /config/cookies.txt veya JMSFUSION_COOKIES değişkeni.",
   preferredLang: "Tercih edilen dil",
   fallbackLang: "Yedek dil",
   trailerMinResolution: "Minimum fragman çözünürlüğü",

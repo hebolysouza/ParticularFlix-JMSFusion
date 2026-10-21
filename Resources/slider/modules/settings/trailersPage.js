@@ -734,7 +734,7 @@ export function createTrailersPanel(config, labels) {
   const nativeInfo = document.createElement('div');
   nativeInfo.className = 'description-text';
   nativeInfo.style.margin = '6px 0 14px';
-  nativeInfo.textContent = L.nativeTrailersInfo || 'Trailers are now downloaded automatically by the scheduled task "JMSFusion: sincronizar trailers" (Dashboard > Scheduled Tasks) and whenever a new movie or series is added. Brazilian Portuguese trailers are preferred. The YouTube cookies file is optional: /config/cookies.txt or the JMSFUSION_COOKIES variable.';
+  nativeInfo.textContent = labels?.nativeTrailersInfo || 'Trailers are now downloaded automatically by the scheduled task "JMSFusion: sincronizar trailers" (Dashboard > Scheduled Tasks) and whenever a new movie or series is added. The main preference is the Brazilian Portuguese (BR) trailer; if none is found, the search continues in the background with the English trailer. The YouTube cookies file is optional: /config/cookies.txt or the JMSFUSION_COOKIES variable.';
   section.appendChild(nativeInfo);
 
   const nonAdminInfo = document.createElement('div');

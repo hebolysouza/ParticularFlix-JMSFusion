@@ -826,6 +826,7 @@ export const languageLabels = {
   jfBaseAutoNote: "URL Jellyfin автоматически определяется из активной сессии.",
   tmdbApiKey: "Ключ API TMDb",
   tmdbManagedInSlider: "Управляется из единого поля на вкладке Slider, здесь используется глобальная конфигурация.",
+  nativeTrailersInfo: "Трейлеры теперь загружаются автоматически запланированной задачей \"JMSFusion: sincronizar trailers\" (Панель управления > Запланированные задачи), а также при добавлении нового фильма или сериала. Основной приоритет у трейлера на бразильском португальском (BR); если он не найден, поиск продолжается в фоновом режиме с трейлером на английском. Файл cookies YouTube необязателен: /config/cookies.txt или переменная JMSFUSION_COOKIES.",
   preferredLang: "Предпочитаемый язык",
   fallbackLang: "Резервный язык",
   trailerMinResolution: "Минимальное разрешение трейлера",

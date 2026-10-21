@@ -827,6 +827,7 @@ export const languageLabels = {
   jfBaseAutoNote: "Jellyfin URL はアクティブなセッションから自動的に検出されます。",
   tmdbApiKey: "TMDb API キー",
   tmdbManagedInSlider: "Monwui タブの単一フィールドから管理され、グローバル設定がここで使用されます。",
+  nativeTrailersInfo: "予告編は、スケジュールされたタスク「JMSFusion: sincronizar trailers」（ダッシュボード > スケジュールされたタスク）によって自動的にダウンロードされ、新しい映画やシリーズが追加されたときにも実行されます。最優先はブラジル・ポルトガル語（BR）の予告編で、見つからない場合はバックグラウンドで英語の予告編を探し続けます。YouTube の Cookie ファイルは任意です：/config/cookies.txt または変数 JMSFUSION_COOKIES。",
   preferredLang: "優先言語",
   fallbackLang: "フォールバック言語",
   trailerMinResolution: "予告編の最低解像度",

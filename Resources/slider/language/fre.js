@@ -826,6 +826,7 @@ export const languageLabels = {
   jfBaseAutoNote: "L'URL Jellyfin est détectée automatiquement depuis la session active.",
   tmdbApiKey: "Clé API TMDb",
   tmdbManagedInSlider: "Géré depuis le champ unique de l'onglet Monwui, et la configuration globale est utilisée ici.",
+  nativeTrailersInfo: "Les bandes-annonces sont désormais téléchargées automatiquement par la tâche planifiée \"JMSFusion: sincronizar trailers\" (Tableau de bord > Tâches planifiées) et à chaque ajout d'un nouveau film ou d'une nouvelle série. La préférence principale est la bande-annonce en portugais du Brésil (BR) ; si elle est introuvable, la recherche se poursuit en arrière-plan avec la bande-annonce en anglais. Le fichier de cookies YouTube est facultatif : /config/cookies.txt ou la variable JMSFUSION_COOKIES.",
   preferredLang: "Langue préférée",
   fallbackLang: "Langue de secours",
   trailerMinResolution: "Résolution minimale de la bande-annonce",

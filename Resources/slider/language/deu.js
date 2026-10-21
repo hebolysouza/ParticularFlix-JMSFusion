@@ -826,6 +826,7 @@ export const languageLabels = {
   jfBaseAutoNote: "Die Jellyfin-URL wird automatisch aus der aktiven Sitzung erkannt.",
   tmdbApiKey: "TMDb-API-Schlüssel",
   tmdbManagedInSlider: "Wird über das einzelne Feld im Monwui-Tab verwaltet; hier wird die globale Konfiguration verwendet.",
+  nativeTrailersInfo: "Trailer werden jetzt automatisch von der geplanten Aufgabe \"JMSFusion: sincronizar trailers\" (Dashboard > Geplante Aufgaben) heruntergeladen, außerdem immer dann, wenn ein neuer Film oder eine neue Serie hinzugefügt wird. Bevorzugt wird der Trailer auf brasilianischem Portugiesisch (BR); wird keiner gefunden, sucht das Plugin im Hintergrund weiter nach dem englischen Trailer. Die YouTube-Cookies-Datei ist optional: /config/cookies.txt oder die Variable JMSFUSION_COOKIES.",
   preferredLang: "Bevorzugte Sprache",
   fallbackLang: "Fallback-Sprache",
   trailerMinResolution: "Minimale Trailer-Auflösung",

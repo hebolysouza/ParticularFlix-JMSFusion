@@ -840,7 +840,7 @@ export const languageLabels = {
   jfBaseAutoNote: "A URL do Jellyfin é detectada automaticamente a partir da sessão ativa.",
   tmdbApiKey: "Chave de API do TMDb",
   tmdbManagedInSlider: "Gerenciado a partir do campo único na aba do MonWUI, e a configuração global é usada aqui.",
-  nativeTrailersInfo: "Os trailers agora são baixados automaticamente pela tarefa agendada \"JMSFusion: sincronizar trailers\" (Painel > Tarefas agendadas) e sempre que um filme ou série novo é adicionado. Trailers em português (BR) têm prioridade. O arquivo de cookies do YouTube é opcional: /config/cookies.txt ou a variável JMSFUSION_COOKIES.",
+  nativeTrailersInfo: "Os trailers agora são baixados automaticamente pela tarefa agendada \"JMSFusion: sincronizar trailers\" (Painel > Tarefas agendadas) e sempre que um filme ou série novo é adicionado. A preferência principal é o trailer em português (BR); se não encontrar, a busca continua em segundo plano pelo trailer em inglês. O arquivo de cookies do YouTube é opcional: /config/cookies.txt ou a variável JMSFUSION_COOKIES.",
   preferredLang: "Idioma Preferido",
   fallbackLang: "Idioma de Fallback",
   trailerMinResolution: "Resolução Mínima do Trailer",
