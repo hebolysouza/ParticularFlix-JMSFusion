@@ -331,12 +331,31 @@ async function persistSnapshot(snapshot, options = {}) {
   return savePromise;
 }
 
+// Fork ParticularFlix: durante o carregamento da home a publicacao das configuracoes disputa a
+// fila do servidor com o primeiro slide. Ela espera o primeiro slide ficar pronto (no maximo
+// ~12 s) e, ao sair da pagina, o flush do ciclo de vida continua gravando de imediato.
+const BOOT_DEFER_MAX_MS = 12000;
+const bootStartedAt = Date.now();
+
+function isFirstSlideReady() {
+  try {
+    return performance.getEntriesByName("jms:first-slide-ready").length > 0;
+  } catch {
+    return true;
+  }
+}
+
 function schedulePersist() {
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
+  const fire = () => {
+    if (!isFirstSlideReady() && (Date.now() - bootStartedAt) < BOOT_DEFER_MAX_MS) {
+      saveTimer = setTimeout(fire, 1000);
+      return;
+    }
     saveTimer = null;
     void persistSnapshot(buildSnapshotFromStorage());
-  }, SAVE_DEBOUNCE_MS);
+  };
+  saveTimer = setTimeout(fire, SAVE_DEBOUNCE_MS);
 }
 
 function flushPendingSnapshotOnPageLifecycle() {
