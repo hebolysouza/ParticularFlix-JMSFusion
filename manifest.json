@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/hebolysouza/ParticularFlix-JMSFusion/main/img/icon.png",
     "versions": [
     {
+      "version": "3.7.3.0",
+      "changelog": "v3.7.3.0 (ParticularFlix fork)\n\nSpeed release on top of 3.7.2.0. Same plugin GUID, no setting changes.\n\nChanges:\n- The plugin's JavaScript is cached by the browser for good (versioned URLs served as immutable); a normal refresh no longer revalidates ~100 files, which matters a lot over a VPN\n- Import map plus modulepreload hints: modules are fetched in parallel instead of level by level\n- No more blocking plugin check at page start (skipped when the plugin answered in the last 10 minutes)\n- Trailers start sooner: lookup and stream URL are resolved ahead of time for the active slide and its neighbours, and the automatic start waits 120 ms instead of 500 ms\n- Performance marks (jms:boot ... jms:splash-hide) for diagnosing slow loads\n\nUpgrade notes:\n- The plugin folder is now named JMSFusion_3.7.3.0; if you mount the plugin folder as a Docker volume, update the mount path\n- Restart Jellyfin and hard refresh the browser (Ctrl+F5)\n\nFull list: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
+      "targetAbi": "10.11.0.0",
+      "sourceUrl": "https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases/download/v3.7.3.0/JMSFusion-3.7.3.0-server.zip",
+      "checksum": "d6418dba6094ceda46d74afb58356d7d",
+      "timestamp": "2026-10-21T19:52:00.0000000Z"
+    },
+    {
       "version": "3.7.2.0",
       "changelog": "v3.7.2.0 (ParticularFlix fork)\n\nMinor release on top of 3.7.1.1. Same plugin GUID, no setting changes.\n\nChanges:\n- Local trailer no longer shows the browser's native controls (seek bar, download menu, picture-in-picture, right-click menu); pause and volume stay with the plugin's buttons\n- Discreet fullscreen button under the volume button (pause and volume come along in fullscreen)\n- Unmuting restores the last volume you set instead of jumping to 100%\n- Fixed the automatic trailer not starting after clicking the slider arrows when the mouse was resting over the card\n\nUpgrade notes:\n- The plugin folder is now named JMSFusion_3.7.2.0; if you mount the plugin folder as a Docker volume, update the mount path\n- Restart Jellyfin and hard refresh the browser (Ctrl+F5)\n\nFull list: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
       "targetAbi": "10.11.0.0",
