@@ -6,8 +6,16 @@
     "overview": "Custom script loader for the Jellyfin web UI.",
     "owner": "G-Grbz",
     "category": "General",
-    "imageUrl": "https://raw.githubusercontent.com/G-grbz/Jellyfin-MonWUI-Plugin/main/img/icon.png",
+    "imageUrl": "https://raw.githubusercontent.com/hebolysouza/ParticularFlix-JMSFusion/main/img/icon.png",
     "versions": [
+    {
+        "version": "3.7.1.0",
+        "changelog": "v3.7.1 (ParticularFlix fork, based on upstream 3.7.0.0)\n\nUpgrade notes:\n- Your settings are kept; every new option defaults to the old behavior\n- Docker Desktop on Windows: keep the plugin in a local Docker volume, not a bind mount (the 60+ MB DLL gets corrupted assets from bind mounts)\n- Restart Jellyfin and hard refresh the browser (Ctrl+F5)\n\nNew:\n- Slider list sources (current releases / recent premieres) with a time window\n- 'New season' badge on series slides\n- Per-profile settings (desktop and mobile independent)\n- Hover trailer controls, notification open mode, Studio Hubs improvements\n\nSecurity:\n- Non-admin users no longer receive configuration keys; configuration writes are admin-only\n\nPerformance:\n- Gzip/Brotli for the /slider modules, layer trim on slides and cards, lighter home rendering\n\nFull list: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases/download/v3.7.1/JMSFusion-3.7.1.0-server.zip",
+        "checksum": "cd1f3025d1144dc9e1cbad4c1b73f0c7",
+        "timestamp": "2026-10-21T13:45:53.2643581Z"
+      },
     {
         "version": "3.7.0.0",
         "changelog": "v3.7.0\n\nChanges:\n- Fixed plugin settings being reset when saving partial configuration updates\n- Added configuration merge handling to preserve existing values during updates\n- Preserved custom MonWUI settings, integration settings, internal state, and stored JSON snapshots\n\nNotes:\n- Existing custom settings are now retained when updating plugin configuration\n- Restart Jellyfin after update if settings appear cached",
