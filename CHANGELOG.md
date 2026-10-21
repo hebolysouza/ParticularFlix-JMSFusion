@@ -51,8 +51,8 @@ Requires Jellyfin 10.11.x (`targetAbi` 10.11.0.0, net9.0). Auto update is off; u
 
 ### Security
 
-- Upstream 3.7.0.0 answered `/JMSFusion/config` without login with the whole plugin configuration, and writes were
-  possible without login. In this fork configuration endpoints return a version without secrets to non-admins, and
+- Upstream 3.7.0.0 answered `/JMSFusion/config` without login with the whole plugin configuration, and the code
+  also allowed saving configuration without login. In this fork configuration endpoints return a version without secrets to non-admins, and
   saving configuration, patch, unpatch, environment, trailers and lyrics actions require an administrator.
 - The user identity is read only from the Jellyfin authentication claims. The forgeable `X-Emby-UserId` header is no longer
   trusted.
