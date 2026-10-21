@@ -727,9 +727,15 @@ export function createTrailersPanel(config, labels) {
     tie(aInput, bInput); tie(bInput, aInput);
   }
 
-  section.appendChild(trailerDownloaderCheckbox);
-  section.appendChild(trailerUrlNfoCheckbox);
+  // Fork 3.8.1: os trailers agora sao baixados pela tarefa agendada nativa. Os dois checkboxes do downloader
+  // antigo continuam existindo fora da tela (guardam o valor atual da config), mas nao sao mais exibidos.
   exclusifyRefs(getChk(trailerDownloaderCheckbox), getChk(trailerUrlNfoCheckbox));
+
+  const nativeInfo = document.createElement('div');
+  nativeInfo.className = 'description-text';
+  nativeInfo.style.margin = '6px 0 14px';
+  nativeInfo.textContent = L.nativeTrailersInfo || 'Trailers are now downloaded automatically by the scheduled task "JMSFusion: sincronizar trailers" (Dashboard > Scheduled Tasks) and whenever a new movie or series is added. Brazilian Portuguese trailers are preferred. The YouTube cookies file is optional: /config/cookies.txt or the JMSFUSION_COOKIES variable.';
+  section.appendChild(nativeInfo);
 
   const nonAdminInfo = document.createElement('div');
   nonAdminInfo.className = 'admin-info-message';
@@ -1135,73 +1141,12 @@ export function createTrailersPanel(config, labels) {
       const themeLinkEnabled = Number(pickConfigValue(currentConfig, 'enableThemeLink', 'EnableThemeLink') ?? 0) === 1;
       const themeLinkMode = pickConfigValue(currentConfig, 'themeLinkMode', 'ThemeLinkMode') || 'symlink';
 
-      adminOnlyWrap.appendChild(createTextInput('JFBase', L.jfBase, getAutoJfBase() || normalizeBaseUrl(pickConfigValue(currentConfig, 'jfBase', 'JFBase')) || ''));
       syncJfBaseInput(pickConfigValue(currentConfig, 'jfBase', 'JFBase'));
-
-      const jfBaseAutoNote = document.createElement('div');
-      jfBaseAutoNote.className = 'description-text';
-      jfBaseAutoNote.textContent = L.jfBaseAutoNote;
-      adminOnlyWrap.appendChild(jfBaseAutoNote);
-
-      adminOnlyWrap.appendChild(createTextInput('PreferredLang', L.preferredLang, pickConfigValue(currentConfig, 'preferredLang', 'PreferredLang') || 'tr-TR'));
-      adminOnlyWrap.appendChild(createTextInput('FallbackLang', L.fallbackLang, pickConfigValue(currentConfig, 'fallbackLang', 'FallbackLang') || 'en-US'));
-      adminOnlyWrap.appendChild(createNumberInputWrap(
-        'MaxConcurrentDownloads',
-        L.maxConcurrentDownloads,
-        pickConfigValue(currentConfig, 'maxConcurrentDownloads', 'MaxConcurrentDownloads') ?? DEFAULT_MAX_CONCURRENT_DOWNLOADS
-      ));
-
-      const maxConcurrentDownloadsHint = document.createElement('div');
-      maxConcurrentDownloadsHint.className = 'description-text';
-      maxConcurrentDownloadsHint.textContent = L.maxConcurrentDownloadsHint;
-      adminOnlyWrap.appendChild(maxConcurrentDownloadsHint);
-
-      adminOnlyWrap.appendChild(createSelectWrap(
-        'TrailerMinResolution',
-        L.trailerMinResolution,
-        TRAILER_RESOLUTION_OPTIONS.map((value) => ({ value, label: `${value}p` })),
-        resolutionBounds.min
-      ));
-      adminOnlyWrap.appendChild(createSelectWrap(
-        'TrailerMaxResolution',
-        L.trailerMaxResolution,
-        TRAILER_RESOLUTION_OPTIONS.map((value) => ({ value, label: `${value}p` })),
-        resolutionBounds.max
-      ));
-      wireResolutionBounds();
-
-      const resolutionHint = document.createElement('div');
-      resolutionHint.className = 'description-text';
-      resolutionHint.textContent = L.trailerResolutionHint;
-      adminOnlyWrap.appendChild(resolutionHint);
 
       const tmdbNote = document.createElement('div');
       tmdbNote.className = 'description-text';
       tmdbNote.textContent = `${L.tmdbApiKey}: ${(labels?.tmdbManagedInSlider || 'Slider sekmesindeki tek alandan yönetilir ve burada global config kullanılır.')}`;
       adminOnlyWrap.appendChild(tmdbNote);
-
-      const overwriteWrap = document.createElement('div');
-      overwriteWrap.className = 'input-container';
-      {
-        const l = document.createElement('label');
-        l.textContent = L.overwritePolicy;
-        l.htmlFor = 'OverwritePolicy';
-        const sel = document.createElement('select');
-        sel.id = 'OverwritePolicy';
-        [
-          { value: 'skip', label: L.overwriteSkip },
-          { value: 'replace', label: L.overwriteReplace },
-          { value: 'if-better', label: L.overwriteIfBetter }
-        ].forEach((opt) => {
-          const o = document.createElement('option');
-          o.value = opt.value;
-          o.textContent = opt.label;
-          sel.appendChild(o);
-        });
-        sel.value = mapEnumToWire(pickConfigValue(currentConfig, 'overwritePolicy', 'OverwritePolicy') || 'Skip');
-        overwriteWrap.append(l, sel);
-      }
-      adminOnlyWrap.appendChild(overwriteWrap);
 
       adminOnlyWrap.appendChild(createCheckbox('EnableThemeLink', L.enableThemeLink, themeLinkEnabled));
       setCheckboxValue('EnableThemeLink', themeLinkEnabled);
@@ -1240,12 +1185,7 @@ export function createTrailersPanel(config, labels) {
       saveBtn.textContent = L.saveSettings;
       saveBtn.style.cssText = primaryBtnCss();
 
-      const runBtn = document.createElement('button');
-      runBtn.type = 'button';
-      runBtn.textContent = L.runNow;
-      runBtn.style.cssText = baseBtnCss();
-
-      btnRow.append(saveBtn, runBtn);
+      btnRow.append(saveBtn);
       adminOnlyWrap.append(btnRow, out);
 
       saveBtn.onclick = async () => {
@@ -1259,22 +1199,11 @@ export function createTrailersPanel(config, labels) {
 
           const payload = {};
           const pushIf = (k, v) => { if (v !== undefined && v !== null && v !== '') payload[k] = v; };
-          const selectedBounds = getSelectedResolutionBounds();
-          const fallbackJfBase = pickConfigValue(trailerConfig, 'jfBase', 'JFBase');
 
           pushIf('AllowScriptExecution', true);
           if (a) pushIf('EnableTrailerDownloader', !!a.checked);
           if (b) pushIf('EnableTrailerUrlNfo', !!b.checked);
 
-          pushIf('JFBase', syncJfBaseInput(fallbackJfBase) || getAutoJfBase());
-          pushIf('PreferredLang', document.getElementById('PreferredLang')?.value?.trim());
-          pushIf('FallbackLang', document.getElementById('FallbackLang')?.value?.trim());
-          pushIf('MaxConcurrentDownloads', normalizeConcurrentDownloads(document.getElementById('MaxConcurrentDownloads')?.value));
-          pushIf('TrailerMinResolution', selectedBounds.min);
-          pushIf('TrailerMaxResolution', selectedBounds.max);
-
-          const opWire = document.getElementById('OverwritePolicy')?.value || 'skip';
-          pushIf('OverwritePolicy', opWire);
           pushIf('EnableThemeLink', document.getElementById('EnableThemeLink')?.checked ? 1 : 0);
           pushIf('ThemeLinkMode', document.getElementById('ThemeLinkMode')?.value || 'symlink');
 
@@ -1287,18 +1216,7 @@ export function createTrailersPanel(config, labels) {
 
           const savedConfig = setTrailerConfig(data);
           applyTopLevelConfig(savedConfig);
-          applyResolutionInputs(getResolutionBounds(savedConfig));
           setCheckboxValue('EnableThemeLink', Number(pickConfigValue(savedConfig, 'enableThemeLink', 'EnableThemeLink') ?? 0) === 1);
-          setTextValue('PreferredLang', pickConfigValue(savedConfig, 'preferredLang', 'PreferredLang'));
-          setTextValue('FallbackLang', pickConfigValue(savedConfig, 'fallbackLang', 'FallbackLang'));
-          setTextValue('MaxConcurrentDownloads', normalizeConcurrentDownloads(pickConfigValue(savedConfig, 'maxConcurrentDownloads', 'MaxConcurrentDownloads')));
-          syncJfBaseInput(pickConfigValue(savedConfig, 'jfBase', 'JFBase'));
-
-          const overwriteSel = document.getElementById('OverwritePolicy');
-          if (overwriteSel) {
-            overwriteSel.value = mapEnumToWire(pickConfigValue(savedConfig, 'overwritePolicy', 'OverwritePolicy') || opWire);
-          }
-
           const themeModeSel = document.getElementById('ThemeLinkMode');
           if (themeModeSel) {
             themeModeSel.value = pickConfigValue(savedConfig, 'themeLinkMode', 'ThemeLinkMode') || 'symlink';
@@ -1311,21 +1229,6 @@ export function createTrailersPanel(config, labels) {
           saveBtn.disabled = false;
           saveBtn.textContent = oldText;
         }
-      };
-
-      runBtn.onclick = async () => {
-        const attached = await connectIfRunning({ forceOpen: true });
-        if (attached) {
-          showNotification(L.alreadyRunning, 2500, 'warning');
-          return;
-        }
-
-        const body = collectRunBody();
-        if (!body.runDownloader && !body.runUrlNfo) {
-          showNotification(L.atLeastOneOption, 2500, 'warning');
-          return;
-        }
-        openConfirmUi();
       };
 
       return out;
