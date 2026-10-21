@@ -1,5 +1,5 @@
 import { getConfig } from "../config.js";
-import { createCheckbox, createSection } from "./shared.js";
+import { createCheckbox, createSection, createSelect } from "./shared.js";
 import { applySettings } from "./applySettings.js";
 
 const config = getConfig();
@@ -17,6 +17,17 @@ export function createNotificationsPanel(config, labels) {
     config.enableNotifications
 );
     section.appendChild(enableCheckbox);
+
+    // Fork ParticularFlix: como o painel do sino abre.
+    section.appendChild(createSelect(
+        'notifOpenMode',
+        labels.notifOpenMode || 'Abertura do painel de notificacoes',
+        [
+            { value: 'hover', text: labels.notifOpenModeHover || 'Ao passar o mouse no sino' },
+            { value: 'click', text: labels.notifOpenModeClick || 'Somente ao clicar no sino' }
+        ],
+        config.notifOpenMode === 'click' ? 'click' : 'hover'
+    ));
 
     const enableToastNewCheckbox = createCheckbox(
     'enableToastNew',

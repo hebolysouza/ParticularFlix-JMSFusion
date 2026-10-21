@@ -1045,6 +1045,8 @@ function computeConfig() {
 })(),
 
     enableNotifications: localStorage.getItem('enableNotifications') !== 'false',
+    // Fork ParticularFlix: abertura do painel do sino (hover = ao passar o mouse, click = somente ao clicar no sino).
+    notifOpenMode: localStorage.getItem('notifOpenMode') === 'click' ? 'click' : 'hover',
     enableToastNew: localStorage.getItem('enableToastNew') !== 'false',
     enableToastSystem: localStorage.getItem('enableToastSystem') !== 'false',
     maxNotifications: parseInt(localStorage.getItem("maxNotifications"), 10) || 15,

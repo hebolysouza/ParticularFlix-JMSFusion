@@ -110,6 +110,11 @@ let __initNotificationsPromise = null;
 let latestAudioCacheAt = 0;
 let latestAudioCacheItems = [];
 
+// Fork ParticularFlix: 'hover' (padrao, abre ao passar o mouse) ou 'click' (so abre ao clicar no sino).
+function getNotifOpenMode() {
+  try { return getLiveConfig()?.notifOpenMode === 'click' ? 'click' : 'hover'; } catch { return 'hover'; }
+}
+
 function isHoverCapable() {
   try {
     return window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
@@ -157,7 +162,7 @@ function setupNotifHover() {
 
   const openLater = () => {
     clearHoverTimers();
-    __hoverOpenTimer = setTimeout(() => { openModal(); }, HOVER_OPEN_DELAY);
+    __hoverOpenTimer = setTimeout(() => { if (getNotifOpenMode() === 'hover') openModal(); }, HOVER_OPEN_DELAY);
   };
   const closeLater = () => {
     clearHoverTimers();
@@ -168,9 +173,11 @@ function setupNotifHover() {
   };
 
   btn.addEventListener('mouseenter', () => {
+    if (getNotifOpenMode() !== 'hover') return;
     openLater();
   });
   const leaveHandler = (ev) => {
+    if (getNotifOpenMode() !== 'hover') return;
     const to = ev.relatedTarget;
     if (insideNotifArea(to)) {
       cancelClose();
@@ -204,7 +211,10 @@ function ensureNotifButtonIn(el, mode = "legacy") {
       ${faIconHtml("bell", "jf-notif-icon notif")}
       <span class="jf-notif-badge" hidden></span>
     `;
-    btn.addEventListener("click", openModal);
+    btn.addEventListener("click", () => {
+      if (getNotifOpenMode() === 'click' && notifState.isModalOpen) { closeModal(); return; }
+      openModal();
+    });
     __notifBtn = btn;
   }
   applyHeaderIconButtonMode(__notifBtn, mode, {
@@ -718,7 +728,13 @@ function ensureUI() {
     `;
     document.body.appendChild(modal);
     modal.addEventListener("click", (e) => {
-      if (e.target.matches("[data-close]")) closeModal();
+      if (e.target.matches("[data-close]")) { closeModal(); return; }
+      // Fork ParticularFlix: no modo "somente ao clicar", clique fora do painel (ou no sino, coberto pela camada) fecha.
+      // composedPath() e calculado antes do tratamento do evento; closest() falharia se o alvo fosse removido ao clicar.
+      if (getNotifOpenMode() === 'click') {
+        const inPanel = e.composedPath().some((n) => n?.classList?.contains?.("jf-notif-panel"));
+        if (!inPanel) closeModal();
+      }
     });
       modal.addEventListener("transitionend", (ev) => {
       if (ev.target === modal && !modal.classList.contains("open")) {

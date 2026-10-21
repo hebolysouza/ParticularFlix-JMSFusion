@@ -519,6 +519,10 @@ const USER_ONLY_KEYS = [
             enableSlider: formData.get('enableSlider') === 'on',
             onlyShowSliderOnHomeTab: formData.get('onlyShowSliderOnHomeTab') === 'on',
             enableNotifications: formData.get('enableNotifications') === 'on',
+            notifOpenMode: (() => {
+              const v = hasNamedControl('notifOpenMode') ? formData.get('notifOpenMode') : config.notifOpenMode;
+              return v === 'click' ? 'click' : 'hover';
+            })(),
             enableToastNew: formData.get('enableToastNew') === 'on',
             enableToastSystem: formData.get('enableToastSystem') === 'on',
             maxNotifications: parseInt(formData.get('maxNotifications'), 10),
