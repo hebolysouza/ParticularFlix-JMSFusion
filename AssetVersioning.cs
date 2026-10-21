@@ -8,6 +8,9 @@ namespace Jellyfin.Plugin.JMSFusion
     internal static class AssetVersioning
     {
         private const string CacheControlValue = "public, max-age=0, must-revalidate";
+        // Fork ParticularFlix 3.7.3: pedidos com ?v=<AssetVersion> (o valor so muda quando a DLL muda)
+        // podem ficar no cache do navegador sem revalidar, o que elimina as requisicoes dos modulos no F5.
+        private const string ImmutableCacheControlValue = "public, max-age=31536000, immutable";
         private static readonly string s_assetVersion = BuildAssetVersion();
 
         public static string AssetVersion => s_assetVersion;
@@ -36,6 +39,12 @@ namespace Jellyfin.Plugin.JMSFusion
 (function () {
   var root = document.documentElement;
   window.__JMS_ASSET_VERSION__ = "{{version}}";
+  try {
+    if (window.performance) {
+      if (typeof performance.setResourceTimingBufferSize === "function") performance.setResourceTimingBufferSize(1500);
+      if (typeof performance.mark === "function") performance.mark("jms:boot");
+    }
+  } catch {}
   if (root) {
     root.setAttribute("data-jms-asset-version", "{{version}}");
   }
@@ -206,7 +215,17 @@ namespace Jellyfin.Plugin.JMSFusion
     return raw + (raw.indexOf("?") >= 0 ? "&" : "?") + suffix;
   }
 
+  var PING_OK_KEY = "jmsPluginPingOkAt";
+  var PING_OK_TTL_MS = 10 * 60 * 1000;
+
   function canReachPluginPresenceSync() {
+    // Fork ParticularFlix 3.7.3: o ping e uma requisicao SINCRONA que trava a pagina. Se o plugin respondeu
+    // nos ultimos 10 minutos, nao repete (o main.js ainda confirma a presenca de forma assincrona).
+    try {
+      var okAt = Number(window.localStorage ? localStorage.getItem(PING_OK_KEY) : 0) || 0;
+      if (okAt > 0 && Math.abs(Date.now() - okAt) < PING_OK_TTL_MS) return true;
+    } catch {}
+
     for (var i = 0; i < PING_PATHS.length; i += 1) {
       try {
         var xhr = new XMLHttpRequest();
@@ -216,6 +235,7 @@ namespace Jellyfin.Plugin.JMSFusion
         xhr.send(null);
         var status = Number(xhr.status || 0);
         if ((status >= 200 && status < 300) || status === 401 || status === 403) {
+          try { if (window.localStorage) localStorage.setItem(PING_OK_KEY, String(Date.now())); } catch {}
           return true;
         }
       } catch {}
@@ -1317,7 +1337,7 @@ html[data-jms-custom-splash="1"][data-jms-custom-splash-hidden="1"] #${LOGO_ID} 
         public static bool TryHandleConditionalGet(HttpContext context, string cacheKey)
         {
             var etag = BuildEtag(cacheKey);
-            ApplyHeaders(context.Response.Headers, etag);
+            ApplyHeaders(context.Response.Headers, etag, IsVersionedRequest(context.Request));
 
             var ifNoneMatch = context.Request.Headers[HeaderNames.IfNoneMatch].ToString();
             if (!string.IsNullOrWhiteSpace(ifNoneMatch) &&
@@ -1334,12 +1354,25 @@ html[data-jms-custom-splash="1"][data-jms-custom-splash-hidden="1"] #${LOGO_ID} 
         {
             var cacheKey = context.Context.Request.Path.Value ?? string.Empty;
             var etag = BuildEtag(cacheKey);
-            ApplyHeaders(context.Context.Response.Headers, etag);
+            ApplyHeaders(context.Context.Response.Headers, etag, IsVersionedRequest(context.Context.Request));
         }
 
-        private static void ApplyHeaders(IHeaderDictionary headers, string etag)
+        public static bool IsVersionedRequest(HttpRequest request)
         {
-            headers[HeaderNames.CacheControl] = CacheControlValue;
+            try
+            {
+                var v = request.Query["v"].ToString();
+                return !string.IsNullOrEmpty(v) && string.Equals(v, AssetVersion, StringComparison.Ordinal);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void ApplyHeaders(IHeaderDictionary headers, string etag, bool versioned)
+        {
+            headers[HeaderNames.CacheControl] = versioned ? ImmutableCacheControlValue : CacheControlValue;
             headers[HeaderNames.ETag] = etag;
         }
 

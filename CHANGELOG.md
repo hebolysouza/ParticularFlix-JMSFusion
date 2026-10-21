@@ -5,6 +5,23 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.7.3.0 (fork release)
+
+Speed release on top of 3.7.2.0. Same plugin GUID, no setting changes, nothing to reconfigure.
+
+### Changes
+
+- **The plugin's JavaScript is now cached by the browser for good.** Every module URL carries the plugin version (`?v=...`), which only changes when the plugin changes, and is served with `Cache-Control: public, max-age=31536000, immutable`. A normal refresh no longer asks the server for the ~100 plugin files at all (before, each one was revalidated on every load, which is slow over a VPN such as Tailscale).
+- **Modules are requested in parallel.** The page now carries an import map plus `modulepreload` hints, so the browser fetches the whole module tree at once instead of discovering it level by level.
+- **No more blocking request at page start.** The splash screen used to make a synchronous plugin check on every load; it is now skipped when the plugin answered in the last 10 minutes (the plugin still confirms its presence asynchronously).
+- **Trailers start sooner.** The trailer lookup and its stream URL are resolved ahead of time for the active slide and its neighbours (two ahead, one behind), the automatic start no longer waits the hover delay (120 ms instead of 500 ms), and arrow navigation finds the next trailer ready.
+- **Timing marks for diagnostics.** The browser resource-timing buffer is enlarged and the plugin leaves cheap `performance` marks (`jms:boot`, `jms:main-eval`, `jms:slidesInit`, `jms:items-ready`, `jms:first-slide-created`, `jms:first-slide-ready`, `jms:splash-hide`) so slow loads can be measured in production.
+
+### Upgrade notes
+
+- The plugin folder is now named `JMSFusion_3.7.3.0`. If you mount the plugin folder as a Docker volume (recommended on Docker Desktop for Windows), update the mount path to the new folder name.
+- Restart Jellyfin and hard refresh the browser (Ctrl + F5) once after upgrading.
+
 ## 3.7.2.0 (fork release)
 
 Minor release on top of 3.7.1.1. Same plugin GUID, no setting changes, nothing to reconfigure.

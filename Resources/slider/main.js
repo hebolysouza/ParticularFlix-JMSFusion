@@ -38,6 +38,13 @@ ensureAutoLanguageSync({ reloadOnChange: true });
 const MATERIAL_ICONS_REPAIR_STYLE_ID = "jms-material-icons-utf8-repair";
 const MATERIAL_ICONS_PROBE_CLASS = "_10k";
 const MATERIAL_ICONS_PROBE_CONTENT = "\ue951";
+// Fork ParticularFlix 3.7.3: marcas de tempo baratas (performance.getEntriesByType("mark")) para medir
+// onde o carregamento da home gasta tempo, inclusive em producao.
+const jmsMark = (name, detail) => {
+  try { performance.mark(name, detail === undefined ? undefined : { detail }); } catch {}
+};
+jmsMark("jms:main-eval");
+
 const CUSTOM_SPLASH_ACTIVE_ATTR = "data-jms-custom-splash";
 const CUSTOM_SPLASH_HIDDEN_ATTR = "data-jms-custom-splash-hidden";
 const CUSTOM_SPLASH_TITLE_ATTR = "data-jms-custom-splash-title";
@@ -1591,6 +1598,7 @@ function hideCustomSplash(reason = "ready") {
     return true;
   }
 
+  jmsMark("jms:splash-hide", reason);
   const readyStage = splashLabel("customSplashStageReady", "HAZIR");
   const closingDetail = reason === "timeout"
     ? splashLabel("customSplashDetailForcedExit", "Zorunlu geçiş devreye alınıyor")
@@ -2633,6 +2641,7 @@ function markFirstSlideReady(bootToken = Number(window.__jmsSliderBootToken) || 
   if (!isSliderBootTokenCurrent(bootToken, { requireHomeVisible: false })) return;
   if (window.__jmsFirstSlideReady) return;
   window.__jmsFirstSlideReady = true;
+  jmsMark("jms:first-slide-ready");
   syncCustomSplashProgress({ firstSlideReady: true });
   try {
     document.dispatchEvent(new CustomEvent("jms:first-slide-ready"));
@@ -4731,6 +4740,7 @@ function warmUpcomingBackdrops(count = 3) {
 }
 
 export async function slidesInit() {
+  jmsMark("jms:slidesInit");
   if (!isSliderEnabled()) {
     console.debug("[JMS] slidesInit() skipped (slider disabled)");
     return;
@@ -5421,7 +5431,9 @@ export async function slidesInit() {
     } else {
       if (!isBootActive()) return;
       const first = items[0];
+      jmsMark("jms:items-ready");
       const firstSlide = await createSlide(first);
+      jmsMark("jms:first-slide-created");
       if (!isBootActive()) {
         const staleContainer = firstSlide?.closest?.("#monwui-slides-container") || null;
         try { firstSlide?.__cleanupSlide?.(); } catch {}

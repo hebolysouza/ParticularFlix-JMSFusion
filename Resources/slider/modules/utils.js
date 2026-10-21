@@ -7,6 +7,7 @@ import {
   pickBestLocalTrailer,
   getAuthHeader,
   playNow,
+  isAuthReadyStrict,
 } from "../../Plugins/JMSFusion/runtime/api.js";
 import { openDetailsModal } from "./detailsModalLoader.js";
 import { withServer, withServerSrcset, invalidateServerBaseCache, resolveServerBase } from "./jfUrl.js";
@@ -683,6 +684,52 @@ export function ensureJmsDetailsOverlay({
   return wrap;
 }
 
+// Fork ParticularFlix 3.7.3: trailer local pre-resolvido. A cadeia "LocalTrailers + PlaybackInfo" custa varias
+// idas ao servidor (cada uma bem mais cara pelo Tailscale). Resolvemos isso antes, para o slide ativo e os
+// vizinhos, e o inicio do trailer so precisa colocar a URL no <video>.
+const TRAILER_PREFETCH_TTL_MS = 5 * 60 * 1000;
+// Resultado sem trailer (ou com falha) vale pouco tempo: uma falha passageira nao pode esconder o trailer.
+const TRAILER_PREFETCH_NEGATIVE_TTL_MS = 30 * 1000;
+const TRAILER_PREFETCH_MAX = 16;
+const trailerPrefetchCache = new Map();
+
+export function prefetchLocalTrailer(itemId, { background = false } = {}) {
+  if (!itemId) return Promise.resolve(null);
+  if (background) {
+    // Pre-busca em segundo plano so depois da autenticacao pronta (sem token a resposta seria vazia).
+    try { if (!isAuthReadyStrict()) return Promise.resolve(null); } catch { return Promise.resolve(null); }
+  }
+  const now = Date.now();
+  const hit = trailerPrefetchCache.get(itemId);
+  if (hit) {
+    const ttl = (!hit.settled || (hit.bestId && hit.url)) ? TRAILER_PREFETCH_TTL_MS : TRAILER_PREFETCH_NEGATIVE_TTL_MS;
+    if (now - hit.at < ttl) return hit.promise;
+  }
+
+  const entry = { at: now, bestId: null, url: null, settled: false, promise: null };
+  entry.promise = (async () => {
+    const locals = await fetchLocalTrailers(itemId);
+    const best = pickBestLocalTrailer(locals);
+    entry.bestId = best?.Id || null;
+    if (entry.bestId) {
+      const url = await getVideoStreamUrl(entry.bestId, 1920, 0, null, ["h264"], ["aac"], false, false);
+      entry.url = url && url !== "null" ? url : null;
+    }
+    entry.settled = true;
+    return entry;
+  })().catch(() => {
+    if (trailerPrefetchCache.get(itemId) === entry) trailerPrefetchCache.delete(itemId);
+    return null;
+  });
+
+  trailerPrefetchCache.set(itemId, entry);
+  while (trailerPrefetchCache.size > TRAILER_PREFETCH_MAX) {
+    const oldest = trailerPrefetchCache.keys().next().value;
+    trailerPrefetchCache.delete(oldest);
+  }
+  return entry.promise;
+}
+
 export function createTrailerIframe({
   config,
   RemoteTrailers,
@@ -1040,6 +1087,9 @@ function clearPreviewPlaybackFlag() {
 
   const delayRaw = config && (config.gecikmeSure ?? config.gecikmesure);
   const delay = Number.isFinite(+delayRaw) ? +delayRaw : 500;
+  // Fork ParticularFlix 3.7.3: o atraso configurado (padrao 500 ms) existe para o hover nao disparar por
+  // acaso. No inicio automatico nao ha essa duvida e o trailer ja vem pre-resolvido, entao o atraso e curto.
+  const AUTO_START_DELAY_MS = 120;
 
   const canUseYTApiPostMessage = (() => {
     try {
@@ -1798,8 +1848,8 @@ function clearPreviewPlaybackFlag() {
     playingKind = null;
   };
 
-  async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0, { previewDetails = null } = {}) {
-    const introUrl = await getVideoStreamUrl(
+  async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0, { previewDetails = null, prefetchedUrl = null } = {}) {
+    const introUrl = prefetchedUrl || await getVideoStreamUrl(
       itemIdToPlay,
       1920,
       0,
@@ -1854,10 +1904,10 @@ function clearPreviewPlaybackFlag() {
 
   async function tryPlayLocalTrailer(hoverId) {
     if (!isActiveSlide()) return false;
-    const locals = await fetchLocalTrailers(previewMediaItemId, { signal: abortController.signal });
+    const prefetched = await prefetchLocalTrailer(previewMediaItemId);
     if (!shouldKeepPreviewAlive(hoverId)) throw new Error("HoverAbortError");
     throwIfAutoTrailerSuspended();
-    const best = pickBestLocalTrailer(locals);
+    const best = prefetched?.bestId ? { Id: prefetched.bestId } : null;
     if (!best?.Id) return false;
 
     if (!isActiveSlide()) return false;
@@ -1878,7 +1928,7 @@ function clearPreviewPlaybackFlag() {
       syncAutoToggleButton();
     }
     setPreviewPlaybackFlag("localTrailer", best.Id);
-    await loadStreamFor(best.Id, hoverId, 0);
+    await loadStreamFor(best.Id, hoverId, 0, { prefetchedUrl: prefetched.url });
     return true;
   }
 
@@ -2047,7 +2097,7 @@ function clearPreviewPlaybackFlag() {
           finishAutoPreviewWithoutPlayback();
         }
       }
-    }, delay);
+    }, auto ? Math.min(delay, AUTO_START_DELAY_MS) : delay);
   };
 
   const stopPreview = ({ force = false, markAutoEnded = false } = {}) => {
@@ -2108,7 +2158,29 @@ function clearPreviewPlaybackFlag() {
     if (handOverToAuto) setTimeout(() => maybeStartAutoTrailer(), 60);
   };
 
+  let lastNeighborPrefetchAt = 0;
+  const prefetchActiveAndNeighbors = () => {
+    try {
+      if (document.hidden) return;
+      const now = Date.now();
+      if (now - lastNeighborPrefetchAt < 1000) return;
+      lastNeighborPrefetchAt = now;
+
+      prefetchLocalTrailer(previewMediaItemId, { background: true });
+
+      let next = slide.nextElementSibling;
+      for (let i = 0; i < 2 && next; i += 1, next = next.nextElementSibling) {
+        const id = next.dataset?.itemId;
+        if (id) prefetchLocalTrailer(id, { background: true });
+      }
+      const prev = slide.previousElementSibling;
+      const prevId = prev?.dataset?.itemId;
+      if (prevId) prefetchLocalTrailer(prevId, { background: true });
+    } catch {}
+  };
+
   const maybeStartAutoTrailer = () => {
+    if (isActiveSlide() && isSliderAutoTrailerEnabled()) prefetchActiveAndNeighbors();
     if (!isSliderAutoTrailerEnabled() || !isActiveSlide()) return;
     if (autoTrailerPlaybackBlocked || isAutoTrailerPlaybackBlocked()) return;
     if (autoTrailerSuspended || !isAutoTrailerForegroundReady()) return;

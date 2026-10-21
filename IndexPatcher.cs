@@ -17,6 +17,7 @@ namespace Jellyfin.Plugin.JMSFusion
             var sb = new StringBuilder();
             sb.AppendLine(BeginMark);
             sb.AppendLine(AssetVersioning.BuildBootstrapScript());
+            sb.Append(ModuleHints.BuildHtml());
             sb.AppendLine($@"<script type=""module"" src=""{AssetVersioning.AppendVersionQuery("../Plugins/JMSFusion/runtime/storage-preload.js")}""></script>");
             sb.AppendLine($@"<script type=""module"" src=""{AssetVersioning.AppendVersionQuery("../slider/main.js")}""></script>");
             sb.AppendLine($@"<script type=""module"" src=""{AssetVersioning.AppendVersionQuery("../slider/modules/player/main.js")}""></script>");
