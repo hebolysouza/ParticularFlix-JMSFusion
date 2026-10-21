@@ -1706,6 +1706,7 @@ export function displaySlide(index) {
   }
   requestAnimationFrame(() => {
     currentSlide.classList.add("active");
+    try { window.__jmsDbg && window.__jmsDbg("-", "nav:active-added", { index }); } catch {}
     currentSlide.dispatchEvent(new CustomEvent("slideActive", {
       bubbles: true,
       detail: { index }

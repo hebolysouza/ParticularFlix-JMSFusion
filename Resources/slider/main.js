@@ -4731,6 +4731,7 @@ function warmUpcomingBackdrops(count = 3) {
 }
 
 export async function slidesInit() {
+  try { window.__jmsDbg && window.__jmsDbg("-", "P1 slidesInit:enter"); } catch {}
   if (!isSliderEnabled()) {
     console.debug("[JMS] slidesInit() skipped (slider disabled)");
     return;
@@ -5421,7 +5422,9 @@ export async function slidesInit() {
     } else {
       if (!isBootActive()) return;
       const first = items[0];
+      try { window.__jmsDbg && window.__jmsDbg("-", "P2 items ready, createSlide(first):start"); } catch {}
       const firstSlide = await createSlide(first);
+      try { window.__jmsDbg && window.__jmsDbg("-", "P3 createSlide(first):end"); } catch {}
       if (!isBootActive()) {
         const staleContainer = firstSlide?.closest?.("#monwui-slides-container") || null;
         try { firstSlide?.__cleanupSlide?.(); } catch {}
@@ -5448,6 +5451,7 @@ export async function slidesInit() {
     if (config.peakSlider) {
       window.__peakBooting = false;
     }
+    try { window.__jmsDbg && window.__jmsDbg("-", "P4 initializeSlider:call"); } catch {}
     initializeSlider(bootToken);
     const rest = config.peakSlider
       ? peakBatches.slice(1)

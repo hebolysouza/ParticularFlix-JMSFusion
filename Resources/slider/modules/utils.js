@@ -14,6 +14,32 @@ import { withServer, withServerSrcset, invalidateServerBaseCache, resolveServerB
 const config = getConfig();
 const PLAYBACK_START_REQUESTED_EVENT = "jms:playback-start-requested";
 const AUTO_TRAILER_BLOCKED_FLAG = "__JMS_AUTO_TRAILER_PLAYBACK_BLOCKED";
+
+// ---- DIAGNOSTICO (build de teste): ligado so com localStorage.jmsDebug = "1" ----
+const JMS_DBG = (() => { try { return localStorage.getItem("jmsDebug") === "1"; } catch { return false; } })();
+function jmsDbg(id, label, extra) {
+  if (!JMS_DBG) return;
+  try {
+    const t = Math.round(performance.now());
+    (window.__JMS_DBG_LOG = window.__JMS_DBG_LOG || []).push({ t, id: id || "-", label, extra });
+    console.debug("[JMSDBG " + t + "ms] " + (id || "-") + " " + label, extra === undefined ? "" : extra);
+  } catch {}
+}
+function jmsDbgCaller() {
+  try { return new Error().stack.split("\n").slice(3, 6).map((x) => x.trim().replace(/https?:\/\/[^/]+/, "")).join(" < "); } catch { return ""; }
+}
+if (JMS_DBG) {
+  try {
+    window.__jmsDbg = jmsDbg;
+    if (!window.__jmsDbgArrowHook) {
+      window.__jmsDbgArrowHook = true;
+      document.addEventListener("click", (e) => {
+        const a = e.target && e.target.closest && e.target.closest(".pf-slider-arrow");
+        if (a) jmsDbg("-", "ARROW-CLICK", { side: a.classList.contains("pf-arrow-next") ? "next" : "prev", trusted: e.isTrusted });
+      }, true);
+    }
+  } catch {}
+}
 const S = (u) => {
   if (!u) return u;
   if (/^https?:\/\//i.test(u)) return u;
@@ -1799,6 +1825,7 @@ function clearPreviewPlaybackFlag() {
   };
 
   async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0, { previewDetails = null } = {}) {
+    jmsDbg(itemId, "T3 getVideoStreamUrl:start");
     const introUrl = await getVideoStreamUrl(
       itemIdToPlay,
       1920,
@@ -1810,7 +1837,8 @@ function clearPreviewPlaybackFlag() {
       false,
       { signal: abortController.signal }
     );
-    if (!shouldKeepPreviewAlive(hoverId)) throw new Error("HoverAbortError");
+    jmsDbg(itemId, "T4 getVideoStreamUrl:end", { ok: !!introUrl && introUrl !== "null" });
+    if (!shouldKeepPreviewAlive(hoverId)) { jmsDbg(itemId, "ABORT after getVideoStreamUrl", { hoverId, latest: latestHoverId, isMouseOver, autoPreviewActive }); throw new Error("HoverAbortError"); }
     if (!introUrl || introUrl === "null") return false;
     const audioPreview = isAudioLikeItem(previewDetails);
     if (audioPreview) {
@@ -1819,13 +1847,20 @@ function clearPreviewPlaybackFlag() {
     }
 
     videoElement.src = introUrl;
+    jmsDbg(itemId, "T5 video.src set");
+    if (JMS_DBG) {
+      videoElement.addEventListener("canplay", () => jmsDbg(itemId, "T7 video canplay"), { once: true });
+      videoElement.addEventListener("playing", () => jmsDbg(itemId, "T8 video playing (first frame)"), { once: true });
+    }
     const audioState = applyPreviewTrailerAudioToVideo(videoElement, { config });
     runtimePreviewVolumePercent = audioState.effectivePercent;
     if (audioState.effectivePercent > 0) lastAudiblePercent = audioState.effectivePercent;
     videoElement.load();
     const onMeta = () => {
       videoElement.removeEventListener("loadedmetadata", onMeta);
+      jmsDbg(itemId, "T6 video loadedmetadata");
       if (!shouldKeepPreviewAlive(hoverId)) {
+        jmsDbg(itemId, "ABORT at loadedmetadata", { hoverId, latest: latestHoverId, isMouseOver, autoPreviewActive });
         fullCleanup();
         return;
       }
@@ -1854,8 +1889,10 @@ function clearPreviewPlaybackFlag() {
 
   async function tryPlayLocalTrailer(hoverId) {
     if (!isActiveSlide()) return false;
+    jmsDbg(itemId, "T1 fetchLocalTrailers:start");
     const locals = await fetchLocalTrailers(previewMediaItemId, { signal: abortController.signal });
-    if (!shouldKeepPreviewAlive(hoverId)) throw new Error("HoverAbortError");
+    jmsDbg(itemId, "T2 fetchLocalTrailers:end", { count: Array.isArray(locals) ? locals.length : -1 });
+    if (!shouldKeepPreviewAlive(hoverId)) { jmsDbg(itemId, "ABORT after fetchLocalTrailers", { hoverId, latest: latestHoverId, isMouseOver, autoPreviewActive }); throw new Error("HoverAbortError"); }
     throwIfAutoTrailerSuspended();
     const best = pickBestLocalTrailer(locals);
     if (!best?.Id) return false;
@@ -1991,6 +2028,7 @@ function clearPreviewPlaybackFlag() {
   }
 
   const startPreview = ({ auto = false } = {}) => {
+    jmsDbg(itemId, "startPreview", { auto, active: isActiveSlide(), autoPreviewActive, playingKind });
     if (!isActiveSlide()) return;
     if (auto && !isSliderAutoTrailerEnabled()) return;
     if (auto && (autoTrailerPlaybackBlocked || isAutoTrailerPlaybackBlocked())) return;
@@ -2051,6 +2089,7 @@ function clearPreviewPlaybackFlag() {
   };
 
   const stopPreview = ({ force = false, markAutoEnded = false } = {}) => {
+    jmsDbg(itemId, "stopPreview", { force, markAutoEnded, wasAuto: autoPreviewActive, kind: playingKind, by: jmsDbgCaller() });
     const shouldAdvanceStoppedAuto = markAutoEnded && autoAdvanceWaiting;
     isMouseOver = false;
     autoStartDeferred = false;
@@ -2074,7 +2113,7 @@ function clearPreviewPlaybackFlag() {
     }
   };
 
-  const handleEnter = () => startPreview({ auto: false });
+  const handleEnter = () => { jmsDbg(itemId, "mouseenter", { active: isActiveSlide() }); startPreview({ auto: false }); };
 
   // The hover preview that blocked the automatic trailer is already playing: keep it and make it the
   // automatic one (pause button, end of trailer, auto advance), instead of stopping it.
@@ -2101,24 +2140,28 @@ function clearPreviewPlaybackFlag() {
     const handOverToAuto =
       autoStartDeferred && !autoPreviewActive && !document.hidden && isActiveSlide() && isSliderAutoTrailerEnabled();
     if (handOverToAuto && playingKind === "localTrailer") {
+      jmsDbg(itemId, "PROMOTE hover->auto");
       promoteHoverPreviewToAuto();
       return;
     }
+    jmsDbg(itemId, "leave:stop", { handOverToAuto });
     stopPreview({ force: true });
     if (handOverToAuto) setTimeout(() => maybeStartAutoTrailer(), 60);
   };
 
   const maybeStartAutoTrailer = () => {
-    if (!isSliderAutoTrailerEnabled() || !isActiveSlide()) return;
-    if (autoTrailerPlaybackBlocked || isAutoTrailerPlaybackBlocked()) return;
-    if (autoTrailerSuspended || !isAutoTrailerForegroundReady()) return;
-    if (!isAutoSlideVisible()) return;
+    const why = (r) => { jmsDbg(itemId, "maybeStart:BLOCKED", r); };
+    if (!isSliderAutoTrailerEnabled()) return why("auto-disabled");
+    if (!isActiveSlide()) return why("not-active");
+    if (autoTrailerPlaybackBlocked || isAutoTrailerPlaybackBlocked()) return why("playback-blocked");
+    if (autoTrailerSuspended) return why("suspended:" + Array.from(autoTrailerSuspendReasons).join(","));
+    if (!isAutoTrailerForegroundReady()) return why("no-foreground hidden=" + document.hidden + " hasFocus=" + (typeof document.hasFocus === "function" ? document.hasFocus() : "n/a"));
+    if (!isAutoSlideVisible()) return why("not-visible autoSlideVisible=" + autoSlideVisible + " rectVisible=" + isAutoSlideRectVisible());
     if (autoPreviewActive || playingKind || enterTimeout) {
-      // A hover preview got there first (typical right after an arrow click, when the card animates
-      // under the pointer). Remember it so auto mode takes over when the pointer leaves.
       if (!autoPreviewActive && isMouseOver) autoStartDeferred = true;
-      return;
+      return why("busy autoPreviewActive=" + autoPreviewActive + " playingKind=" + playingKind + " enterTimeout=" + !!enterTimeout + " deferred=" + autoStartDeferred);
     }
+    jmsDbg(itemId, "maybeStart:GO");
     startPreview({ auto: true });
   };
 
@@ -2139,6 +2182,7 @@ function clearPreviewPlaybackFlag() {
           for (const entry of entries) {
             if (entry.target === slideEl) {
               const visible = entry.isIntersecting && entry.intersectionRatio >= 0.5;
+              jmsDbg(itemId, "IO", { visible, ratio: Math.round(entry.intersectionRatio * 100) / 100, active: isActiveSlide() });
               autoSlideVisible = visible;
               if (!visible) {
                 if (!suspendAutoTrailerPlayback("viewport", { hideControls: true })) {
@@ -2336,6 +2380,7 @@ function clearPreviewPlaybackFlag() {
 
   const classObserver = new MutationObserver(() => {
     const nowActive = isActiveSlide();
+    if (nowActive !== lastActive) jmsDbg(itemId, nowActive ? "slide:ACTIVE" : "slide:inactive");
 
     if (lastActive && !nowActive && !leavingLock) {
       leavingLock = true;
@@ -2360,6 +2405,7 @@ function clearPreviewPlaybackFlag() {
   hoverTarget.addEventListener("mouseleave", handleLeave, { passive: true });
 
   const onSlideActive = () => {
+    jmsDbg(itemId, "event:slideActive");
     maybeStartAutoTrailer();
   };
   slide.addEventListener("slideActive", onSlideActive);
