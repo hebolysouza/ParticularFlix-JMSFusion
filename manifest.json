@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/hebolysouza/ParticularFlix-JMSFusion/main/img/icon.png",
     "versions": [
     {
+      "version": "3.7.2.0",
+      "changelog": "v3.7.2.0 (ParticularFlix fork)\n\nMinor release on top of 3.7.1.1. Same plugin GUID, no setting changes.\n\nChanges:\n- Local trailer no longer shows the browser's native controls (seek bar, download menu, picture-in-picture, right-click menu); pause and volume stay with the plugin's buttons\n- Discreet fullscreen button under the volume button (pause and volume come along in fullscreen)\n- Unmuting restores the last volume you set instead of jumping to 100%\n- Fixed the automatic trailer not starting after clicking the slider arrows when the mouse was resting over the card\n\nUpgrade notes:\n- The plugin folder is now named JMSFusion_3.7.2.0; if you mount the plugin folder as a Docker volume, update the mount path\n- Restart Jellyfin and hard refresh the browser (Ctrl+F5)\n\nFull list: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
+      "targetAbi": "10.11.0.0",
+      "sourceUrl": "https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases/download/v3.7.2.0/JMSFusion-3.7.2.0-server.zip",
+      "checksum": "af26dbbf8e7dc842572e07ad94bfc1e1",
+      "timestamp": "2026-10-21T19:06:35.0000000Z"
+    },
+    {
       "version": "3.7.1.1",
       "changelog": "v3.7.1.1 (ParticularFlix fork)\n\nPatch release on top of 3.7.1.0. Same plugin GUID, no setting changes.\n\nFixes:\n- About panel now shows the real installed version (it was stuck at v3.7.0, so the update check wrongly reported a new version)\n- About panel links point to this fork; the original project stays as credit\n- Update check compares four version numbers, so patch releases like 3.7.1.x are detected\n\nUpgrade notes:\n- The plugin folder is now named JMSFusion_3.7.1.1; if you mount the plugin folder as a Docker volume, update the mount path\n- Restart Jellyfin and hard refresh the browser (Ctrl+F5)\n\nFull list: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
       "targetAbi": "10.11.0.0",
