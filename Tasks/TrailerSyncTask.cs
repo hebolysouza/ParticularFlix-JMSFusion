@@ -15,7 +15,7 @@ namespace Jellyfin.Plugin.JMSFusion.Tasks;
 /// Lista filmes e series sem trailer na pasta, consulta o TMDb e registra no log
 /// qual trailer seria escolhido e por que. Nao baixa nem grava nada.
 /// </summary>
-public sealed class TrailerSyncTask : IScheduledTask
+public class TrailerSyncTask : IScheduledTask
 {
     private const int MaxItemsPerRun = 300;
     private const int DelayBetweenCallsMs = 300;
@@ -23,17 +23,25 @@ public sealed class TrailerSyncTask : IScheduledTask
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
 
     private readonly ILibraryManager _libraryManager;
-    private readonly ILogger<TrailerSyncTask> _logger;
+    private readonly ILogger _logger;
 
     public TrailerSyncTask(ILibraryManager libraryManager, ILogger<TrailerSyncTask> logger)
+        : this(libraryManager, (ILogger)logger)
+    {
+    }
+
+    protected TrailerSyncTask(ILibraryManager libraryManager, ILogger logger)
     {
         _libraryManager = libraryManager;
         _logger = logger;
     }
 
-    public string Name => "JMSFusion: simular trailers (sem baixar)";
-    public string Key => "JMSFusionTrailerSyncDryRun";
-    public string Description => "Procura filmes e series sem trailer e registra no log qual trailer seria escolhido. Nao baixa nem altera nada.";
+    /// <summary>Modo amostra: ignora se ja existe trailer e analisa so alguns itens (para testar o TMDb).</summary>
+    protected virtual bool SampleMode => false;
+
+    public virtual string Name => "JMSFusion: simular trailers (sem baixar)";
+    public virtual string Key => "JMSFusionTrailerSyncDryRun";
+    public virtual string Description => "Procura filmes e series sem trailer e registra no log qual trailer seria escolhido. Nao baixa nem altera nada.";
     public string Category => "JMSFusion";
 
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => Array.Empty<TaskTriggerInfo>();
@@ -59,7 +67,7 @@ public sealed class TrailerSyncTask : IScheduledTask
         var pending = new List<BaseItem>();
         foreach (var item in all)
         {
-            if (!string.IsNullOrWhiteSpace(item.Path) && !IsExcludedPath(item.Path) && !HasLocalTrailer(item))
+            if (!string.IsNullOrWhiteSpace(item.Path) && !IsExcludedPath(item.Path) && (SampleMode || !HasLocalTrailer(item)))
             {
                 pending.Add(item);
             }
@@ -68,7 +76,7 @@ public sealed class TrailerSyncTask : IScheduledTask
         _logger.LogInformation("[JMS trailers] Simulacao: {Total} itens na biblioteca, {Sem} sem trailer na pasta (analisando ate {Max}).",
             all.Count, pending.Count, MaxItemsPerRun);
 
-        var count = Math.Min(pending.Count, MaxItemsPerRun);
+        var count = Math.Min(pending.Count, SampleMode ? 10 : MaxItemsPerRun);
         var withPlan = 0;
         var withoutPlan = 0;
 
@@ -221,4 +229,18 @@ public sealed class TrailerSyncTask : IScheduledTask
     }
 
     private sealed record Candidate(string Key, string Name, string Lang, string Country, bool Official, string Published, int Group, int Dub);
+}
+
+/// <summary>Igual a simulacao normal, mas analisa 10 itens mesmo que ja tenham trailer. Nao baixa nada.</summary>
+public sealed class TrailerSyncSampleTask : TrailerSyncTask
+{
+    public TrailerSyncSampleTask(ILibraryManager libraryManager, ILogger<TrailerSyncSampleTask> logger)
+        : base(libraryManager, (ILogger)logger)
+    {
+    }
+
+    protected override bool SampleMode => true;
+    public override string Name => "JMSFusion: simular trailers (amostra de 10 itens)";
+    public override string Key => "JMSFusionTrailerSyncSample";
+    public override string Description => "Analisa 10 filmes ou series, mesmo que ja tenham trailer, e registra no log o que seria escolhido. Nao baixa nem altera nada.";
 }
