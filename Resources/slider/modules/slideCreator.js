@@ -10,6 +10,7 @@ import { openDetailsModal } from "./detailsModalLoader.js";
 import { getWatchlistButtonText } from "./watchlist.js";
 import { fetchItemDetailsFromSliderCache } from "./sliderCache.js";
 import { applyNewSeasonBadge } from "./newSeasonBadge.js";
+import "./layerTrim.js";
 
 const S = (u) => withServer(u);
 const config = getConfig();
@@ -519,7 +520,10 @@ async function createSlide(item, options = {}) {
   const autoBackdropUrl = buildSlideBackdropUrl(parentId, highestQualityBackdropIndex);
   const landscapeUrl = S(`/Items/${parentId}/Images/Thumb/0`);
   const primaryUrl  = S(`/Items/${parentId}/Images/Primary`);
-  let logoUrl = S(`/Items/${parentId}/Images/Logo`);
+  // Fork ParticularFlix: o logo aparece com no maximo ~130 px de altura; pede no tamanho certo
+  // (o original do Jellyfin chega a 881 KB). logoFullUrl so e usado quando o logo vira a imagem de fundo.
+  const logoFullUrl = S(`/Items/${parentId}/Images/Logo`);
+  let logoUrl = S(`/Items/${parentId}/Images/Logo?maxHeight=300&quality=90`);
   const bannerUrl = `/Items/${parentId}/Images/Banner`;
   const clearartUrl = S(`/Items/${parentId}/Images/Art`);
   const artUrl = clearartUrl;
@@ -532,7 +536,7 @@ async function createSlide(item, options = {}) {
     backdropUrl: buildSlideBackdropUrl(parentId, 0),
     landscapeUrl,
     primaryUrl,
-    logoUrl: logoExists ? logoUrl : buildSlideBackdropUrl(parentId, 0),
+    logoUrl: logoExists ? logoFullUrl : buildSlideBackdropUrl(parentId, 0),
     bannerUrl: S(`/Items/${parentId}/Images/Banner`),
     artUrl: S(`/Items/${parentId}/Images/Art`),
     discUrl: S(`/Items/${parentId}/Images/Disc`),
@@ -978,7 +982,7 @@ function buildStarLayer(useSolid) {
 function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '', isFavorite = false, itemId = null, updateFavoriteCallback = null, CommunityRating = null, CriticRating = null, OfficialRating = null) {
   const embedUrl = getYoutubeEmbedUrl(trailerUrl);
   const sep = embedUrl.includes('?') ? '&' : '?';
-  const logoUrl = withServer(`/Items/${itemId}/Images/Logo`);
+  const logoUrl = withServer(`/Items/${itemId}/Images/Logo?maxHeight=200&quality=90`);
   const overlay = document.createElement("div");
   overlay.className = "monwui-trailer-modal-overlay";
   overlay.style.opacity = "0";
