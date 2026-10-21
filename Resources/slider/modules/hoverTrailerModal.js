@@ -649,15 +649,29 @@ export function closeVideoModal() {
   softStopPlayback();
 
   setTimeout(() => {
-    if (modalState.videoModal) {
-      clearTransientOverlays(modalState.videoModal);
-      modalState.videoModal.style.display = 'none';
-      modalState.videoModal.classList.remove('video-preview-modal--hidden');
-      try { hardWipeModalDom(modalState.videoModal); } catch {}
-      try { clearWillChange(modalState.videoModal); } catch {}
+    const m = modalState.videoModal;
+    if (m) {
+      clearTransientOverlays(m);
+      m.style.display = 'none';
+      m.classList.remove('video-preview-modal--hidden');
+      try { clearWillChange(m); } catch {}
     }
     modalState._lastModalHideAt = Date.now();
     modalState._isModalClosing = false;
+    // Fork ParticularFlix: a limpeza pesada (iframe, video.load(), reset de DOM) rodava no mesmo
+    // quadro do fechamento (violacao de 60 a 90 ms). Agora roda no ocioso, so se o modal
+    // continuar fechado (se reabriu ou fechou de novo, nao limpa por cima).
+    if (m) {
+      const stamp = modalState._lastModalHideAt;
+      const wipe = () => {
+        if (modalState.videoModal !== m) return;
+        if (m.style.display !== 'none' || modalState._isModalClosing) return;
+        if (modalState._lastModalHideAt !== stamp) return;
+        try { hardWipeModalDom(m); } catch {}
+      };
+      if (typeof requestIdleCallback === 'function') requestIdleCallback(wipe, { timeout: 400 });
+      else setTimeout(wipe, 50);
+    }
   }, MODAL_ANIM.closeMs);
 }
 
