@@ -3869,7 +3869,9 @@ function hasAcceptedRecentRowsMountState(sectionKey) {
   return hasMountedRecentRowsShell(sectionKey);
 }
 
-async function fillSectionWithItems({
+async function fillSectionWithItemsInner({
+  appendAfter = null,
+  appendDone = null,
   sectionKey = "recentRows",
   sectionId = "",
   titleText,
@@ -3913,8 +3915,11 @@ async function fillSectionWithItems({
       rootMargin: RECENT_ROWS_RELEASE_ROOT_MARGIN,
     });
   } catch {}
+  // Fork ParticularFlix: as linhas buscam dados em paralelo, mas entram na pagina na ordem planejada.
+  if (appendAfter) { try { await appendAfter; } catch {} }
   appendSection(sectionKey, section);
   try { registerManagedHomeRowAnchor(section); } catch {}
+  try { appendDone?.(); } catch {}
 
   let __renderToken = (Date.now() ^ (Math.random()*1e9)) | 0;
   section.__renderToken = __renderToken;
@@ -4116,6 +4121,20 @@ async function fillSectionWithItems({
   }
 
   return fetchAndRender();
+}
+
+async function fillSectionWithItems(options = {}) {
+  const rowName = String(options?.sectionId || options?.sectionKey || "row");
+  const markRow = (suffix) => {
+    try { performance.mark(`jms:row:${rowName}:${suffix}`); } catch {}
+  };
+  markRow("start");
+  try {
+    return await fillSectionWithItemsInner(options);
+  } finally {
+    try { options?.appendDone?.(); } catch {}
+    markRow("done");
+  }
 }
 
 function getActiveHomePage() {
@@ -4563,11 +4582,19 @@ async function initAndRender({ sectionKey = "recentRows", mountState = null } = 
     const episodePlans     = [];
     const pushPlan = (bucket, fn) => { if (typeof fn === "function") bucket.push(fn); };
     let plannedSectionIndex = 0;
-    const buildManagedSection = (options) => fillSectionWithItems({
-      sectionKey,
-      sectionId: makeManagedRecentRowsSectionId(sectionKey, plannedSectionIndex++),
-      ...options,
-    });
+    let lastAppendGate = Promise.resolve();
+    const buildManagedSection = (options) => {
+      const appendAfter = lastAppendGate;
+      let appendDone = null;
+      lastAppendGate = new Promise((resolve) => { appendDone = resolve; });
+      return fillSectionWithItems({
+        sectionKey,
+        sectionId: makeManagedRecentRowsSectionId(sectionKey, plannedSectionIndex++),
+        ...options,
+        appendAfter,
+        appendDone,
+      });
+    };
 
   if (runtimeCfg.enableTop10Series) {
     const topSeriesParentIds = getTopSeriesParentIds();
@@ -5153,18 +5180,26 @@ async function initAndRender({ sectionKey = "recentRows", mountState = null } = 
         sectionKey,
         runnerCount: runners.length,
       });
-      for (let i = 0; i < runners.length; i++) {
-        const run = runners[i];
-        if (!isRecentRowsMountStateValid(mountState)) break;
-        try {
-          await run();
-        } catch (e) {
-          console.warn("recentRows: runner error:", e);
+      // Fork ParticularFlix: ate 3 linhas buscam dados ao mesmo tempo (antes uma esperava a outra
+      // terminar a rede). A ordem na pagina continua a planejada (ver appendAfter/appendDone).
+      let nextRunner = 0;
+      const worker = async () => {
+        while (nextRunner < runners.length) {
+          if (!isRecentRowsMountStateValid(mountState)) break;
+          const run = runners[nextRunner++];
+          try {
+            await run();
+          } catch (e) {
+            console.warn("recentRows: runner error:", e);
+          }
+          if (nextRunner < runners.length && isRecentRowsMountStateValid(mountState)) {
+            await yieldRecentRowsSectionStep();
+          }
         }
-        if (i < runners.length - 1 && isRecentRowsMountStateValid(mountState)) {
-          await yieldRecentRowsSectionStep();
-        }
-      }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(3, runners.length) }, () => worker())
+      );
     }
   } finally {
     setManagedRecentRowsDone(sectionKey, true);

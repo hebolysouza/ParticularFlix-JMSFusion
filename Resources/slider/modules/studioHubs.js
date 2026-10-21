@@ -1008,7 +1008,16 @@ export async function renderStudioHubs() {
      serverId = serverId || localStorage.getItem("serverId") || sessionStorage.getItem("serverId") || null;
      const shells = {};
 
+    // Fork ParticularFlix: as 3 consultas ao servidor (colecoes manuais, visibilidade e videos de hover)
+    // sao independentes; antes saiam uma depois da outra. A visibilidade fica no cache em memoria.
+    const visibilityWarm = getConfig()?.forceGlobalUserSettings
+      ? null
+      : fetchStudioHubVisibility({ profile: getDeviceProfileAuto() }).catch(() => null);
+    const videoWarm = config.studioHubsHoverVideo
+      ? fetchStudioHubVideoEntries().catch(() => [])
+      : null;
     const manualEntries = await fetchStudioHubManualEntries().catch(() => []);
+    if (visibilityWarm) await visibilityWarm;
     const hiddenNames = await getHiddenStudioNameSet(manualEntries);
     const userOrder = await getStudioOrderList(manualEntries);
     const manualOrder = (manualEntries || [])
@@ -1024,9 +1033,7 @@ export async function renderStudioHubs() {
 
     const maxCards = Number.isFinite(config.studioHubsCardCount) ? config.studioHubsCardCount : visibleOrder.length;
     const wanted = visibleOrder.slice(0, Math.max(1, maxCards));
-    const sharedVideos = config.studioHubsHoverVideo
-      ? await fetchStudioHubVideoEntries().catch(() => [])
-      : [];
+    const sharedVideos = videoWarm ? await videoWarm : [];
 
     for (const desired of wanted) {
       const existing = row.querySelector(`.hub-card[data-hub="${CSS.escape(desired)}"]`);
@@ -1398,6 +1405,7 @@ export function ensureStudioHubsMounted({ eager=false, force=false } = {}) {
       await enqueueManagedSectionRender("studioHubs", async () => {
         await waitForManagedSectionGate("studioHubs", { timeoutMs: 25000 });
         await waitForManagedSectionDependencyCompletion("studioHubs", { timeoutMs: 25000 });
+        try { performance.mark("jms:studio:dependency-done"); } catch {}
         if (!host.page?.isConnected || !getActiveHomePage()) {
           scheduleRetry(800);
           return false;
@@ -1418,7 +1426,9 @@ export function ensureStudioHubsMounted({ eager=false, force=false } = {}) {
           setStudioHubsReady(true);
           return true;
         }
+        try { performance.mark("jms:studio:render-start"); } catch {}
         await renderStudioHubs();
+        try { performance.mark("jms:studio:render-done"); } catch {}
         __studioHubsMountedOnce = true;
         return true;
       }, {
