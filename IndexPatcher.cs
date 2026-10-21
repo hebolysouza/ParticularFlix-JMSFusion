@@ -21,6 +21,7 @@ namespace Jellyfin.Plugin.JMSFusion
             sb.AppendLine($@"<script type=""module"" src=""{AssetVersioning.AppendVersionQuery("../Plugins/JMSFusion/runtime/storage-preload.js")}""></script>");
             sb.AppendLine($@"<script type=""module"" src=""{AssetVersioning.AppendVersionQuery("../slider/main.js")}""></script>");
             sb.AppendLine($@"<script type=""module"" src=""{AssetVersioning.AppendVersionQuery("../slider/modules/player/main.js")}""></script>");
+            sb.Append(Controllers.CustomAssets.BuildTags());
             sb.AppendLine(EndMark);
             return sb.ToString();
         }

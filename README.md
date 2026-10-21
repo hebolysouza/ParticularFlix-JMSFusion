@@ -25,7 +25,7 @@
 ---
 
 > [!NOTE]
-> **ParticularFlix fork (3.7.8.1).** This repository is a maintained fork of the archived upstream project.
+> **ParticularFlix fork (3.8.0.0).** This repository is a maintained fork of the archived upstream project.
 > It keeps the same plugin GUID, fixes a configuration security hole, adds per-profile settings,
 > new slider sources, a "New season" badge and many performance improvements.
 > See [CHANGELOG.md](CHANGELOG.md) for the full list and the upgrade notes.
@@ -213,6 +213,15 @@ expires, export the cookies again and replace the file.
 
 **Moving from an external script**: disable the old scheduled task before enabling this one, so two programs do not download
 into the same folders at the same time.
+
+## Custom scripts and styles (fork)
+
+Drop your own `.js` or `.css` files in the plugin's `custom` folder and JMSFusion injects them into the Jellyfin web page, in
+alphabetical order. The folder is `JMSFusion/custom` inside the Jellyfin plugin configurations directory (the plugin creates it;
+on the official Docker image this is under `/config/data/plugins/configurations/JMSFusion/custom`). Edits show up after the next
+page load because the URL carries the file's modification date. Use it for logos, small CSS tweaks or any script you used to
+patch into `index.html` by hand. Only plain file names (letters, digits, dot, dash, underscore) are served, and nothing in this
+folder is uploaded anywhere.
 
 ## Uninstall
 
