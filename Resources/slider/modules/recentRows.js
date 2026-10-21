@@ -3823,6 +3823,8 @@ function bindRecentRowsSelfHealObserver() {
   if (!target) return;
 
   __recentRowsSelfHealObserver = new MutationObserver(() => {
+    // Fork ParticularFlix: saida imediata (sem getConfig/timers) quando nao ha o que curar.
+    if (__recentRowsSelfHealTimer || !STATE.hadMountedSections) return;
     scheduleRecentRowsSelfHeal("observer");
   });
 

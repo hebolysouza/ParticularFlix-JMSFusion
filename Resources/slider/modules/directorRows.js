@@ -353,6 +353,8 @@ function bindDirectorRowsSelfHealObserver() {
   if (!target) return;
 
   __directorRowsSelfHealObserver = new MutationObserver(() => {
+    // Fork ParticularFlix: saida imediata (sem getConfig/timers) quando nao ha o que curar.
+    if (__directorRowsSelfHealTimer || !STATE.hadMountedSections) return;
     scheduleDirectorRowsSelfHeal("observer");
   });
 

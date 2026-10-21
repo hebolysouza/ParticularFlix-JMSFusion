@@ -126,9 +126,29 @@ function readCustomProperty(element, name) {
   ).trim();
 }
 
+// Fork ParticularFlix: cada resolucao cria uma sonda no DOM e le getComputedStyle (forca recalculo de
+// estilo). Valores em px sao lidos direto; valores que dependem so da janela (vh, vw, calc de px/vh/vw)
+// ficam em cache por tamanho da janela. Valores com %, em, rem, var() ou env() continuam usando a sonda.
+const SIMPLE_PX_RE = /^-?(?:\d+\.?\d*|\.\d+)px$/i;
+const CACHEABLE_VIEWPORT_RE = /^[\d\s.+\-*/()%a-z]+$/i;
+const NON_CACHEABLE_RE = /%|em\b|rem\b|ex\b|ch\b|lh\b|var\(|env\(|attr\(|\d(?:em|rem|ex|ch|lh)/i;
+const cssLengthCache = new Map();
+
 function resolveCssLengthPx(rawValue, contextElement, fallback = 0) {
   const value = String(rawValue ?? '').trim();
   if (!value) return fallback;
+
+  if (SIMPLE_PX_RE.test(value)) return Number.parseFloat(value);
+
+  const cacheable = CACHEABLE_VIEWPORT_RE.test(value) && !NON_CACHEABLE_RE.test(value);
+  let cacheKey = '';
+  if (cacheable) {
+    cacheKey = `${value}|${window.innerWidth}x${window.innerHeight}`;
+    if (cssLengthCache.has(cacheKey)) {
+      const hit = cssLengthCache.get(cacheKey);
+      return Number.isFinite(hit) ? hit : fallback;
+    }
+  }
 
   const probe = document.createElement('div');
   const parent = contextElement?.isConnected ? contextElement : document.body;
@@ -140,6 +160,10 @@ function resolveCssLengthPx(rawValue, contextElement, fallback = 0) {
   try {
     parent.appendChild(probe);
     const resolved = Number.parseFloat(window.getComputedStyle?.(probe)?.top || '');
+    if (cacheKey) {
+      if (cssLengthCache.size > 64) cssLengthCache.clear();
+      cssLengthCache.set(cacheKey, resolved);
+    }
     return Number.isFinite(resolved) ? resolved : fallback;
   } catch {
     return fallback;
@@ -198,12 +222,23 @@ function reconnectSliderHeaderMutationObserver() {
   try { sliderHeaderMutationObserver.observe(root, SLIDER_HEADER_OBSERVER_OPTIONS); } catch {}
 }
 
+let sliderHeaderLastSyncAt = 0;
+let sliderHeaderSyncTimer = 0;
+const SLIDER_HEADER_SYNC_MIN_INTERVAL_MS = 120;
+
 function scheduleSliderHeaderOffsetSync() {
-  if (sliderHeaderRafId) return;
-  sliderHeaderRafId = requestAnimationFrame(() => {
-    sliderHeaderRafId = 0;
-    try { syncSliderHeaderOffset(); } catch {}
-  });
+  if (sliderHeaderRafId || sliderHeaderSyncTimer) return;
+  // Fork ParticularFlix: no maximo uma sincronizacao a cada 120 ms (a ultima sempre roda).
+  const wait = SLIDER_HEADER_SYNC_MIN_INTERVAL_MS - (Date.now() - sliderHeaderLastSyncAt);
+  const run = () => {
+    sliderHeaderRafId = requestAnimationFrame(() => {
+      sliderHeaderRafId = 0;
+      sliderHeaderLastSyncAt = Date.now();
+      try { syncSliderHeaderOffset(); } catch {}
+    });
+  };
+  if (wait <= 0) { run(); return; }
+  sliderHeaderSyncTimer = setTimeout(() => { sliderHeaderSyncTimer = 0; run(); }, wait);
 }
 
 function scheduleSliderHeaderOffsetBurst() {
