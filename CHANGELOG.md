@@ -5,6 +5,24 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.7.1.1 (fork release)
+
+Patch release on top of 3.7.1.0. Same plugin GUID, no setting changes, nothing to reconfigure.
+
+### Fixes
+
+- **About panel shows the real version.** In 3.7.1.0 it was stuck at `v3.7.0`, so "Check for updates" (and the
+  background update check) reported the current release as a newer one.
+- **About panel links point to this fork.** The original project link is kept as credit; the original author's
+  e-mail address was removed, because fork issues do not belong in his inbox.
+- **Update check compares four version numbers**, so patch releases like 3.7.1.x are detected as updates.
+
+### Upgrade notes
+
+- The plugin folder is now named `JMSFusion_3.7.1.1`. If you mount the plugin folder as a Docker volume
+  (recommended on Docker Desktop for Windows, see the 3.7.1.0 notes), update the mount path to the new folder name.
+- Restart Jellyfin and hard refresh the browser (Ctrl + F5).
+
 ## 3.7.1.0 (fork release, based on upstream 3.7.0.0)
 
 Same plugin GUID as upstream (`c0b4a5e0-2f6a-4e70-9c5f-1e7c2d0b7f12`), so it replaces the upstream plugin in place.
