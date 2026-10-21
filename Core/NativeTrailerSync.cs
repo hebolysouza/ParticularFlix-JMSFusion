@@ -28,7 +28,12 @@ public sealed class NativeTrailerSync
     private const string BlockTitle = "alugue|aluguel|compre agora";
     private const string RejectTitle = "(?i)(review|reaction|fan made|concept|breakdown|ending explained|podcast|vlog|unboxing|recap|open matte|extended trailer)";
     private static readonly string FilterSuffix = " & channel !~=? (?i)(" + BlockChannel + ") & title !~= (?i)(" + BlockTitle + ")";
-    private static readonly string[] CookiesCandidates = { "/data/JellyfinDownloads/cookies.txt", "/config/cookies.txt" };
+    // Cookies do YouTube (opcional): variavel de ambiente JMSFUSION_COOKIES ou /config/cookies.txt.
+    private static readonly string[] CookiesCandidates =
+    {
+        Environment.GetEnvironmentVariable("JMSFUSION_COOKIES") ?? string.Empty,
+        "/config/cookies.txt"
+    };
     private static readonly string[] VideoExtensions = { ".mkv", ".mp4", ".avi", ".m4v", ".mov", ".wmv", ".ts" };
     private static readonly HttpClient Http = CreateHttp();
 
@@ -104,7 +109,7 @@ public sealed class NativeTrailerSync
         Log("yt-dlp " + (toolkit.YtDlpVersion ?? "?") + ", deno " + (toolkit.DenoVersion ?? "?")
             + ", ffmpeg " + (toolkit.FfmpegDir ?? "nao encontrado"));
 
-        var cookies = CookiesCandidates.FirstOrDefault(File.Exists);
+        var cookies = CookiesCandidates.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c) && File.Exists(c));
         Log(cookies == null ? "Aviso: cookies.txt do YouTube nao encontrado; o YouTube pode recusar alguns videos." : "Cookies do YouTube: " + cookies);
 
         var found = 0;
