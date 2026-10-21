@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/hebolysouza/ParticularFlix-JMSFusion/main/img/icon.png",
     "versions": [
     {
+      "version": "3.7.1.1",
+      "changelog": "v3.7.1.1 (ParticularFlix fork)\n\nPatch release on top of 3.7.1.0. Same plugin GUID, no setting changes.\n\nFixes:\n- About panel now shows the real installed version (it was stuck at v3.7.0, so the update check wrongly reported a new version)\n- About panel links point to this fork; the original project stays as credit\n- Update check compares four version numbers, so patch releases like 3.7.1.x are detected\n\nUpgrade notes:\n- The plugin folder is now named JMSFusion_3.7.1.1; if you mount the plugin folder as a Docker volume, update the mount path\n- Restart Jellyfin and hard refresh the browser (Ctrl+F5)\n\nFull list: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
+      "targetAbi": "10.11.0.0",
+      "sourceUrl": "https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases/download/v3.7.1.1/JMSFusion-3.7.1.1-server.zip",
+      "checksum": "3e831300b596fa3e4fc993f53df4877b",
+      "timestamp": "2026-10-21T16:54:18.4299029Z"
+    },
+    {
         "version": "3.7.1.0",
         "changelog": "v3.7.1 (ParticularFlix fork, based on upstream 3.7.0.0)\n\nUpgrade notes:\n- Your settings are kept; every new option defaults to the old behavior\n- Docker Desktop on Windows: keep the plugin in a local Docker volume, not a bind mount (the 60+ MB DLL gets corrupted assets from bind mounts)\n- Restart Jellyfin and hard refresh the browser (Ctrl+F5)\n\nNew:\n- Slider list sources (current releases / recent premieres) with a time window\n- 'New season' badge on series slides\n- Per-profile settings (desktop and mobile independent)\n- Hover trailer controls, notification open mode, Studio Hubs improvements\n\nSecurity:\n- Non-admin users no longer receive configuration keys; configuration writes are admin-only\n\nPerformance:\n- Gzip/Brotli for the /slider modules, layer trim on slides and cards, lighter home rendering\n\nFull list: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
         "targetAbi": "10.11.0.0",
