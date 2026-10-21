@@ -18,6 +18,7 @@ Minor release on top of 3.7.1.1. Same plugin GUID, no setting changes, nothing t
   along, a click on the picture pauses or resumes, and Esc (or the same button) leaves fullscreen.
 - **Unmuting restores your volume.** Muting and unmuting used to jump back to 100% (or the configured maximum);
   now it returns to the last volume you set with the slider.
+- **Slider arrows no longer lose the automatic trailer.** If the mouse was resting over the next card when you clicked an arrow, the hover took over and the automatic start was dropped, so the trailer only played after moving the mouse. The automatic start is now remembered and handed over when the mouse leaves, and an in-flight start is no longer restarted (no repeated delay).
 - New label `previewTrailerFullscreen` in all 9 languages.
 
 ### Upgrade notes
