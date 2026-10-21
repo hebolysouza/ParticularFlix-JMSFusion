@@ -481,18 +481,21 @@ export function createAboutPanel(labels) {
   supportInfo.style.marginBottom = '10px';
 
   const githubLink = document.createElement('a');
-  githubLink.href = 'https://github.com/G-grbz/Jellyfin-MonWUI-Plugin';
+  githubLink.href = 'https://github.com/hebolysouza/ParticularFlix-JMSFusion';
   githubLink.target = '_blank';
-  githubLink.textContent = labels.aboutGithub || 'GitHub: https://github.com/G-grbz/Jellyfin-MonWUI-Plugin';
+  githubLink.rel = 'noopener';
+  githubLink.textContent = 'GitHub (fork): https://github.com/hebolysouza/ParticularFlix-JMSFusion';
   githubLink.style.display = 'block';
   githubLink.style.marginBottom = '10px';
   githubLink.style.color = '#00a8ff';
 
-  const emailLink = document.createElement('a');
-  emailLink.href = 'mailto:gkhn.gurbuz@hotmail.com';
-  emailLink.innerHTML = `${labels.aboutEmail || 'E Posta:'} gkhn.gurbuz@hotmail.com`;
-  emailLink.style.display = 'block';
-  emailLink.style.color = '#00a8ff';
+  const originalLink = document.createElement('a');
+  originalLink.href = 'https://github.com/G-grbz/Jellyfin-MonWUI-Plugin';
+  originalLink.target = '_blank';
+  originalLink.rel = 'noopener';
+  originalLink.textContent = 'Original: https://github.com/G-grbz/Jellyfin-MonWUI-Plugin';
+  originalLink.style.display = 'block';
+  originalLink.style.color = '#00a8ff';
 
   const updateWrap = document.createElement('div');
   updateWrap.className = 'update-check-wrapper';
@@ -586,7 +589,7 @@ export function createAboutPanel(labels) {
     }
   });
 
-  aboutContent.append(creatorInfo, supportInfo, githubLink, emailLink, updateWrap);
+  aboutContent.append(creatorInfo, supportInfo, githubLink, originalLink, updateWrap);
   section.appendChild(aboutContent);
 
   panel.appendChild(section);

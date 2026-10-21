@@ -6,7 +6,7 @@ export function compareSemver(a = "0.0.0", b = "0.0.0") {
   const pb = norm(b).split("-");
   const mainA = pa[0].split(".").map(n => parseInt(n || "0", 10));
   const mainB = pb[0].split(".").map(n => parseInt(n || "0", 10));
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const da = mainA[i] || 0;
     const db = mainB[i] || 0;
     if (da > db) return 1;
