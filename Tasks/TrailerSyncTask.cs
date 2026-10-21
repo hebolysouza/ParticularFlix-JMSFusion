@@ -1,48 +1,35 @@
-using System.Globalization;
-using System.Text.Json;
-using Jellyfin.Data.Enums;
-using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Entities.TV;
+using Jellyfin.Plugin.JMSFusion.Core;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JMSFusion.Tasks;
 
 /// <summary>
-/// Tarefa agendada nativa de trailers (fatia 1: SOMENTE SIMULACAO).
-/// Lista filmes e series sem trailer na pasta, consulta o TMDb e registra no log
-/// qual trailer seria escolhido e por que. Nao baixa nem grava nada.
+/// Tarefas agendadas nativas de trailers (substituem o script JMSFusion-trailers-sync.ps1).
+/// Os logs vao para o log do Jellyfin (prefixo "[JMS trailers]"), sem arquivo txt.
 /// </summary>
-public class TrailerSyncTask : IScheduledTask
+public abstract class TrailerSyncTaskBase : IScheduledTask
 {
-    private const int MaxItemsPerRun = 300;
-    private const int DelayBetweenCallsMs = 300;
-
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
-
     private readonly ILibraryManager _libraryManager;
+    private readonly TrailerAutomationService _tools;
     private readonly ILogger _logger;
 
-    public TrailerSyncTask(ILibraryManager libraryManager, ILogger<TrailerSyncTask> logger)
-        : this(libraryManager, (ILogger)logger)
-    {
-    }
-
-    protected TrailerSyncTask(ILibraryManager libraryManager, ILogger logger)
+    protected TrailerSyncTaskBase(ILibraryManager libraryManager, TrailerAutomationService tools, ILogger logger)
     {
         _libraryManager = libraryManager;
+        _tools = tools;
         _logger = logger;
     }
 
-    /// <summary>Modo amostra: ignora se ja existe trailer e analisa so alguns itens (para testar o TMDb).</summary>
-    protected virtual bool SampleMode => false;
-
-    public virtual string Name => "JMSFusion: simular trailers (sem baixar)";
-    public virtual string Key => "JMSFusionTrailerSyncDryRun";
-    public virtual string Description => "Procura filmes e series sem trailer e registra no log qual trailer seria escolhido. Nao baixa nem altera nada.";
+    public abstract string Name { get; }
+    public abstract string Key { get; }
+    public abstract string Description { get; }
     public string Category => "JMSFusion";
+
+    protected abstract NativeTrailerMode Mode { get; }
+    protected abstract bool Sample { get; }
+    protected abstract int Limit { get; }
 
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => Array.Empty<TaskTriggerInfo>();
 
@@ -51,299 +38,60 @@ public class TrailerSyncTask : IScheduledTask
         var apiKey = JMSFusionPlugin.Instance?.Configuration?.TmdbApiKey?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "CHANGE_ME")
         {
-            _logger.LogWarning("[JMS trailers] Chave do TMDb nao configurada no plugin. Simulacao cancelada.");
+            _logger.LogWarning("[JMS trailers] Chave do TMDb nao configurada no plugin. Tarefa cancelada.");
             progress.Report(100);
             return;
         }
 
-        var query = new InternalItemsQuery
-        {
-            IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
-            IsVirtualItem = false,
-            Recursive = true
-        };
-
-        var all = _libraryManager.GetItemList(query);
-        var pending = new List<BaseItem>();
-        foreach (var item in all)
-        {
-            if (!string.IsNullOrWhiteSpace(item.Path) && !IsExcludedPath(item.Path) && (SampleMode || !HasLocalTrailer(item)))
-            {
-                pending.Add(item);
-            }
-        }
-
-        if (SampleMode)
-        {
-            _logger.LogInformation("[JMS trailers] Amostra: {Total} itens na biblioteca, {Elegiveis} elegiveis (fora a biblioteca adulta); analisando 10, com ou sem trailer na pasta.",
-                all.Count, pending.Count);
-        }
-        else
-        {
-            _logger.LogInformation("[JMS trailers] Simulacao: {Total} itens na biblioteca, {Sem} sem trailer na pasta (analisando ate {Max}).",
-                all.Count, pending.Count, MaxItemsPerRun);
-        }
-
-        var count = Math.Min(pending.Count, SampleMode ? 10 : MaxItemsPerRun);
-        var withPlan = 0;
-        var withoutPlan = 0;
-
-        for (var i = 0; i < count; i++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var item = pending[i];
-            try
-            {
-                var plan = await PlanAsync(item, apiKey, cancellationToken).ConfigureAwait(false);
-                if (plan == null) { withoutPlan++; } else { withPlan++; }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                withoutPlan++;
-                _logger.LogWarning("[JMS trailers] {Nome}: falha na consulta ao TMDb: {Erro}", item.Name, ex.Message);
-            }
-
-            progress.Report((i + 1) * 100.0 / Math.Max(1, count));
-            await Task.Delay(DelayBetweenCallsMs, cancellationToken).ConfigureAwait(false);
-        }
-
-        _logger.LogInformation("[JMS trailers] Simulacao concluida: {Com} itens com trailer candidato no TMDb, {Sem} sem candidato. Nada foi baixado.",
-            withPlan, withoutPlan);
-        progress.Report(100);
+        var sync = new NativeTrailerSync(_libraryManager, _tools, _logger);
+        await sync.RunAsync(Mode, Sample, Limit, apiKey, progress, cancellationToken).ConfigureAwait(false);
     }
-
-    // Biblioteca adulta (/media/xxx) e qualquer pasta chamada xxx ficam fora, sempre.
-    private static bool IsExcludedPath(string path)
-    {
-        var parts = path.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in parts)
-        {
-            if (part.Equals("xxx", StringComparison.OrdinalIgnoreCase)
-                || part.Equals("adult", StringComparison.OrdinalIgnoreCase)
-                || part.Equals("adultos", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool HasLocalTrailer(BaseItem item)
-    {
-        var folder = item is Series ? item.Path : Path.GetDirectoryName(item.Path);
-        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
-        {
-            return true; // sem pasta acessivel: nao mexe
-        }
-
-        foreach (var file in Directory.EnumerateFiles(folder))
-        {
-            var name = Path.GetFileNameWithoutExtension(file);
-            if (name.Equals("trailer", StringComparison.OrdinalIgnoreCase)
-                || name.EndsWith("-trailer", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private async Task<string?> PlanAsync(BaseItem item, string apiKey, CancellationToken ct)
-    {
-        var kind = item is Series ? "tv" : "movie";
-        var tmdbId = item.GetProviderId(MetadataProvider.Tmdb);
-        if (string.IsNullOrWhiteSpace(tmdbId))
-        {
-            tmdbId = await SearchTmdbIdAsync(item, kind, apiKey, ct).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(tmdbId))
-            {
-                _logger.LogInformation("[JMS trailers] {Nome} ({Ano}): sem ID do TMDb no Jellyfin e a busca por titulo e ano nao achou correspondencia segura. Nada seria baixado.",
-                    item.Name, item.ProductionYear);
-                return null;
-            }
-        }
-
-        var url = string.Format(CultureInfo.InvariantCulture,
-            "https://api.themoviedb.org/3/{0}/{1}/videos?api_key={2}&language=pt-BR&include_video_language=pt,en,null",
-            kind, Uri.EscapeDataString(tmdbId), Uri.EscapeDataString(apiKey));
-
-        using var resp = await Http.GetAsync(url, ct).ConfigureAwait(false);
-        if (!resp.IsSuccessStatusCode)
-        {
-            _logger.LogWarning("[JMS trailers] {Nome}: TMDb respondeu {Status}.", item.Name, (int)resp.StatusCode);
-            return null;
-        }
-
-        var json = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        using var doc = JsonDocument.Parse(json);
-        if (!doc.RootElement.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)
-        {
-            return null;
-        }
-
-        var candidates = new List<Candidate>();
-        var ignoredPt = 0;
-        var ignoredUnwanted = 0;
-        foreach (var r in results.EnumerateArray())
-        {
-            var site = GetString(r, "site");
-            var type = GetString(r, "type");
-            var key = GetString(r, "key");
-            if (!site.Equals("YouTube", StringComparison.OrdinalIgnoreCase)
-                || !type.Equals("Trailer", StringComparison.OrdinalIgnoreCase)
-                || string.IsNullOrWhiteSpace(key))
-            {
-                continue;
-            }
-
-            var name = GetString(r, "name");
-            var lang = GetString(r, "iso_639_1");
-            var country = GetString(r, "iso_3166_1");
-
-            if (IsUnwantedTrailerName(name))
-            {
-                ignoredUnwanted++;
-                continue;
-            }
-
-            // Portugues so vale se for do Brasil. Trailers de Portugal (pt-PT) e outros idiomas ficam de fora.
-            var isPt = lang.Equals("pt", StringComparison.OrdinalIgnoreCase);
-            var isBr = country.Equals("BR", StringComparison.OrdinalIgnoreCase);
-            if (isPt && !isBr)
-            {
-                ignoredPt++;
-                continue;
-            }
-
-            if (!isPt && !lang.Equals("en", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            var official = r.TryGetProperty("official", out var o) && o.ValueKind == JsonValueKind.True;
-            var published = GetString(r, "published_at");
-
-            // Regra A (portugues) antes da C (ingles); dentro de A: dublado, legendado, outros.
-            var group = isPt ? 0 : 1;
-            var dub = name.Contains("dublado", StringComparison.OrdinalIgnoreCase) ? 0
-                    : name.Contains("legendado", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
-
-            candidates.Add(new Candidate(key, name, lang, country, official, published, group, dub));
-        }
-
-        if (candidates.Count == 0)
-        {
-            _logger.LogInformation("[JMS trailers] {Nome} ({Ano}): TMDb sem trailer valido (pt-BR ou ingles; ignorados {Pt} de Portugal e {Ind} indesejados). Nada seria baixado.",
-                item.Name, item.ProductionYear, ignoredPt, ignoredUnwanted);
-            return null;
-        }
-
-        var best = candidates
-            .OrderBy(c => c.Group)
-            .ThenBy(c => c.Dub)
-            .ThenBy(c => c.Country.Equals("BR", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
-            .ThenBy(c => c.Official ? 0 : 1)
-            .ThenByDescending(c => c.Published, StringComparer.Ordinal)
-            .First();
-
-        var regra = best.Group == 0
-            ? "A (oficial pt-BR)"
-            : "C (ingles; antes dele a busca B no YouTube por trailer dublado seria tentada)";
-        _logger.LogInformation("[JMS trailers] {Nome} ({Ano}): escolheria https://www.youtube.com/watch?v={Key} | regra {Regra} | idioma {Lang}-{Pais} | oficial={Oficial} | \"{Titulo}\"",
-            item.Name, item.ProductionYear, best.Key, regra, best.Lang, best.Country, best.Official, best.Name);
-        return best.Key;
-    }
-
-    private static bool IsUnwantedTrailerName(string name)
-    {
-        // Trailers de loja ou operadora e versoes que nao sao o trailer oficial normal.
-        var n = " " + name.ToLowerInvariant() + " ";
-        string[] bad = { " claro ", " vivo ", " tim ", " oi play", "tv spot", "red band", "green band", "restricted", "reaction", "review", "fan made", "fanmade", "concept" };
-        foreach (var b in bad)
-        {
-            if (n.Contains(b, StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static string Norm(string? text)
-    {
-        var chars = (text ?? string.Empty).Normalize(System.Text.NormalizationForm.FormD)
-            .Where(c => char.IsLetterOrDigit(c))
-            .Select(char.ToLowerInvariant);
-        return new string(chars.ToArray());
-    }
-
-    private async Task<string?> SearchTmdbIdAsync(BaseItem item, string kind, string apiKey, CancellationToken ct)
-    {
-        var title = item.Name;
-        if (string.IsNullOrWhiteSpace(title) || item.ProductionYear == null)
-        {
-            return null;
-        }
-
-        var yearParam = kind == "tv" ? "first_air_date_year" : "year";
-        var url = string.Format(CultureInfo.InvariantCulture,
-            "https://api.themoviedb.org/3/search/{0}?api_key={1}&language=pt-BR&query={2}&{3}={4}",
-            kind, Uri.EscapeDataString(apiKey), Uri.EscapeDataString(title), yearParam, item.ProductionYear.Value);
-
-        using var resp = await Http.GetAsync(url, ct).ConfigureAwait(false);
-        if (!resp.IsSuccessStatusCode)
-        {
-            return null;
-        }
-
-        var json = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        using var doc = JsonDocument.Parse(json);
-        if (!doc.RootElement.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)
-        {
-            return null;
-        }
-
-        var wanted = new HashSet<string> { Norm(title), Norm(item.OriginalTitle) };
-        wanted.Remove(string.Empty);
-        foreach (var r in results.EnumerateArray())
-        {
-            var names = new[] { GetString(r, kind == "tv" ? "name" : "title"), GetString(r, kind == "tv" ? "original_name" : "original_title") };
-            if (names.Any(n => wanted.Contains(Norm(n))) && r.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.Number)
-            {
-                var id = idEl.GetInt32().ToString(CultureInfo.InvariantCulture);
-                _logger.LogInformation("[JMS trailers] {Nome} ({Ano}): ID do TMDb {Id} achado por titulo e ano.", item.Name, item.ProductionYear, id);
-                return id;
-            }
-        }
-
-        return null;
-    }
-
-    private static string GetString(JsonElement e, string prop)
-    {
-        return e.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.String ? (v.GetString() ?? string.Empty) : string.Empty;
-    }
-
-    private sealed record Candidate(string Key, string Name, string Lang, string Country, bool Official, string Published, int Group, int Dub);
 }
 
-/// <summary>Igual a simulacao normal, mas analisa 10 itens mesmo que ja tenham trailer. Nao baixa nada.</summary>
-public sealed class TrailerSyncSampleTask : TrailerSyncTask
+/// <summary>Procura o trailer (TMDb e yt-dlp em modo simulacao) para os itens sem trailer. Nao baixa nada.</summary>
+public sealed class TrailerSyncSimulateTask : TrailerSyncTaskBase
 {
-    public TrailerSyncSampleTask(ILibraryManager libraryManager, ILogger<TrailerSyncSampleTask> logger)
-        : base(libraryManager, (ILogger)logger)
+    public TrailerSyncSimulateTask(ILibraryManager libraryManager, TrailerAutomationService tools, ILogger<TrailerSyncSimulateTask> logger)
+        : base(libraryManager, tools, logger)
     {
     }
 
-    protected override bool SampleMode => true;
+    public override string Name => "JMSFusion: simular trailers (itens sem trailer)";
+    public override string Key => "JMSFusionTrailerSyncSimulate";
+    public override string Description => "Segue as mesmas regras do download de trailers, mas apenas mostra no log o que seria baixado. Nao baixa nem altera nada.";
+    protected override NativeTrailerMode Mode => NativeTrailerMode.Simulate;
+    protected override bool Sample => false;
+    protected override int Limit => 40;
+}
+
+/// <summary>Igual a simulacao, mas em 10 itens que ja tem trailer (para testar as regras). Nao baixa nada.</summary>
+public sealed class TrailerSyncSampleTask : TrailerSyncTaskBase
+{
+    public TrailerSyncSampleTask(ILibraryManager libraryManager, TrailerAutomationService tools, ILogger<TrailerSyncSampleTask> logger)
+        : base(libraryManager, tools, logger)
+    {
+    }
+
     public override string Name => "JMSFusion: simular trailers (amostra de 10 itens)";
     public override string Key => "JMSFusionTrailerSyncSample";
-    public override string Description => "Analisa 10 filmes ou series, mesmo que ja tenham trailer, e registra no log o que seria escolhido. Nao baixa nem altera nada.";
+    public override string Description => "Analisa 10 filmes ou series, mesmo que ja tenham trailer, e mostra no log o que seria escolhido. Nao baixa nem altera nada.";
+    protected override NativeTrailerMode Mode => NativeTrailerMode.Simulate;
+    protected override bool Sample => true;
+    protected override int Limit => 10;
+}
+
+/// <summary>Baixa os trailers que faltam. So grava em pastas com permissao de escrita.</summary>
+public sealed class TrailerSyncRealTask : TrailerSyncTaskBase
+{
+    public TrailerSyncRealTask(ILibraryManager libraryManager, TrailerAutomationService tools, ILogger<TrailerSyncRealTask> logger)
+        : base(libraryManager, tools, logger)
+    {
+    }
+
+    public override string Name => "JMSFusion: sincronizar trailers (baixa de verdade)";
+    public override string Key => "JMSFusionTrailerSync";
+    public override string Description => "Atualiza o yt-dlp e baixa o trailer dos filmes e series que ainda nao tem. Nao mexe em pastas que ja tem trailer.";
+    protected override NativeTrailerMode Mode => NativeTrailerMode.Real;
+    protected override bool Sample => false;
+    protected override int Limit => int.MaxValue;
 }

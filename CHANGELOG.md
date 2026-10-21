@@ -5,7 +5,7 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.7.6.3 (fork release, in progress)
+## 3.7.7.0 (fork release, in progress)
 
 Includes everything that was in the unpublished 3.7.4.0 build. Same plugin GUID, no setting changes, nothing to reconfigure.
 
@@ -16,7 +16,7 @@ Includes everything that was in the unpublished 3.7.4.0 build. Same plugin GUID,
 - **Fewer requests per slide.** The slider no longer fetches the full details of every slide just to look for a trailer when the item already carries its trailer list.
 - **Home rows load in parallel.** Up to three rows (recent movies, recent series, episodes...) now fetch their data at the same time instead of one after another, while still appearing in the planned order. The studio hubs fetch their manual collections, visibility and hover videos concurrently, and the settings publish no longer competes with the first slide for the server.
 - **Timing marks per row** (`jms:row:*`, `jms:studio:*`) so slow rows can be measured in production.
-- **Native trailer task, step 1 (dry run only).** New scheduled task "JMSFusion: simular trailers (sem baixar)" under Dashboard > Scheduled Tasks. It lists movies and series without a trailer file, asks TMDb and logs which trailer would be picked and why. It downloads and writes nothing.
+- **Native trailer tasks (replace the external Windows script).** Three tasks under Dashboard > Scheduled Tasks > JMSFusion: simulate (no download), simulate a 10-item sample, and synchronize (downloads for real). They follow the same rules as the original script: official pt trailer from TMDb, YouTube search in Portuguese (dubbed, then subtitled), official English trailer, IMDb, YouTube search in English, with title/year/channel validation, store and rental channels refused, and nothing downloaded when no candidate passes. yt-dlp is updated automatically before each real run, trailers are written with fast start, and logs go to the Jellyfin log only (prefix `[JMS trailers]`). The adult library is always skipped.
 - **Translations.** Keyboard-shortcut help of the player, several settings texts and server messages were hardcoded in Turkish and now use translation keys or English; Portuguese (pt-BR) got the missing keys and four Turkish leftovers were translated.
 
 ## 3.7.3.0 (fork release)

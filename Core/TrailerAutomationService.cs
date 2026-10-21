@@ -204,6 +204,54 @@ public sealed class TrailerAutomationService
         _logger = logger;
     }
 
+    public sealed record NativeToolkit(string YtDlpPath, string JsRuntimeArg, string? FfmpegDir, string? YtDlpVersion, string? DenoVersion);
+
+    /// <summary>
+    /// Prepara yt-dlp, deno e ffmpeg gerenciados para a tarefa nativa de trailers.
+    /// Com checkForUpdates, consulta a ultima versao do yt-dlp e atualiza se for diferente.
+    /// </summary>
+    public async Task<NativeToolkit> PrepareNativeToolkitAsync(bool checkForUpdates, CancellationToken ct)
+    {
+        if (checkForUpdates)
+        {
+            _cachedManagedTools = null;
+        }
+
+        var tools = await EnsureManagedToolSuiteAsync(ct).ConfigureAwait(false);
+        if (!tools.YtDlp.Ready || !IsExecutableAvailable(tools.YtDlp.InstallPath))
+        {
+            throw new InvalidOperationException("yt-dlp nao ficou pronto.");
+        }
+
+        if (!tools.Deno.Ready || !IsExecutableAvailable(tools.Deno.InstallPath))
+        {
+            throw new InvalidOperationException("deno nao ficou pronto.");
+        }
+
+        var ffmpeg = ResolveCommandPath("ffmpeg");
+        string? ffmpegDir = null;
+        if (!string.IsNullOrWhiteSpace(ffmpeg))
+        {
+            ffmpegDir = Path.GetDirectoryName(ffmpeg) ?? ffmpeg;
+        }
+
+        return new NativeToolkit(
+            tools.YtDlp.InstallPath,
+            "deno:" + tools.Deno.InstallPath,
+            ffmpegDir,
+            tools.YtDlp.InstalledVersion,
+            tools.Deno.InstalledVersion);
+    }
+
+    public static async Task<(int ExitCode, string Stdout, string Stderr)> RunNativeProcessAsync(
+        string fileName,
+        IEnumerable<string> args,
+        CancellationToken ct)
+    {
+        var result = await RunProcessAsync(fileName, args, ct).ConfigureAwait(false);
+        return (result.ExitCode, result.Stdout, result.Stderr);
+    }
+
     private static HttpClient CreateHttpClient()
     {
         return new HttpClient

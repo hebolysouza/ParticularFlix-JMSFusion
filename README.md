@@ -25,7 +25,7 @@
 ---
 
 > [!NOTE]
-> **ParticularFlix fork (3.7.6.3).** This repository is a maintained fork of the archived upstream project.
+> **ParticularFlix fork (3.7.7.0).** This repository is a maintained fork of the archived upstream project.
 > It keeps the same plugin GUID, fixes a configuration security hole, adds per-profile settings,
 > new slider sources, a "New season" badge and many performance improvements.
 > See [CHANGELOG.md](CHANGELOG.md) for the full list and the upgrade notes.
