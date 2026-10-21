@@ -169,6 +169,51 @@ Because the project is archived, compatibility with newer Jellyfin server or cli
 
 ---
 
+## Automatic trailers (fork)
+
+The fork can download the trailer of every movie and series by itself, with no external script and no Windows scheduled task.
+It adds one scheduled task, **JMSFusion: sincronizar trailers** (Dashboard > Scheduled Tasks > JMSFusion), which runs every 6 hours
+and fills in every movie or series folder that has no trailer. A watcher also runs it about 3 minutes after a new movie or series
+is added to the library. Folders that already have a trailer are never touched.
+
+**Requirements**
+
+- A TMDb API key saved in the plugin settings (the same key the plugin already uses).
+- The library folders must be writable by the Jellyfin container or service. Read-only folders are skipped silently.
+- One folder per movie or series (`Movie (2024)/movie.mkv`). The trailer is written as `trailer.mp4` inside that folder.
+- Folders named `xxx`, `adult` or `adultos` are always skipped.
+
+**Order of preference** (the first one that downloads wins; nothing is downloaded if no candidate passes the checks)
+
+1. Official Brazilian (pt-BR) trailer listed on TMDb.
+2. YouTube search in Portuguese: dubbed first, then subtitled.
+3. Official Portuguese trailer from another country listed on TMDb.
+4. Official English trailer listed on TMDb.
+5. Trailer from the IMDb page.
+6. YouTube search in English.
+
+Every YouTube result is checked against the movie title, the year and the duration. Store and rental channels are refused, and
+reviews, reactions and fan-made videos are rejected. yt-dlp is updated automatically before every run, trailers are written with
+fast start, a title that failed is retried only after 5 hours, and the log lines (prefix `[JMS trailers]`) go to the normal Jellyfin
+log, not to a separate file.
+
+**YouTube cookies (optional, but recommended on a server)**
+
+YouTube often asks servers and VPN addresses to sign in, and some trailers then fail. Without cookies the task still works for
+the videos YouTube allows, and logs a warning. To fix it:
+
+1. In a browser where you are signed in to YouTube, export the cookies of `youtube.com` in the Netscape `cookies.txt` format
+   (any "cookies.txt" export extension for your browser works). A private window with a throwaway account is safer than your main one.
+2. Save the file as `cookies.txt` in the Jellyfin configuration folder, the one mounted at `/config` in Docker. Or save it anywhere
+   the container can read and point the environment variable `JMSFUSION_COOKIES` to its full path inside the container.
+3. Run the task once. The log shows `Cookies do YouTube: ... (copia temporaria)` when the file was found.
+
+The plugin only reads the file and works on a temporary copy, so it is never modified or uploaded. When the YouTube session
+expires, export the cookies again and replace the file.
+
+**Moving from an external script**: disable the old scheduled task before enabling this one, so two programs do not download
+into the same folders at the same time.
+
 ## Uninstall
 
 For existing installations:
