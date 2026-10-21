@@ -5,9 +5,9 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.1.0 (fork release, in progress)
+## 3.8.1.1 (fork release, in progress)
 
-Includes everything that was in the unpublished 3.7.4.0 and 3.8.0.0 builds. Same plugin GUID, no setting changes, nothing to reconfigure.
+Includes everything that was in the unpublished 3.7.4.0, 3.8.0.0 and 3.8.1.0 builds. Same plugin GUID, no setting changes, nothing to reconfigure.
 
 ### Changes
 
@@ -18,7 +18,7 @@ Includes everything that was in the unpublished 3.7.4.0 and 3.8.0.0 builds. Same
 - **Timing marks per row** (`jms:row:*`, `jms:studio:*`) so slow rows can be measured in production.
 - **Automatic native trailers (replaces the external Windows script and its scheduled task).** One scheduled task, "JMSFusion: sincronizar trailers", runs every 6 hours and fills in every movie or series folder that has no trailer; a watcher also runs it 3 minutes after a new movie or series is added to the library. Rules: official Brazilian trailer from TMDb first, then YouTube search in Portuguese (dubbed, then subtitled), official Portuguese trailer from another country, official English trailer, IMDb, YouTube search in English, always validating title, year and channel, refusing store and rental channels, and downloading nothing when no candidate passes. yt-dlp is updated before each run, trailers are written with fast start, folders that already have a trailer are never touched, read-only folders are skipped, a failed title is retried after 5 hours, the YouTube cookies file is only read (a temporary copy is used), and logs go to the Jellyfin log only (prefix `[JMS trailers]`). The adult library is always skipped.
 - **Custom scripts and styles.** Any `.js` or `.css` file placed in the plugin's `custom` folder (`<plugin configurations>/JMSFusion/custom`) is injected into the Jellyfin web page together with JMSFusion, in alphabetical order, with a version taken from the file date so edits show up without clearing the cache. This replaces boot-time `sed` patching of `index.html` by external init scripts. Only simple file names (letters, digits, dot, dash, underscore) are served.
-- **Trailers tab cleaned up.** The settings tab no longer shows the options of the old manual downloader (enable downloader, URL in NFO, Jellyfin address, languages, parallel downloads, min/max resolution, overwrite policy and the "Run now" button), since trailers are now handled by the scheduled task. It keeps the TMDb note and the theme link options, and shows a short text explaining the automatic task and the optional cookies file. The old downloader code is still on the server side but nothing in the page calls it.
+- **Trailers tab cleaned up.** The settings tab no longer shows the options of the old manual downloader (enable downloader, URL in NFO, Jellyfin address, languages, parallel downloads, min/max resolution, overwrite policy and the "Run now" button), since trailers are now handled by the scheduled task. It keeps the TMDb note and the theme link options, and shows a short text, translated into every plugin language, explaining the automatic task, that the Brazilian Portuguese trailer is the main preference with the English trailer as the background fallback, and the optional cookies file. The old downloader code is still on the server side but nothing in the page calls it.
 - **Backdrop image errors no longer loop.** When a slide backdrop fails to load (for example a 404), the slider stops swapping sources after 4 consecutive errors instead of retrying forever.
 - **Translations.** Keyboard-shortcut help of the player, several settings texts and server messages were hardcoded in Turkish and now use translation keys or English; Portuguese (pt-BR) got the missing keys and four Turkish leftovers were translated.
 
