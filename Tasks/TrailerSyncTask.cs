@@ -73,8 +73,16 @@ public class TrailerSyncTask : IScheduledTask
             }
         }
 
-        _logger.LogInformation("[JMS trailers] Simulacao: {Total} itens na biblioteca, {Sem} sem trailer na pasta (analisando ate {Max}).",
-            all.Count, pending.Count, MaxItemsPerRun);
+        if (SampleMode)
+        {
+            _logger.LogInformation("[JMS trailers] Amostra: {Total} itens na biblioteca, {Elegiveis} elegiveis (fora a biblioteca adulta); analisando 10, com ou sem trailer na pasta.",
+                all.Count, pending.Count);
+        }
+        else
+        {
+            _logger.LogInformation("[JMS trailers] Simulacao: {Total} itens na biblioteca, {Sem} sem trailer na pasta (analisando ate {Max}).",
+                all.Count, pending.Count, MaxItemsPerRun);
+        }
 
         var count = Math.Min(pending.Count, SampleMode ? 10 : MaxItemsPerRun);
         var withPlan = 0;
@@ -148,15 +156,19 @@ public class TrailerSyncTask : IScheduledTask
 
     private async Task<string?> PlanAsync(BaseItem item, string apiKey, CancellationToken ct)
     {
+        var kind = item is Series ? "tv" : "movie";
         var tmdbId = item.GetProviderId(MetadataProvider.Tmdb);
         if (string.IsNullOrWhiteSpace(tmdbId))
         {
-            _logger.LogInformation("[JMS trailers] {Nome} ({Ano}): sem ID do TMDb no Jellyfin, a busca por titulo entra na fatia 2.",
-                item.Name, item.ProductionYear);
-            return null;
+            tmdbId = await SearchTmdbIdAsync(item, kind, apiKey, ct).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(tmdbId))
+            {
+                _logger.LogInformation("[JMS trailers] {Nome} ({Ano}): sem ID do TMDb no Jellyfin e a busca por titulo e ano nao achou correspondencia segura. Nada seria baixado.",
+                    item.Name, item.ProductionYear);
+                return null;
+            }
         }
 
-        var kind = item is Series ? "tv" : "movie";
         var url = string.Format(CultureInfo.InvariantCulture,
             "https://api.themoviedb.org/3/{0}/{1}/videos?api_key={2}&language=pt-BR&include_video_language=pt,en,null",
             kind, Uri.EscapeDataString(tmdbId), Uri.EscapeDataString(apiKey));
@@ -176,6 +188,8 @@ public class TrailerSyncTask : IScheduledTask
         }
 
         var candidates = new List<Candidate>();
+        var ignoredPt = 0;
+        var ignoredUnwanted = 0;
         foreach (var r in results.EnumerateArray())
         {
             var site = GetString(r, "site");
@@ -191,11 +205,32 @@ public class TrailerSyncTask : IScheduledTask
             var name = GetString(r, "name");
             var lang = GetString(r, "iso_639_1");
             var country = GetString(r, "iso_3166_1");
+
+            if (IsUnwantedTrailerName(name))
+            {
+                ignoredUnwanted++;
+                continue;
+            }
+
+            // Portugues so vale se for do Brasil. Trailers de Portugal (pt-PT) e outros idiomas ficam de fora.
+            var isPt = lang.Equals("pt", StringComparison.OrdinalIgnoreCase);
+            var isBr = country.Equals("BR", StringComparison.OrdinalIgnoreCase);
+            if (isPt && !isBr)
+            {
+                ignoredPt++;
+                continue;
+            }
+
+            if (!isPt && !lang.Equals("en", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             var official = r.TryGetProperty("official", out var o) && o.ValueKind == JsonValueKind.True;
             var published = GetString(r, "published_at");
 
             // Regra A (portugues) antes da C (ingles); dentro de A: dublado, legendado, outros.
-            var group = lang.Equals("pt", StringComparison.OrdinalIgnoreCase) ? 0 : lang.Equals("en", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
+            var group = isPt ? 0 : 1;
             var dub = name.Contains("dublado", StringComparison.OrdinalIgnoreCase) ? 0
                     : name.Contains("legendado", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
 
@@ -204,8 +239,8 @@ public class TrailerSyncTask : IScheduledTask
 
         if (candidates.Count == 0)
         {
-            _logger.LogInformation("[JMS trailers] {Nome} ({Ano}): TMDb sem trailer em pt/en. A busca no YouTube entra na fatia 2.",
-                item.Name, item.ProductionYear);
+            _logger.LogInformation("[JMS trailers] {Nome} ({Ano}): TMDb sem trailer valido (pt-BR ou ingles; ignorados {Pt} de Portugal e {Ind} indesejados). Nada seria baixado.",
+                item.Name, item.ProductionYear, ignoredPt, ignoredUnwanted);
             return null;
         }
 
@@ -217,10 +252,78 @@ public class TrailerSyncTask : IScheduledTask
             .ThenByDescending(c => c.Published, StringComparer.Ordinal)
             .First();
 
-        var regra = best.Group == 0 ? "A (oficial em portugues)" : best.Group == 1 ? "C (ingles)" : "outro idioma";
+        var regra = best.Group == 0
+            ? "A (oficial pt-BR)"
+            : "C (ingles; antes dele a busca B no YouTube por trailer dublado seria tentada)";
         _logger.LogInformation("[JMS trailers] {Nome} ({Ano}): escolheria https://www.youtube.com/watch?v={Key} | regra {Regra} | idioma {Lang}-{Pais} | oficial={Oficial} | \"{Titulo}\"",
             item.Name, item.ProductionYear, best.Key, regra, best.Lang, best.Country, best.Official, best.Name);
         return best.Key;
+    }
+
+    private static bool IsUnwantedTrailerName(string name)
+    {
+        // Trailers de loja ou operadora e versoes que nao sao o trailer oficial normal.
+        var n = " " + name.ToLowerInvariant() + " ";
+        string[] bad = { " claro ", " vivo ", " tim ", " oi play", "tv spot", "red band", "green band", "restricted", "reaction", "review", "fan made", "fanmade", "concept" };
+        foreach (var b in bad)
+        {
+            if (n.Contains(b, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string Norm(string? text)
+    {
+        var chars = (text ?? string.Empty).Normalize(System.Text.NormalizationForm.FormD)
+            .Where(c => char.IsLetterOrDigit(c))
+            .Select(char.ToLowerInvariant);
+        return new string(chars.ToArray());
+    }
+
+    private async Task<string?> SearchTmdbIdAsync(BaseItem item, string kind, string apiKey, CancellationToken ct)
+    {
+        var title = item.Name;
+        if (string.IsNullOrWhiteSpace(title) || item.ProductionYear == null)
+        {
+            return null;
+        }
+
+        var yearParam = kind == "tv" ? "first_air_date_year" : "year";
+        var url = string.Format(CultureInfo.InvariantCulture,
+            "https://api.themoviedb.org/3/search/{0}?api_key={1}&language=pt-BR&query={2}&{3}={4}",
+            kind, Uri.EscapeDataString(apiKey), Uri.EscapeDataString(title), yearParam, item.ProductionYear.Value);
+
+        using var resp = await Http.GetAsync(url, ct).ConfigureAwait(false);
+        if (!resp.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var json = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(json);
+        if (!doc.RootElement.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var wanted = new HashSet<string> { Norm(title), Norm(item.OriginalTitle) };
+        wanted.Remove(string.Empty);
+        foreach (var r in results.EnumerateArray())
+        {
+            var names = new[] { GetString(r, kind == "tv" ? "name" : "title"), GetString(r, kind == "tv" ? "original_name" : "original_title") };
+            if (names.Any(n => wanted.Contains(Norm(n))) && r.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.Number)
+            {
+                var id = idEl.GetInt32().ToString(CultureInfo.InvariantCulture);
+                _logger.LogInformation("[JMS trailers] {Nome} ({Ano}): ID do TMDb {Id} achado por titulo e ano.", item.Name, item.ProductionYear, id);
+                return id;
+            }
+        }
+
+        return null;
     }
 
     private static string GetString(JsonElement e, string prop)
