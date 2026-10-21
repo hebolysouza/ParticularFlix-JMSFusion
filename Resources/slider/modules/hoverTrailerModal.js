@@ -30,6 +30,8 @@ export const OPEN_HOVER_DELAY_MS   = 500;
 // No modo "click" o hover so abre quando o botao de previa do cartao e acionado;
 // forceHoverOpenFor() libera uma janela curta em que a abertura passa a ser permitida.
 let __forceHoverOpenUntil = 0;
+let __forceHoverOpenEls = [];
+let __forceHoverOpenItemId = '';
 
 export function getHoverOpenMode() {
   try {
@@ -40,22 +42,41 @@ export function getHoverOpenMode() {
   }
 }
 
-export function forceHoverOpenFor(ms = 2500) {
+// A liberacao vale so para o cartao em que o botao de previa foi clicado (elementos e id do item)
+// e some assim que a abertura for iniciada, ou depois de ms. Antes valia para qualquer cartao
+// durante 2,5 s, entao passar o mouse em outra capa logo depois abria o hover sozinho.
+export function forceHoverOpenFor(ms = 1200, els = [], itemId = '') {
   __forceHoverOpenUntil = Date.now() + Math.max(0, Number(ms) || 0);
+  __forceHoverOpenEls = (Array.isArray(els) ? els : [els]).filter(Boolean);
+  __forceHoverOpenItemId = itemId ? String(itemId) : '';
 }
 
-export function isHoverOpenForced() {
-  return Date.now() < __forceHoverOpenUntil;
+export function clearForcedHoverOpen() {
+  __forceHoverOpenUntil = 0;
+  __forceHoverOpenEls = [];
+  __forceHoverOpenItemId = '';
 }
 
-export function isHoverOpenAllowed() {
+export function isHoverOpenForced(el = null, itemId = '') {
+  if (Date.now() >= __forceHoverOpenUntil) return false;
+  if (!el && !itemId) return false;
+  if (itemId && __forceHoverOpenItemId && String(itemId) === __forceHoverOpenItemId) return true;
+  if (el) {
+    for (const f of __forceHoverOpenEls) {
+      if (f === el || f.contains?.(el) || el.contains?.(f)) return true;
+    }
+  }
+  return false;
+}
+
+export function isHoverOpenAllowed(el = null, itemId = '') {
   const mode = getHoverOpenMode();
   if (mode === 'hover') return true;
-  return mode === 'click' && isHoverOpenForced();
+  return mode === 'click' && isHoverOpenForced(el, itemId);
 }
 
-export function getHoverOpenDelayMs() {
-  if (isHoverOpenForced()) return 0;
+export function getHoverOpenDelayMs(el = null, itemId = '') {
+  if (getHoverOpenMode() === 'click' && isHoverOpenForced(el, itemId)) return 0;
   try {
     const n = Number(getConfig()?.hoverOpenDelayMs);
     if (Number.isFinite(n) && n > 0) return Math.min(3000, Math.max(200, Math.round(n)));
@@ -1775,8 +1796,8 @@ function mountCardActions(card) {
     stop(e);
     if (getHoverOpenMode() !== 'click') return;
     modalState.__suppressOpenUntil = 0;
-    forceHoverOpenFor(2500);
     const host = card.closest('.card') || card;
+    forceHoverOpenFor(1200, [host, card], getItemIdFromCard(card));
     const fire = (el) => {
       try { el.dispatchEvent(new PointerEvent('pointerenter', { bubbles: false, pointerType: 'mouse' })); } catch {}
     };
@@ -1986,7 +2007,7 @@ async function gatePlaybackStart(expectedItemId) {
 
 export function scheduleOpenForItem(itemEl, itemId, signal, openFn) {
   if (Date.now() < (modalState.__suppressOpenUntil || 0)) return;
-  if (!isTouchRuntime() && !isHoverOpenAllowed()) return;
+  if (!isTouchRuntime() && !isHoverOpenAllowed(itemEl, itemId)) return;
   if (modalState._hoverOpenTimer) {
     clearTimeout(modalState._hoverOpenTimer);
     modalState._hoverOpenTimer = null;
@@ -1999,7 +2020,7 @@ export function scheduleOpenForItem(itemEl, itemId, signal, openFn) {
   const settleLeft = Math.max(0, CROSS_ITEM_SETTLE_MS);
   const closingLeft = getClosingRemaining();
 
-  const baseDelay = isTouchRuntime() ? OPEN_HOVER_DELAY_MS : getHoverOpenDelayMs();
+  const baseDelay = isTouchRuntime() ? OPEN_HOVER_DELAY_MS : getHoverOpenDelayMs(itemEl, itemId);
   let delay = Math.max(baseDelay, needCooldown, settleLeft, closingLeft);
 
   const run = async () => {
@@ -2010,6 +2031,7 @@ export function scheduleOpenForItem(itemEl, itemId, signal, openFn) {
       return;
     }
     if (modalState._currentHoverItemId !== itemId || signal?.aborted) return;
+    if (getHoverOpenMode() === 'click') clearForcedHoverOpen();
     await openFn();
   };
 

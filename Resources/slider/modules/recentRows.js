@@ -1407,7 +1407,7 @@ function attachHoverTrailer(cardEl, itemLike) {
 
   const onEnter = (e) => {
     const isTouch = e?.pointerType === "touch";
-    if (!isTouch && !isHoverOpenAllowed()) return;
+    if (!isTouch && !isHoverOpenAllowed(cardEl, itemId)) return;
     const until = __cooldownUntil.get(cardEl) || 0;
     if (Date.now() < until) return;
 
@@ -1436,7 +1436,7 @@ function attachHoverTrailer(cardEl, itemLike) {
         __touchLastOpenTS = Date.now();
       }
       if (!isTouch) schedulePostOpenGuard(cardEl, token, 300);
-    }, isTouch ? 500 : getHoverOpenDelayMs());
+    }, isTouch ? 500 : getHoverOpenDelayMs(cardEl, itemId));
 
     __enterTimers.set(cardEl, timer);
   };
