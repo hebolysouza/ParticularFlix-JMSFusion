@@ -243,6 +243,9 @@ function hydrateBackdrop(img, { lqSrc, hqSrc, hqSrcset = '', fallback = '', eage
   }
 
   const onError = () => {
+    // Evita laco de erro: depois de algumas falhas seguidas (ex.: 404) para de trocar a fonte.
+    img.__errCount = (img.__errCount || 0) + 1;
+    if (img.__errCount > 4) return;
     const data = img.__bgData || {};
     if (img.__phase === 'hi') {
       if (!data.__taglessPromoted && data.hqSrcNoTag && data.hqSrcNoTag !== data.hqSrc) {
@@ -275,6 +278,7 @@ function hydrateBackdrop(img, { lqSrc, hqSrc, hqSrcset = '', fallback = '', eage
     }
   };
   const onLoad = () => {
+    img.__errCount = 0;
     if (img.__phase === 'hi') {
       img.classList.remove('is-lqip');
       img.classList.remove('is-hi-pending');
