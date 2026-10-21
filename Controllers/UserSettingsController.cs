@@ -25,23 +25,15 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         }
 
         // Fork ParticularFlix: identifica o usuario Jellyfin que fez a requisicao.
-        // 1) claim da autenticacao do Jellyfin (token enviado pelo navegador);
-        // 2) cabecalho X-Emby-UserId, o mesmo que o resto do plugin ja usa.
+        // Somente a claim da autenticacao do Jellyfin (token enviado pelo navegador).
+        // O cabecalho X-Emby-UserId e forjavel por qualquer cliente e nao e mais aceito.
         private bool TryResolveUserId(out Guid userId)
         {
             userId = Guid.Empty;
 
             var claim = HttpContext?.User?.Claims?.FirstOrDefault(c =>
                 string.Equals(c.Type, "Jellyfin-UserId", StringComparison.OrdinalIgnoreCase))?.Value;
-            if (Guid.TryParse(claim, out userId) && userId != Guid.Empty)
-            {
-                return true;
-            }
-
-            var header =
-                Request.Headers["X-Emby-UserId"].FirstOrDefault() ??
-                Request.Headers["X-MediaBrowser-UserId"].FirstOrDefault();
-            return Guid.TryParse(header, out userId) && userId != Guid.Empty;
+            return Guid.TryParse(claim, out userId) && userId != Guid.Empty;
         }
 
         private bool IsAdmin(Guid userId)
