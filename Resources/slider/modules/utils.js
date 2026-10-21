@@ -189,28 +189,27 @@ function ensureAudioPreviewCssOnce() {
     }
     .monwui-preview-fullscreen-toggle {
       align-items: center;
-      background: rgba(8,12,18,.5);
-      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(8,12,18,.64);
+      border: 1px solid rgba(255,255,255,.22);
       border-radius: 999px;
-      box-shadow: 0 8px 20px rgba(0,0,0,.24);
       color: #fff;
       cursor: pointer;
       display: none;
-      height: 34px;
+      height: 42px;
       justify-content: center;
-      opacity: .75;
       position: absolute;
       top: 96px;
-      transition: opacity .15s ease;
-      width: 34px;
+      width: 42px;
       z-index: 8;
       backdrop-filter: blur(8px);
+      box-shadow: 0 10px 24px rgba(0,0,0,.28);
     }
     .monwui-preview-fullscreen-toggle:hover {
-      opacity: 1;
+      background: rgba(18,24,34,.78);
+      transform: translateY(-1px);
     }
     .monwui-preview-fullscreen-toggle i {
-      font-size: 12px;
+      font-size: 14px;
       line-height: 1;
     }
     .intro-video-container:fullscreen {
@@ -1176,13 +1175,14 @@ function clearPreviewPlaybackFlag() {
   function setPreviewVolumeVisible(visible) {
     if (visible) ensurePreviewVolumeButton();
     const wrap = previewVolumeWrap;
+    const alignWithAutoToggle = autoPreviewActive && isSliderAutoTrailerEnabled();
     if (wrap) {
-      const alignWithAutoToggle = autoPreviewActive && isSliderAutoTrailerEnabled();
       wrap.style.top = "48px";
       wrap.style.right = alignWithAutoToggle ? "64px" : "48px";
       wrap.style.display = visible ? "block" : "none";
     }
-    syncFullscreenButtonVisibility(visible, wrap ? wrap.style.right : "48px");
+    // Fullscreen goes right under the pause button (same column); without a pause button, under the volume button.
+    syncFullscreenButtonVisibility(visible, alignWithAutoToggle ? "14px" : "48px");
   }
 
   function getFullscreenElement() {
