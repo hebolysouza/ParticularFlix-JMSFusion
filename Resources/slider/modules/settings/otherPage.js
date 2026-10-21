@@ -180,7 +180,7 @@ export function createActorPanel(config, labels) {
         writersInput.id = 'allowedWritersInput';
         writersInput.name = 'allowedWriters';
         writersInput.rows = 4;
-        writersInput.placeholder = labels.writersListPlaceholder || 'Örnek: Quentin TARANTINO, Nuri Bilge CEYLAN';
+        writersInput.placeholder = labels.writersListPlaceholder || 'e.g. Quentin TARANTINO, Christopher NOLAN';
         writersInput.value = config.allowedWriters ? config.allowedWriters.join(', ') : '';
         writersLabel.htmlFor = 'writersInput';
         writersInput.id = 'writersInput';

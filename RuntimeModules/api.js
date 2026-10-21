@@ -1180,7 +1180,7 @@ async function hydrateWatchlistPayload(payload) {
 export async function fetchItemsBulk(ids = [], fields = [
   "Type","Name","SeriesId","SeriesName","ParentId","ParentIndexNumber",
   "IndexNumber","Overview","Genres","RunTimeTicks","OfficialRating","ProductionYear",
-  "CommunityRating","CriticRating","ImageTags","BackdropImageTags","UserData","MediaStreams"
+  "CommunityRating","CriticRating","ImageTags","BackdropImageTags","UserData","MediaStreams","RemoteTrailers"
 ], { signal } = {}) {
   const clean = [...new Set(ids.filter(Boolean))];
   if (!clean.length) return { found: new Map(), missing: new Set() };

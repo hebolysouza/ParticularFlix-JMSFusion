@@ -292,14 +292,15 @@ export function createButtons(slide, config, UserData, itemId, RemoteTrailers, u
 
     appendTrailerButton(trailers[0]);
 
-    if (config.showTrailerButton && !trailerButtonMounted && itemId) {
+    // Se o item ja veio com RemoteTrailers (mesmo vazio), o detalhe individual nao traz nada novo.
+    if (config.showTrailerButton && !trailerButtonMounted && itemId && !Array.isArray(item?.RemoteTrailers)) {
       (async () => {
         try {
           const details = await fetchItemDetails(itemId);
           const enrichedTrailers = pickTrailers(null, details);
           appendTrailerButton(enrichedTrailers[0]);
         } catch (err) {
-          console.warn("Fragman butonu için detay zenginleştirme başarısız:", err);
+          console.warn("Trailer button detail enrichment failed:", err);
         }
       })();
     }

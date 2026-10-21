@@ -970,7 +970,7 @@ function getRecentRowsCardTypeBadge(itemType) {
     case "Series":
       return { label: ll.dizi || labels.dizi || "Dizi", icon: "tv" };
     case "Trailer":
-      return { label: ll.trailer || labels.trailer || "Fragman", icon: "clapperboard" };
+      return { label: ll.trailer || labels.trailer || "Trailer", icon: "clapperboard" };
     case "MusicAlbum":
       return { label: ll.album || labels.album || "Albüm", icon: "compactDisc" };
     case "Audio":
@@ -1961,60 +1961,67 @@ async function fetchTopRankedEntryPool(userId, type, poolSize, parentId, { filte
   let lastError = null;
   const profile = await getTopRankUserProfile(userId).catch(() => null);
 
-  for (const mode of TOP_RANK_SORT_MODES) {
-    const url =
-      `/Users/${userId}/Items?` +
-      `IncludeItemTypes=${encodeURIComponent(type)}&Recursive=true&Fields=${encodeURIComponent(TOP_RANK_FIELDS)}&` +
-      `EnableUserData=true&` +
-      (filters ? `Filters=${encodeURIComponent(filters)}&` : ``) +
-      (parentId ? `ParentId=${encodeURIComponent(parentId)}&` : ``) +
-      `SortBy=${encodeURIComponent(mode.sortBy)}&SortOrder=Descending&Limit=${want}&` +
-      `ImageTypeLimit=1&EnableImageTypes=Primary,Backdrop,Logo`;
+  // Fork 3.7.4: as consultas de ranking (uma por criterio, mais a do perfil) sao independentes, entao saem juntas
+  // em vez de uma depois da outra. A mesclagem continua na mesma ordem de antes (criterios na ordem de
+  // TOP_RANK_SORT_MODES e depois o perfil), porque o resultado de mergeRankedEntry depende da ordem.
+  const buildRankUrl = (extra, sortBy) =>
+    `/Users/${userId}/Items?` +
+    `IncludeItemTypes=${encodeURIComponent(type)}&Recursive=true&Fields=${encodeURIComponent(TOP_RANK_FIELDS)}&` +
+    `EnableUserData=true&` +
+    (filters ? `Filters=${encodeURIComponent(filters)}&` : ``) +
+    (parentId ? `ParentId=${encodeURIComponent(parentId)}&` : ``) +
+    extra +
+    `SortBy=${encodeURIComponent(sortBy)}&SortOrder=Descending&Limit=${want}&` +
+    `ImageTypeLimit=1&EnableImageTypes=Primary,Backdrop,Logo`;
+
+  const fetchRankItems = async (url) => {
     try {
       const data = await makeApiRequest(url);
       const items = uniqById(Array.isArray(data?.Items) ? data.Items : [])
         .filter((it) => it?.Type === type)
         .slice(0, want);
-      if (!items.length) continue;
-
-      try {
-        if (STATE.db && STATE.scope) {
-          await upsertItemsBatch(STATE.db, STATE.scope, items);
-        }
-      } catch {}
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        const score = getTopRankSignals(item, i, mode.key, mode.weight);
-        mergeRankedEntry(merged, item, score, mode.key);
-      }
+      return { items, error: null };
     } catch (e) {
-      lastError = e;
+      return { items: [], error: e };
+    }
+  };
+
+  const profilePromise = profile?.queryGenres?.length
+    ? fetchRankItems(buildRankUrl(`Genres=${encodeURIComponent(profile.queryGenres.join("|"))}&`, "CommunityRating,PremiereDate,DateCreated"))
+    : null;
+  const modeResults = await Promise.all(
+    TOP_RANK_SORT_MODES.map((mode) => fetchRankItems(buildRankUrl("", mode.sortBy)))
+  );
+
+  for (let m = 0; m < TOP_RANK_SORT_MODES.length; m++) {
+    const mode = TOP_RANK_SORT_MODES[m];
+    const { items, error } = modeResults[m];
+    if (error) { lastError = error; continue; }
+    if (!items.length) continue;
+
+    try {
+      if (STATE.db && STATE.scope) {
+        await upsertItemsBatch(STATE.db, STATE.scope, items);
+      }
+    } catch {}
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const score = getTopRankSignals(item, i, mode.key, mode.weight);
+      mergeRankedEntry(merged, item, score, mode.key);
     }
   }
 
-  if (profile?.queryGenres?.length) {
-    const url =
-      `/Users/${userId}/Items?` +
-      `IncludeItemTypes=${encodeURIComponent(type)}&Recursive=true&Fields=${encodeURIComponent(TOP_RANK_FIELDS)}&` +
-      `EnableUserData=true&` +
-      (filters ? `Filters=${encodeURIComponent(filters)}&` : ``) +
-      (parentId ? `ParentId=${encodeURIComponent(parentId)}&` : ``) +
-      `Genres=${encodeURIComponent(profile.queryGenres.join("|"))}&` +
-      `SortBy=${encodeURIComponent("CommunityRating,PremiereDate,DateCreated")}&SortOrder=Descending&Limit=${want}&` +
-      `ImageTypeLimit=1&EnableImageTypes=Primary,Backdrop,Logo`;
-    try {
-      const data = await makeApiRequest(url);
-      const items = uniqById(Array.isArray(data?.Items) ? data.Items : [])
-        .filter((it) => it?.Type === type)
-        .slice(0, want);
+  if (profilePromise) {
+    const { items, error } = await profilePromise;
+    if (error) {
+      lastError = error;
+    } else {
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         const score = getTopRankSignals(item, i, "profile", 0.88);
         mergeRankedEntry(merged, item, score, "profile");
       }
-    } catch (e) {
-      lastError = e;
     }
   }
 
@@ -2294,15 +2301,20 @@ function dedupeTmdbTrailerRowItems(items = []) {
 }
 
 function getTmdbTrailerReleaseState(result) {
+  // Fork 3.7.4: a data de estreia decide o estado. Antes o campo sourceList do TMDb tinha prioridade e um filme que
+  // ja estreou, mas continuava na lista "upcoming" do TMDb, ficava com o selo "em breve" e no topo da fileira.
+  // sourceList so desempata quando nao ha data.
+  const releaseTs = toTimestamp(result?.releaseDate || result?.release_date);
+  if (releaseTs) {
+    const dayDiff = Math.ceil((releaseTs - Date.now()) / 86_400_000);
+    if (dayDiff >= 0) return "upcoming";
+    if (dayDiff >= (-TMDB_RECENT_RELEASE_WINDOW_DAYS)) return "nowPlaying";
+    return "";
+  }
+
   const explicitSource = String(result?.sourceList || result?.SourceList || "").trim().toLowerCase();
   if (explicitSource === "upcoming") return "upcoming";
   if (explicitSource === "now_playing" || explicitSource === "nowplaying") return "nowPlaying";
-
-  const releaseTs = toTimestamp(result?.releaseDate || result?.release_date);
-  if (!releaseTs) return "";
-  const dayDiff = Math.ceil((releaseTs - Date.now()) / 86_400_000);
-  if (dayDiff >= 0) return "upcoming";
-  if (dayDiff >= (-TMDB_RECENT_RELEASE_WINDOW_DAYS)) return "nowPlaying";
   return "";
 }
 
@@ -2317,12 +2329,12 @@ function isCurrentTmdbTrailerRelease(result) {
 function getTmdbTrailerReleaseLabel(state) {
   const ll = config?.languageLabels || {};
   if (state === "upcoming") {
-    return ll.tmdbTrailerUpcomingBadge || "Yakında";
+    return ll.tmdbTrailerUpcomingBadge || "Coming soon";
   }
   if (state === "nowPlaying") {
-    return ll.tmdbTrailerNowPlayingBadge || "Vizyonda";
+    return ll.tmdbTrailerNowPlayingBadge || "In theaters";
   }
-  return ll.trailer || "Fragman";
+  return ll.trailer || "Trailer";
 }
 
 function formatTmdbReleaseDateLabel(value) {
@@ -2718,7 +2730,7 @@ function createRecommendationCard(item, serverId, {
   const top10IsFresh = isTop10 && !isTrailerVariant && !hasPlaybackActivity(item);
   const trailerReleaseLabel = String(item?.__tmdbReleaseLabel || "").trim();
   const trailerReleaseDateLabel = String(item?.__tmdbReleaseDateLabel || "").trim();
-  const trailerTypeLabel = String(config.languageLabels.tmdbTrailerRibbon || typeLabel || config.languageLabels.trailer || "Fragman").trim();
+  const trailerTypeLabel = String(config.languageLabels.tmdbTrailerRibbon || typeLabel || config.languageLabels.trailer || "Trailer").trim();
   const trailerRibbonLabel = trailerReleaseLabel || trailerTypeLabel;
   const trailerScore = Number(item?.CommunityRating);
   const trailerRibbonHtml = isTrailerVariant
@@ -2820,7 +2832,7 @@ function createRecommendationCard(item, serverId, {
       <div class="prc-meta">
         ${trailerTypeLabel ? `<span class="tmdb-trailer-status">${escapeHtml(trailerTypeLabel)}</span>` : ""}
         ${trailerReleaseDateLabel ? `${trailerTypeLabel ? `<span class="prc-dot">•</span>` : ""}<span class="prc-year">${escapeHtml(trailerReleaseDateLabel)}</span>` : ""}
-        ${Number.isFinite(trailerScore) ? `${(trailerTypeLabel || trailerReleaseDateLabel) ? `<span class="prc-dot">•</span>` : ""}<span class="prc-runtime">TMDb ${escapeHtml(trailerScore.toFixed(1))}</span>` : ""}
+        ${(Number.isFinite(trailerScore) && trailerScore > 0) ? `${(trailerTypeLabel || trailerReleaseDateLabel) ? `<span class="prc-dot">•</span>` : ""}<span class="prc-runtime">TMDb ${escapeHtml(trailerScore.toFixed(1))}</span>` : ""}
       </div>
     `
     : isTop10

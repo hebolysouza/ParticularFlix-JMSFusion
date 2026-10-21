@@ -259,19 +259,21 @@ function createKeyboardHelpModal() {
   modal.id = 'keyboardHelpModal';
   modal.style.display = 'none';
 
+  const L = config.languageLabels || {};
+  const kb = (key, fallback) => L[key] || fallback;
   modal.innerHTML = `
-    <h3 style="margin-top:0;margin-bottom:10px;">🎹 Klavye Kısayolları</h3>
+    <h3 style="margin-top:0;margin-bottom:10px;">🎹 ${kb('kbHelpTitle', 'Keyboard Shortcuts')}</h3>
     <ul style="list-style:none;padding-left:0;">
-      <li><b>G</b>: Oynatıcıyı göster/gizle</li>
-      <li><b>↑</b> veya <b>+</b>: Sesi artır</li>
-      <li><b>↓</b> veya <b>-</b>: Sesi azalt</li>
-      <li><b>M</b>: Sesi aç/kapat</li>
-      <li><b>S</b>: Karıştırma modunu değiştir</li>
-      <li><b>R</b>: Tekrar modunu değiştir</li>
-      <li><b>←</b>: Önceki parça</li>
-      <li><b>→</b>: Sonraki parça</li>
-      <li><b>?</b>: Yardımı aç/kapat</li>
-      <li><b>Esc</b>: Yardımı kapat</li>
+      <li><b>G</b>: ${kb('kbTogglePlayer', 'Show/hide player')}</li>
+      <li><b>↑</b> / <b>+</b>: ${kb('kbVolumeUp', 'Volume up')}</li>
+      <li><b>↓</b> / <b>-</b>: ${kb('kbVolumeDown', 'Volume down')}</li>
+      <li><b>M</b>: ${kb('kbMute', 'Mute/unmute')}</li>
+      <li><b>S</b>: ${kb('kbShuffle', 'Toggle shuffle')}</li>
+      <li><b>R</b>: ${kb('kbRepeat', 'Toggle repeat')}</li>
+      <li><b>←</b>: ${kb('kbPrev', 'Previous track')}</li>
+      <li><b>→</b>: ${kb('kbNext', 'Next track')}</li>
+      <li><b>?</b>: ${kb('kbHelpToggle', 'Show/hide help')}</li>
+      <li><b>Esc</b>: ${kb('kbHelpClose', 'Close help')}</li>
     </ul>
   `;
   document.body.appendChild(modal);

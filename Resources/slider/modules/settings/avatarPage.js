@@ -510,7 +510,7 @@ function getSystemFonts(labels) {
     { value: '"Playfair Display", serif', text: 'Playfair Display' },
     { value: 'Righteous, cursive', text: 'Righteous' },
     { value: '"Pacifico", cursive', text: 'Pacifico' },
-    { value: '"Caveat", cursive', text: 'Caveat (El Yazısı)' },
+    { value: '"Caveat", cursive', text: 'Caveat (Handwriting)' },
     { value: '"Shadows Into Light", cursive', text: 'Shadows Into Light' },
     { value: '"Indie Flower", cursive', text: 'Indie Flower' },
     { value: 'system-ui, sans-serif', text: labels.systemdefault || 'Sistem Varsayılanı' },
