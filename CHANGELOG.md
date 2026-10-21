@@ -5,6 +5,27 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.7.2.0 (fork release)
+
+Minor release on top of 3.7.1.1. Same plugin GUID, no setting changes, nothing to reconfigure.
+
+### Changes
+
+- **The local trailer no longer looks like a separate player.** The browser's own controls (seek bar, volume,
+  download menu, picture-in-picture, right-click menu) are hidden. Pause and volume stay with the plugin's own
+  buttons.
+- **Discreet fullscreen button** under the volume button. In fullscreen the plugin's pause and volume buttons come
+  along, a click on the picture pauses or resumes, and Esc (or the same button) leaves fullscreen.
+- **Unmuting restores your volume.** Muting and unmuting used to jump back to 100% (or the configured maximum);
+  now it returns to the last volume you set with the slider.
+- New label `previewTrailerFullscreen` in all 9 languages.
+
+### Upgrade notes
+
+- The plugin folder is now named `JMSFusion_3.7.2.0`. If you mount the plugin folder as a Docker volume
+  (recommended on Docker Desktop for Windows, see the 3.7.1.0 notes), update the mount path to the new folder name.
+- Restart Jellyfin and hard refresh the browser (Ctrl + F5).
+
 ## 3.7.1.1 (fork release)
 
 Patch release on top of 3.7.1.0. Same plugin GUID, no setting changes, nothing to reconfigure.
