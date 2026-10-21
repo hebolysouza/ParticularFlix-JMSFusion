@@ -893,6 +893,7 @@ function clearPreviewPlaybackFlag() {
   let ytRevealTimer = null;
   let videoHideTimer = null;
   let autoPreviewActive = false;
+  let autoStartDeferred = false; // automatic start was blocked by a hover preview; retry when the pointer leaves
   let autoPreviewEnded = false;
   let autoTrailerPaused = false;
   let autoTrailerUserPaused = false;
@@ -1519,6 +1520,9 @@ function clearPreviewPlaybackFlag() {
     }
 
     if (!playingKind) {
+      // An automatic start that is already in flight (delay timer running or loading) must not be restarted:
+      // restarting only resets the delay. A suspension clears enterTimeout, so suspended starts still restart.
+      if (autoPreviewPending && enterTimeout) return true;
       const keepAdvanceWaiting = autoAdvanceWaiting;
       autoPreviewActive = false;
       autoPreviewPending = false;
@@ -1999,6 +2003,7 @@ function clearPreviewPlaybackFlag() {
       autoTrailerPaused = false;
       autoPreviewPending = true;
       autoAdvanceWaiting = false;
+      autoStartDeferred = false;
     } else {
       isMouseOver = true;
     }
@@ -2048,6 +2053,7 @@ function clearPreviewPlaybackFlag() {
   const stopPreview = ({ force = false, markAutoEnded = false } = {}) => {
     const shouldAdvanceStoppedAuto = markAutoEnded && autoAdvanceWaiting;
     isMouseOver = false;
+    autoStartDeferred = false;
     autoPreviewActive = false;
     autoPreviewEnded = markAutoEnded;
     autoTrailerPaused = false;
@@ -2070,11 +2076,36 @@ function clearPreviewPlaybackFlag() {
 
   const handleEnter = () => startPreview({ auto: false });
 
+  // The hover preview that blocked the automatic trailer is already playing: keep it and make it the
+  // automatic one (pause button, end of trailer, auto advance), instead of stopping it.
+  function promoteHoverPreviewToAuto() {
+    autoStartDeferred = false;
+    isMouseOver = false;
+    autoPreviewActive = true;
+    autoPreviewEnded = false;
+    autoPreviewPending = false;
+    autoTrailerPaused = false;
+    autoTrailerUserPaused = false;
+    autoAdvanceWaiting = false;
+    setAutoToggleVisible(true);
+    syncAutoToggleButton();
+    setPreviewVolumeVisible(true);
+  }
+
   const handleLeave = () => {
     if (autoPreviewActive && !isMouseOver && !document.hidden && isActiveSlide() && isSliderAutoTrailerEnabled()) {
       return;
     }
+    // The pointer left while a hover preview was blocking the automatic trailer: hand the slide over to
+    // auto mode. Without this the trailer only played while the pointer was on top and stopped on leave.
+    const handOverToAuto =
+      autoStartDeferred && !autoPreviewActive && !document.hidden && isActiveSlide() && isSliderAutoTrailerEnabled();
+    if (handOverToAuto && playingKind === "localTrailer") {
+      promoteHoverPreviewToAuto();
+      return;
+    }
     stopPreview({ force: true });
+    if (handOverToAuto) setTimeout(() => maybeStartAutoTrailer(), 60);
   };
 
   const maybeStartAutoTrailer = () => {
@@ -2082,7 +2113,12 @@ function clearPreviewPlaybackFlag() {
     if (autoTrailerPlaybackBlocked || isAutoTrailerPlaybackBlocked()) return;
     if (autoTrailerSuspended || !isAutoTrailerForegroundReady()) return;
     if (!isAutoSlideVisible()) return;
-    if (autoPreviewActive || playingKind || enterTimeout) return;
+    if (autoPreviewActive || playingKind || enterTimeout) {
+      // A hover preview got there first (typical right after an arrow click, when the card animates
+      // under the pointer). Remember it so auto mode takes over when the pointer leaves.
+      if (!autoPreviewActive && isMouseOver) autoStartDeferred = true;
+      return;
+    }
     startPreview({ auto: true });
   };
 
