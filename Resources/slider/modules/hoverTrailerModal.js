@@ -3883,6 +3883,8 @@ if (typeof window !== 'undefined') {
    };
  }
 
+const __willChangeScanned = new WeakMap();
+
 function clearWillChange(modal) {
   if (!modal) return;
   try {
@@ -3911,10 +3913,14 @@ function clearWillChange(modal) {
   ];
 
   try {
+    // Fork ParticularFlix: cada folha so e varrida uma vez (ou de novo se o numero de regras mudar).
+    // Antes varria todas as regras de todas as folhas a cada fechamento (centenas de ms no trace).
     for (const sheet of Array.from(document.styleSheets)) {
       try {
         const rules = sheet.cssRules || sheet.rules;
         if (!rules) continue;
+        if (__willChangeScanned.get(sheet) === rules.length) continue;
+        __willChangeScanned.set(sheet, rules.length);
         for (let i = 0; i < rules.length; i++) {
           const rule = rules[i];
           if (!rule || !rule.selectorText || !rule.style) continue;
