@@ -5,7 +5,7 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.2.20 (fork release)
+## 3.8.2.21 (fork release)
 
 - New "Access Control" tab (administrators only) that edits the NATIVE Jellyfin permissions of each non-administrator user: maximum parental rating, blocking of unrated content, blocked and allowed tags, and which libraries the user can see. Because it uses the server policy, the restriction is enforced by Jellyfin on every app and device, not only in the web client. Templates are provided (Free, Child, Teen, Almost adult). The original policy of each user is stored the first time and can be restored with one click. Administrators can never be restricted.
 - Optional temporary unlock: a restricted user sees a small lock button and, with the global parental PIN, gets "full access" or a higher rating for a configurable number of minutes (1 to 480). The server restores the restriction automatically (checked every 20 seconds and at startup), reusing the existing attempt limit and lockout of the PIN. The user can also lock again at any time.

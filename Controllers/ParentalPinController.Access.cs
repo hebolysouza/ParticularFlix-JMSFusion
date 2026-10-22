@@ -40,28 +40,27 @@ public partial class ParentalPinController
             var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
             var users = new List<object>();
-            foreach (var u in _users.Users.OrderBy(x => x.Username, StringComparer.OrdinalIgnoreCase))
+            foreach (var u in UserAccessor.List(_users).OrderBy(x => UserAccessor.NameOf(x), StringComparer.OrdinalIgnoreCase))
             {
-                var policy = _users.GetUserDto(u).Policy;
-                var entry = FindAccessProfile(cfg, u.Id);
+                var policy = UserAccessor.PolicyOf(_users, u);
+                if (policy is null)
+                {
+                    continue;
+                }
+
+                var uid = UserAccessor.IdOf(u);
+                var entry = FindAccessProfile(cfg, uid);
                 users.Add(new
                 {
-                    userId = u.Id.ToString("D"),
-                    userName = u.Username,
-                    isAdmin = policy.IsAdministrator,
+                    userId = uid.ToString("D"),
+                    userName = UserAccessor.NameOf(u),
+                    isAdmin = AccessControlCore.IsAdmin(policy),
                     current = AccessControlCore.Capture(policy),
                     profile = entry is null ? null : ToAccessProfileResponse(entry, now)
                 });
             }
 
-            var libraries = new List<object>();
-            foreach (var f in _libraries.GetVirtualFolders())
-            {
-                if (Guid.TryParse(f.ItemId, out var folderId))
-                {
-                    libraries.Add(new { id = folderId.ToString("N"), name = f.Name });
-                }
-            }
+            var libraries = ReadLibraries();
 
             NoCache();
             return Ok(new
@@ -100,14 +99,14 @@ public partial class ParentalPinController
             try
             {
                 var cfg = plugin.Configuration;
-                var target = _users.GetUserById(targetId);
+                var target = UserAccessor.Find(_users, targetId);
                 if (target is null)
                 {
                     return BadRequest(new { ok = false, code = "access_user_not_found", error = "User not found." });
                 }
 
-                var targetPolicy = _users.GetUserDto(target).Policy;
-                if (targetPolicy.IsAdministrator)
+                var targetPolicy = UserAccessor.PolicyOf(_users, target);
+                if (targetPolicy is null || AccessControlCore.IsAdmin(targetPolicy))
                 {
                     return BadRequest(new { ok = false, code = "access_admin_not_allowed", error = "Administrators cannot be restricted." });
                 }
@@ -129,7 +128,7 @@ public partial class ParentalPinController
                     cfg.AccessProfiles.Add(entry);
                 }
 
-                entry.UserName = target.Username;
+                entry.UserName = UserAccessor.NameOf(target);
                 entry.Restricted = SanitizeAccessValues(request.Restricted);
                 entry.Unlocked = SanitizeAccessValues(request.Unlocked);
                 entry.UnlockEnabled = request.UnlockEnabled;
@@ -322,6 +321,30 @@ public partial class ParentalPinController
         {
             return AccessError(ex);
         }
+    }
+
+    // Isolado em metodo proprio: se a assinatura do ILibraryManager mudar entre versoes do Jellyfin,
+    // a lista de bibliotecas fica vazia em vez de derrubar a tela inteira.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private List<object> ReadLibraries()
+    {
+        var libraries = new List<object>();
+        try
+        {
+            foreach (var f in _libraries.GetVirtualFolders())
+            {
+                if (Guid.TryParse(f.ItemId, out var folderId))
+                {
+                    libraries.Add(new { id = folderId.ToString("N"), name = f.Name });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[JMSFusion] Access control: could not list libraries.");
+        }
+
+        return libraries;
     }
 
     private static AccessProfileEntry? FindAccessProfile(JMSFusionConfiguration cfg, Guid userId)
