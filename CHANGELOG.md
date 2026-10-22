@@ -5,7 +5,7 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.1.1 (fork release, in progress)
+## 3.8.1.1 (fork release)
 
 Includes everything that was in the unpublished 3.7.4.0, 3.8.0.0 and 3.8.1.0 builds. Same plugin GUID, no setting changes, nothing to reconfigure.
 
