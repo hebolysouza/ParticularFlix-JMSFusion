@@ -198,8 +198,64 @@ let fontOptionsCache = null;
 let fontAliasesCache = null;
 let fontMeasureContextCache = null;
 
+const FONT_DEDUPE_CACHE_KEY = "jms:fontDedupe:v1";
+const FONT_DEDUPE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function fontDedupeCacheId() {
+  return `${BASE_FONT_OPTIONS.length}:${EXTRA_FONT_OPTIONS.length}:${typeof navigator !== "undefined" ? navigator.userAgent : ""}`;
+}
+
+function readFontDedupeCache() {
+  try {
+    const raw = localStorage.getItem(FONT_DEDUPE_CACHE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || data.id !== fontDedupeCacheId()) return null;
+    if (!Number.isFinite(data.at) || Date.now() - data.at > FONT_DEDUPE_TTL_MS) return null;
+    if (!Array.isArray(data.kept) || !Array.isArray(data.aliases)) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function writeFontDedupeCache(kept, aliases) {
+  try {
+    localStorage.setItem(FONT_DEDUPE_CACHE_KEY, JSON.stringify({
+      id: fontDedupeCacheId(),
+      at: Date.now(),
+      kept,
+      aliases: Array.from(aliases.entries())
+    }));
+  } catch {}
+}
+
 function getFontOptions() {
   if (fontOptionsCache) return fontOptionsCache;
+
+  // Fork ParticularFlix: a assinatura de renderizacao (measureText a 72px, 3 amostras por fonte)
+  // custava ~550 ms no carregamento. O resultado do agrupamento e guardado por 7 dias.
+  const cached = readFontDedupeCache();
+  if (cached) {
+    const keptSet = new Set(cached.kept);
+    const outCached = [];
+    const seenCached = new Set();
+    const addCached = (option) => {
+      if (!option || typeof option !== "object") return;
+      const value = String(option.value || "").trim();
+      if (!value || seenCached.has(value)) return;
+      if (value !== DEFAULT_SETTINGS.fontFamily && !keptSet.has(value)) return;
+      seenCached.add(value);
+      outCached.push(option);
+    };
+    BASE_FONT_OPTIONS.forEach(addCached);
+    EXTRA_FONT_OPTIONS.forEach(addCached);
+    if (outCached.length) {
+      fontAliasesCache = new Map(cached.aliases);
+      fontOptionsCache = Object.freeze(outCached);
+      return fontOptionsCache;
+    }
+  }
 
   const out = [];
   const seen = new Set();
@@ -228,6 +284,9 @@ function getFontOptions() {
 
   fontAliasesCache = aliases;
   fontOptionsCache = Object.freeze(out.length ? out : BASE_FONT_OPTIONS.slice());
+  if (out.length && measureContext) {
+    writeFontDedupeCache(out.map((o) => String(o.value || "").trim()), aliases);
+  }
   return fontOptionsCache;
 }
 

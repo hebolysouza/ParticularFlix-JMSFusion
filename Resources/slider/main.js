@@ -6203,28 +6203,38 @@ function pinHomeScrollToTop({ durationMs = 3200 } = {}) {
   const startedAt = performance.now();
   let rafId = 0;
   let stopped = false;
+  let timerId = 0;
   const userEvents = ["wheel", "touchstart", "pointerdown", "keydown"];
+  // Antes: um requestAnimationFrame por quadro lendo scrollTop de 5 elementos (forcava layout
+  // a cada quadro, ~400 ms no carregamento). Agora so reage quando algo realmente rola.
+  const onScroll = () => {
+    if (stopped || rafId) return;
+    rafId = requestAnimationFrame(tick);
+  };
   const stop = () => {
     if (stopped) return;
     stopped = true;
     if (rafId) cancelAnimationFrame(rafId);
+    if (timerId) clearTimeout(timerId);
+    try { document.removeEventListener("scroll", onScroll, true); } catch {}
     userEvents.forEach((ev) => {
       try { window.removeEventListener(ev, stop, true); } catch {}
     });
     if (__homeScrollPinStop === stop) __homeScrollPinStop = null;
   };
-  userEvents.forEach((ev) => window.addEventListener(ev, stop, { passive: true, capture: true }));
-  __homeScrollPinStop = stop;
-  const tick = () => {
+  function tick() {
     rafId = 0;
     if (stopped) return;
     if (!isHomeRouteActive() || performance.now() - startedAt > durationMs) {
       stop();
       return;
     }
-    if (window.scrollY > 2) resetHomeScrollToTop();
-    rafId = requestAnimationFrame(tick);
-  };
+    resetHomeScrollToTop();
+  }
+  userEvents.forEach((ev) => window.addEventListener(ev, stop, { passive: true, capture: true }));
+  document.addEventListener("scroll", onScroll, { passive: true, capture: true });
+  __homeScrollPinStop = stop;
+  timerId = setTimeout(stop, durationMs + 50);
   tick();
 }
 

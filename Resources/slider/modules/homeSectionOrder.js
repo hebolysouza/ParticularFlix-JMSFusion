@@ -181,7 +181,18 @@ function bindToCurrentContainer() {
   if (!container) return;
   lastKnownContainer = container;
   try { restoreHomeSnapshot(container); } catch (e) { console.warn("[JMS] homeSectionSnapshot:", e); }
-  observer = new MutationObserver(scheduleApply);
+  // Fork ParticularFlix: o slider troca class/style de dezenas de elementos profundos por segundo.
+  // A ordem so depende dos filhos diretos do container; atributos mais fundos nao precisam reaplicar.
+  observer = new MutationObserver((records) => {
+    for (const r of records) {
+      if (r.type !== "attributes") { scheduleApply(); return; }
+      const t = r.target;
+      if (t === container || t.parentElement === container || r.attributeName === "data-managed-section-key") {
+        scheduleApply();
+        return;
+      }
+    }
+  });
   observer.observe(container, {
     childList: true,
     subtree: true,

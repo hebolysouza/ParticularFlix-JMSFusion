@@ -241,13 +241,15 @@ function scheduleSliderHeaderOffsetSync() {
   sliderHeaderSyncTimer = setTimeout(() => { sliderHeaderSyncTimer = 0; run(); }, wait);
 }
 
+let sliderHeaderBurstTimers = [];
 function scheduleSliderHeaderOffsetBurst() {
+  // Fork ParticularFlix: rajadas empilhadas (cada mutacao do cabecalho abria 5 timers novos)
+  // viravam dezenas de medicoes. Agora uma rajada nova substitui a pendente.
+  for (const t of sliderHeaderBurstTimers) clearTimeout(t);
   const delays = [0, 60, 180, 420, 900];
-  for (const delay of delays) {
-    setTimeout(() => {
-      try { scheduleSliderHeaderOffsetSync(); } catch {}
-    }, delay);
-  }
+  sliderHeaderBurstTimers = delays.map((delay) => setTimeout(() => {
+    try { scheduleSliderHeaderOffsetSync(); } catch {}
+  }, delay));
 }
 
 function nodeMatchesSliderHeaderRelevantTarget(node) {
@@ -290,10 +292,15 @@ function bindSliderHeaderLifecycle() {
   // rolagem chega ao topo (ex. depois de restaurar a posicao com o botao voltar) nada disparava a
   // medicao e o slider ficava ~40 px acima do lugar ate a proxima rajada.
   let lastNearTop = null;
+  let scrollRaf = 0;
   window.addEventListener('scroll', () => {
-    const near = isSliderContextNearTop();
-    if (near && lastNearTop !== true) scheduleSliderHeaderOffsetBurst();
-    lastNearTop = near;
+    if (scrollRaf) return;
+    scrollRaf = requestAnimationFrame(() => {
+      scrollRaf = 0;
+      const near = isSliderContextNearTop();
+      if (near && lastNearTop !== true) scheduleSliderHeaderOffsetBurst();
+      lastNearTop = near;
+    });
   }, { passive: true });
   window.addEventListener('pageshow', scheduleSliderHeaderOffsetBurst);
   window.addEventListener('load', scheduleSliderHeaderOffsetBurst);
