@@ -1,7 +1,7 @@
 import { getConfig } from "./config.js";
 import { getSessionInfo, makeApiRequest, getAuthHeader, playNow, fetchItemDetails, getEmbyHeaders, jms } from "../../Plugins/JMSFusion/runtime/api.js";
 import { openSettings } from "./settingsLoader.js";
-import { getProviderUrl } from './utils.js';
+import { getProviderUrl, prefetchLocalTrailer } from './utils.js';
 import { applyContainerStyles } from './positionUtils.js';
 import { withServer } from "./jfUrl.js";
 import { ensureWatchlistLoaded, getCachedWatchlistMembership, getWatchlistButtonText } from "./watchlist.js";
@@ -274,7 +274,7 @@ export function createButtons(slide, config, UserData, itemId, RemoteTrailers, u
           }
 
           openTrailerModal(
-            trailer.Url,
+            trailer.IsLocal ? "" : trailer.Url,
             trailer.Name || "",
             item?.Name || item?.OriginalTitle || "",
             item?.Type || "",
@@ -291,6 +291,28 @@ export function createButtons(slide, config, UserData, itemId, RemoteTrailers, u
     };
 
     appendTrailerButton(trailers[0]);
+
+    // Fork ParticularFlix: itens que so tem trailer LOCAL (sem URL remota no item) nao
+    // ganhavam o botao, mesmo com o trailer tocando no card. A checagem e feita uma unica
+    // vez, no primeiro hover (o botao so e visivel nesse momento), e reaproveita o cache
+    // de trailer local que o proprio card ja usa; assim nao ha requisicoes extras na criacao
+    // dos slides.
+    if (config.showTrailerButton && !trailerButtonMounted && (item?.Id || itemId)) {
+      let localTrailerChecked = false;
+      mainContainer.addEventListener('mouseenter', () => {
+        if (localTrailerChecked || trailerButtonMounted) return;
+        localTrailerChecked = true;
+        (async () => {
+          try {
+            const entry = await prefetchLocalTrailer(item?.Id || itemId);
+            if (entry?.bestId) appendTrailerButton({ Url: "local-trailer", Name: "", IsLocal: true });
+          } catch (err) {
+            localTrailerChecked = false;
+            console.warn("Local trailer button check failed:", err);
+          }
+        })();
+      }, { once: false });
+    }
 
     // Se o item ja veio com RemoteTrailers (mesmo vazio), o detalhe individual nao traz nada novo.
     if (config.showTrailerButton && !trailerButtonMounted && itemId && !Array.isArray(item?.RemoteTrailers)) {
