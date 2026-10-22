@@ -100,11 +100,30 @@ function buildStudioGroupIds(desired, primary, allStudios) {
 // (/Items/a,b,c), o servidor responde 500 e a tela fica girando. Aqui a consulta do item de
 // cabecalho usa so o primeiro id; a lista de filmes continua usando todos os ids.
 const MULTI_ID_ITEM_RE = /(\/Items\/)([0-9a-fA-F]{32})(?:(?:,|%2C)[0-9a-fA-F]{32})+(?=$|[/?#])/i;
+const SINGLE_STUDIOIDS_RE = /([?&]StudioIds=)([0-9a-fA-F]{32})(?=&|#|$)/i;
+// A tela nativa usa o id devolvido pelo item de cabecalho (o primeiro) para listar os filmes.
+// Na rota #/list?studioId=a,b,c a consulta da lista e ampliada para todos os ids do grupo.
+function getGroupIdsFromHash() {
+  try {
+    const m = /[?&]studioId=([^&]+)/i.exec(String(location.hash || ""));
+    if (!m) return null;
+    const ids = decodeURIComponent(m[1]).split(",").map((x) => x.trim()).filter((x) => /^[0-9a-fA-F]{32}$/.test(x));
+    return ids.length > 1 ? ids : null;
+  } catch { return null; }
+}
 function rewriteMultiIdItemUrl(u) {
   try {
     const str = typeof u === "string" ? u : (u && u.url) ? u.url : String(u || "");
-    if (!MULTI_ID_ITEM_RE.test(str)) return null;
-    return str.replace(MULTI_ID_ITEM_RE, "$1$2");
+    let out = str;
+    if (MULTI_ID_ITEM_RE.test(out)) out = out.replace(MULTI_ID_ITEM_RE, "$1$2");
+    if (/\/Items\?/i.test(out) && SINGLE_STUDIOIDS_RE.test(out)) {
+      const ids = getGroupIdsFromHash();
+      const m = SINGLE_STUDIOIDS_RE.exec(out);
+      if (ids && m && ids[0].toLowerCase() === m[2].toLowerCase()) {
+        out = out.replace(SINGLE_STUDIOIDS_RE, (_all, pre) => pre + ids.join(","));
+      }
+    }
+    return out === str ? null : out;
   } catch { return null; }
 }
 (function installStudioGroupRequestShim() {
