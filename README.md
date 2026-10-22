@@ -9,9 +9,21 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases/latest">
+    <img
+      alt="Latest release"
+      src="https://img.shields.io/github/v/release/hebolysouza/ParticularFlix-JMSFusion?style=for-the-badge&label=Latest&color=16a34a"
+    />
+  </a>
+
   <img
-    alt="Archived"
-    src="https://img.shields.io/badge/Status-Archived-6b7280?style=for-the-badge"
+    alt="Maintained fork"
+    src="https://img.shields.io/badge/Status-Maintained%20fork-16a34a?style=for-the-badge"
+  />
+
+  <img
+    alt="Jellyfin 10.11"
+    src="https://img.shields.io/badge/Jellyfin-10.11-00a4dc?style=for-the-badge"
   />
 
   <a href="https://github.com/G-grbz/Jellyfin-MonWUI-Plugin/blob/main/LICENSE">
@@ -25,18 +37,33 @@
 ---
 
 > [!NOTE]
-> **ParticularFlix fork (3.8.0.0).** This repository is a maintained fork of the archived upstream project.
-> It keeps the same plugin GUID, fixes a configuration security hole, adds per-profile settings,
-> new slider sources, a "New season" badge and many performance improvements.
-> See [CHANGELOG.md](CHANGELOG.md) for the full list and the upgrade notes.
+> **Maintained ParticularFlix fork.** This is an actively maintained fork of the original
+> [Jellyfin-MonWUI-Plugin](https://github.com/G-grbz/Jellyfin-MonWUI-Plugin), which has been archived by its author.
+> It keeps the same plugin GUID, so it upgrades an existing JMSFusion install in place. It fixes a configuration security hole,
+> adds per-profile settings, new slider sources, native trailers, a "New season" badge, section ordering that works together with
+> Home Screen Sections, and many performance improvements. It is built and tested against Jellyfin 10.11.x.
+> See [CHANGELOG.md](CHANGELOG.md) for the full list and the upgrade notes, and the
+> [Releases](https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases) page for the latest version.
 
-> [!IMPORTANT]
-> **This project has been archived and is no longer maintained.**
->
-> No further updates, compatibility fixes, feature development, or active support are planned.
-> Existing installations may continue to work, but compatibility with future Jellyfin releases is not guaranteed.
+## Install and update
+
+Add this repository to Jellyfin once, then install and update the plugin from the catalog like any other plugin:
+
+1. Open **Jellyfin Dashboard**, then **Plugins**, then **Repositories**, and click **+**.
+2. Use any name (for example `ParticularFlix JMSFusion`) and this URL:
+
+```
+https://raw.githubusercontent.com/hebolysouza/ParticularFlix-JMSFusion/main/manifest.json
+```
+
+3. Go to **Catalog**, find **JMSFusion**, install the latest version and restart Jellyfin.
+4. Hard refresh the web interface with **Ctrl + F5**.
+
+Already running the original JMSFusion? The plugin GUID is the same, so installing from this repository upgrades it in place.
+Back up your Jellyfin configuration before the first upgrade, as for any plugin change.
 
 <p align="center">
+  <a href="#install-and-update">Install and update</a> •
   <a href="#overview">Overview</a> •
   <a href="#client-compatibility">Client Compatibility</a> •
   <a href="#highlights">Highlights</a> •
@@ -79,7 +106,7 @@ JMSFusion works by injecting JavaScript and CSS into the **Jellyfin Web UI**.
 
 In short, if a client does not render the server's `/web/index.html`, JMSFusion cannot modify its interface.
 
-Because the project is archived, compatibility with newer Jellyfin server or client releases is not guaranteed.
+Compatibility is tracked against Jellyfin 10.11.x. Newer Jellyfin major versions are checked when they are released, and fixes are published as new releases of this fork.
 
 ---
 
@@ -257,6 +284,6 @@ See [LICENSE](LICENSE) for details.
 
 This software is provided **"as is"**, without warranty of any kind.
 
-The repository is preserved for historical, educational, and reference purposes. Since development has ended, users should not expect compatibility fixes for future Jellyfin releases.
+This fork is maintained on a best-effort basis by a single maintainer. The upstream project is archived and is not affiliated with this fork.
 
 Use at your own risk.
