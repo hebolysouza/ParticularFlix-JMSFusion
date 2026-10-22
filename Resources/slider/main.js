@@ -2273,7 +2273,7 @@ function scheduleHomeRowsEager(cfg) {
   }
   if (cfg?.homeRowsEagerLoad === false) return;
   const raw = Number(cfg?.homeRowsEagerDelayMs);
-  const delay = Number.isFinite(raw) && raw >= 0 ? raw : 900;
+  const delay = Number.isFinite(raw) && raw >= 0 ? raw : 500;
   __homeRowsEagerTimer = window.setTimeout(() => {
     __homeRowsEagerTimer = 0;
     loadHomeSectionChainModule()
@@ -6273,6 +6273,14 @@ function initializeSliderOnHome({ forceManagedSectionsBoot = false } = {}) {
           }
         };
 
+        // Fork ParticularFlix: as esteiras da home nao precisam esperar o primeiro slide terminar
+        // (levava ~1,5 s a mais). Inicia pouco depois do slider comecar; o caminho antigo continua
+        // como reserva. homeRowsEarlyBootMs: -1 desliga.
+        try {
+          const earlyRaw = Number((getConfig?.() || {}).homeRowsEarlyBootMs);
+          const earlyMs = Number.isFinite(earlyRaw) ? earlyRaw : 500;
+          if (earlyMs >= 0) setTimeout(() => { if (isHomeRouteActive()) onAllReady(); }, earlyMs);
+        } catch {}
         document.addEventListener("jms:all-slides-ready", onAllReady, { once: true });
         if (window.__totalSlidesPlanned > 0 && window.__slidesCreated >= window.__totalSlidesPlanned) {
           onAllReady();
