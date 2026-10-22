@@ -212,12 +212,13 @@ function buildUserCard(user, ctx) {
   minutesIn.value = String(profile ? profile.unlockMinutes : 30);
   card.appendChild(row(t(labels, "accessCtlUnlockMinutes", "Unlock duration (minutes)"), minutesIn));
 
-  let unlockModeValue = "full";
-  if (unlockedBase && unlockedBase.maxParentalRating !== null && unlockedBase.maxParentalRating !== undefined) {
+  let unlockModeValue = !profile || profile.unlockUseOriginal === true ? "original" : "full";
+  if (profile && profile.unlockUseOriginal !== true && unlockedBase && unlockedBase.maxParentalRating !== null && unlockedBase.maxParentalRating !== undefined) {
     unlockModeValue = String(unlockedBase.maxParentalRating);
   }
   const modeSel = makeSelect(
     [
+      { value: "original", text: t(labels, "accessCtlUnlockOriginal", "Back to the original permissions") },
       { value: "full", text: t(labels, "accessCtlUnlockFull", "Full access") },
       ...RATING_OPTIONS.filter((o) => o.value !== "").map((o) => ({ value: o.value, text: t(labels, o.key, o.fallback) }))
     ],
@@ -240,13 +241,14 @@ function buildUserCard(user, ctx) {
       enableAllFolders: allLibs.checked,
       enabledFolders: allLibs.checked ? [] : libChecks.filter((c) => c.checked).map((c) => c.value)
     };
-    const unlocked = modeSel.value === "full"
+    const unlocked = (modeSel.value === "full" || modeSel.value === "original")
       ? { maxParentalRating: null, blockUnratedItems: [], blockedTags: [], allowedTags: [], enableAllFolders: true, enabledFolders: [] }
       : { ...restricted, maxParentalRating: Number(modeSel.value), blockUnratedItems: [] };
     return {
       userId: user.userId,
       restricted,
       unlockEnabled: unlockCb.checked,
+      unlockUseOriginal: modeSel.value === "original",
       unlockMinutes: Math.min(480, Math.max(1, parseInt(minutesIn.value, 10) || 30)),
       unlocked,
       apply: true
@@ -261,9 +263,7 @@ function buildUserCard(user, ctx) {
     unratedCb.checked = v.blockUnratedItems.length > 0;
     blockedIn.value = v.blockedTags.join(", ");
     allowedIn.value = v.allowedTags.join(", ");
-    allLibs.checked = v.enableAllFolders;
-    libChecks.forEach((c) => { c.checked = false; });
-    syncLibs();
+    // Modelos mudam so classificacao e tags; as bibliotecas ficam como estao.
   });
 
   const btns = el("div", "jms-acc-btns");

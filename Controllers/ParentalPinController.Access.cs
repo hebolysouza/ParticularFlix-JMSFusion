@@ -17,6 +17,8 @@ public partial class ParentalPinController
 
         public bool UnlockEnabled { get; set; }
 
+        public bool UnlockUseOriginal { get; set; }
+
         public int? UnlockMinutes { get; set; }
 
         public AccessPolicyValues? Unlocked { get; set; }
@@ -135,6 +137,7 @@ public partial class ParentalPinController
                 entry.Restricted = SanitizeAccessValues(request.Restricted);
                 entry.Unlocked = SanitizeAccessValues(request.Unlocked);
                 entry.UnlockEnabled = request.UnlockEnabled;
+                entry.UnlockUseOriginal = request.UnlockUseOriginal;
                 entry.UnlockMinutes = Math.Clamp(request.UnlockMinutes ?? 30, 1, 480);
                 entry.UpdatedAtUtc = now;
 
@@ -269,7 +272,7 @@ public partial class ParentalPinController
                     });
                 }
 
-                await AccessControlCore.ApplyAsync(_users, userCheck.UserId, entry.Unlocked).ConfigureAwait(false);
+                await AccessControlCore.ApplyAsync(_users, userCheck.UserId, entry.UnlockUseOriginal && entry.Original is not null ? entry.Original : entry.Unlocked).ConfigureAwait(false);
                 entry.UnlockedUntilUtc = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + (Math.Clamp(entry.UnlockMinutes, 1, 480) * 60_000L);
                 plugin.UpdateConfiguration(cfg);
                 _logger.LogInformation("[JMSFusion] Access control: temporary unlock granted to user {UserId} for {Minutes} min.", userCheck.UserId, entry.UnlockMinutes);
@@ -364,6 +367,7 @@ public partial class ParentalPinController
             original = entry.Original,
             restricted = entry.Restricted,
             unlockEnabled = entry.UnlockEnabled,
+            unlockUseOriginal = entry.UnlockUseOriginal,
             unlockMinutes = entry.UnlockMinutes,
             unlocked = entry.Unlocked,
             isUnlocked = entry.UnlockedUntilUtc > now,

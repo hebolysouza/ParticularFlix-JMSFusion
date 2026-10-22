@@ -486,6 +486,7 @@ export const languageLabels = {
   accessCtlUnlockEnable: "Allow unlock with the global PIN",
   accessCtlUnlockMinutes: "Unlock duration (minutes)",
   accessCtlUnlockMode: "While unlocked",
+  accessCtlUnlockOriginal: "Back to the original permissions",
   accessCtlUnlockFull: "Full access",
   accessCtlNoPin: "No PIN is configured yet. Set one in the PIN tab to enable the temporary unlock.",
   accessCtlUnlockedUntil: "Unlocked until",

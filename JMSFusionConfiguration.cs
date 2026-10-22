@@ -516,6 +516,10 @@ namespace Jellyfin.Plugin.JMSFusion
         [JsonPropertyName("unlockEnabled")]
         public bool UnlockEnabled { get; set; } = false;
 
+        // Quando true, o desbloqueio devolve a politica original do usuario (em vez de "Unlocked").
+        [JsonPropertyName("unlockUseOriginal")]
+        public bool UnlockUseOriginal { get; set; } = false;
+
         [JsonPropertyName("unlockMinutes")]
         public int UnlockMinutes { get; set; } = 30;
 

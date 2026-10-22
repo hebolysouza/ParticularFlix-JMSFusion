@@ -475,6 +475,7 @@ export const languageLabels = {
   accessCtlUnlockEnable: "Permitir desbloqueo con el PIN global",
   accessCtlUnlockMinutes: "Duración del desbloqueo (minutos)",
   accessCtlUnlockMode: "Mientras está desbloqueado",
+  accessCtlUnlockOriginal: "Volver a los permisos originales",
   accessCtlUnlockFull: "Acceso total",
   accessCtlNoPin: "Aún no hay PIN configurado. Defínelo en la pestaña de PIN para habilitar el desbloqueo temporal.",
   accessCtlUnlockedUntil: "Desbloqueado hasta",
