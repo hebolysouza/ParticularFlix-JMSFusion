@@ -848,11 +848,18 @@ function scheduleFocusedPlaybackUserDataSync(delayMs = 900) {
   }, Math.max(150, Number(delayMs) || 0));
 }
 
-async function ensureMaterialIconsUtf8Integrity() {
+// Fork ParticularFlix: a sonda cria um elemento e le o estilo calculado (recalculo forcado, ~90 ms
+// na carga). Depois de um resultado "ok" as verificacoes agendadas por tempo pulam a sonda; so uma
+// mudanca real nas folhas de estilo (force) volta a sondar.
+let __materialIconsKnownOk = false;
+async function ensureMaterialIconsUtf8Integrity(force = false) {
+  if (force) __materialIconsKnownOk = false;
+  if (__materialIconsKnownOk) return false;
   if (materialIconsRepairPromise) return materialIconsRepairPromise;
 
   materialIconsRepairPromise = (async () => {
     const state = readMaterialIconsProbeState();
+    if (state.ready && !state.broken) __materialIconsKnownOk = true;
     if (!state.ready || !state.broken) return false;
 
     const stylesheet = await loadMaterialIconsStylesheetUtf8();
@@ -916,7 +923,7 @@ function installMaterialIconsUtf8Guard() {
       if (!shouldScheduleCheck(mutations)) return;
       clearTimeout(window.__jmsMaterialIconsUtf8GuardTimer);
       window.__jmsMaterialIconsUtf8GuardTimer = setTimeout(() => {
-        ensureMaterialIconsUtf8Integrity().catch(() => {});
+        ensureMaterialIconsUtf8Integrity(true).catch(() => {});
       }, 80);
     });
     observer.observe(head, {
