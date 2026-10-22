@@ -241,6 +241,88 @@ namespace Jellyfin.Plugin.JMSFusion.Core
 
         public static ILogger? Log { get; set; }
 
+        public static IServiceProvider? Services { get; set; }
+
+        // O Home Screen Sections guarda em memoria, por usuario, a lista de secoes ja montada e a reaproveita
+        // por 1 hora (renovada a cada acesso). Se ela foi montada com outro nivel de acesso, a home continua
+        // mostrando o resultado antigo (ex.: "Because you watched" sumido apos desbloquear, ou titulos
+        // liberados aparecendo apos bloquear). Aqui so removemos as entradas desse usuario. Se o plugin nao
+        // existir ou mudar de estrutura, nada acontece. Tudo por reflexao, sem referencia ao outro plugin.
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public static int InvalidateHomeSectionsCache(Guid userId)
+        {
+            try
+            {
+                var services = Services;
+                if (services is null)
+                {
+                    return 0;
+                }
+
+                Type? cacheType = null;
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    string? asmName;
+                    try { asmName = asm.GetName().Name; } catch { continue; }
+                    if (!string.Equals(asmName, "Jellyfin.Plugin.HomeScreenSections", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    cacheType = asm.GetType("Jellyfin.Plugin.HomeScreenSections.Data.UserSectionsDataCache", false);
+                    if (cacheType is not null)
+                    {
+                        break;
+                    }
+                }
+
+                if (cacheType is null)
+                {
+                    return 0;
+                }
+
+                var cache = services.GetService(cacheType);
+                if (cache is null)
+                {
+                    return 0;
+                }
+
+                var owners = cacheType.GetProperty("PageHashOwnerIds")?.GetValue(cache) as System.Collections.IDictionary;
+                if (owners is null)
+                {
+                    return 0;
+                }
+
+                var hashes = new List<object>();
+                foreach (System.Collections.DictionaryEntry entry in owners)
+                {
+                    if (entry.Value is Guid owner && owner == userId)
+                    {
+                        hashes.Add(entry.Key);
+                    }
+                }
+
+                foreach (var name in new[] { "Cache", "PageHashExpiry", "PageHashOwnerIds" })
+                {
+                    if (cacheType.GetProperty(name)?.GetValue(cache) is System.Collections.IDictionary dict)
+                    {
+                        foreach (var hash in hashes)
+                        {
+                            dict.Remove(hash);
+                        }
+                    }
+                }
+
+                Log?.LogInformation("Access control: cleared {Count} cached Home Screen Sections page(s) for {UserId}", hashes.Count, userId);
+                return hashes.Count;
+            }
+            catch (Exception ex)
+            {
+                Log?.LogWarning(ex, "Access control: could not clear the Home Screen Sections cache for {UserId}", userId);
+                return 0;
+            }
+        }
+
         private static JsonObject? SnapshotNonAccessFields(UserPolicy policy)
         {
             try
@@ -331,6 +413,7 @@ namespace Jellyfin.Plugin.JMSFusion.Core
 
             await UserAccessor.UpdatePolicyAsync(users, userId, policy).ConfigureAwait(false);
             BumpCacheGeneration(userId);
+            InvalidateHomeSectionsCache(userId);
             ReportPolicyDrift(users, user, userId, beforeJson);
             return true;
         }
@@ -390,11 +473,12 @@ namespace Jellyfin.Plugin.JMSFusion.Core
         private readonly IUserManager _users;
         private readonly ILogger<AccessRelockService> _logger;
 
-        public AccessRelockService(IUserManager users, ILogger<AccessRelockService> logger)
+        public AccessRelockService(IUserManager users, ILogger<AccessRelockService> logger, IServiceProvider services)
         {
             _users = users;
             _logger = logger;
             AccessControlCore.Log ??= logger;
+            AccessControlCore.Services ??= services;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
