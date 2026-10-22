@@ -509,6 +509,8 @@ export const languageLabels = {
   accessUnlockWrong: "PIN incorreto.",
   accessUnlockLockNow: "Bloquear agora",
   accessUnlockButton: "Desbloquear",
+  accessEmptyHome: "Nenhum conteúdo disponível para este perfil.",
+  accessEmptyHomeHint: "Entre em contato com o administrador do servidor para solicitar acesso.",
   otherLibrariesRecentCardCount: "Outras Bibliotecas • Quantidade de Adicionados Recentemente",
   otherLibrariesContinueCardCount: "Outras Bibliotecas • Quantidade de Continuar Assistindo",
   otherLibrariesEpisodesCardCount: "Outras Bibliotecas • Quantidade de Episódios Recentes",

@@ -3105,6 +3105,12 @@ export function progressivelyRenderCardRow({
 function renderRecommendationCards(row, items, serverId) {
   const personalCardCount = getPersonalRecsCardCount();
   clearRowWithCleanup(row);
+  // Fork ParticularFlix: com perfil de acesso bloqueando tudo, a linha vazia ("Nenhum conteudo adequado")
+  // ficava a vista. Linha sem itens fica oculta e volta sozinha quando houver recomendacoes.
+  try {
+    const ownSection = row.closest?.("#personal-recommendations");
+    if (ownSection) ownSection.style.display = (items && items.length) ? "" : "none";
+  } catch {}
   if (!items || !items.length) {
     row.innerHTML = `<div class="no-recommendations">${(config.languageLabels?.noRecommendations) || labels.noRecommendations || "Öneri bulunamadı"}</div>`;
     return;

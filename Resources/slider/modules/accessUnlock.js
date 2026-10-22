@@ -10,6 +10,7 @@ const STYLE_ID = "jms-accu-style";
 const BTN_ID = "jms-accu-btn";
 const DLG_ID = "jms-accu-dialog";
 const POLL_MS = 60_000;
+const EMPTY_ID = "jms-accu-empty";
 
 let started = false;
 let pollTimer = 0;
@@ -24,6 +25,9 @@ function injectStyle() {
 #${BTN_ID}{position:fixed;left:14px;bottom:14px;z-index:9990;display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:99px;border:1px solid rgba(255,255,255,.25);background:rgba(20,20,24,.82);color:#fff;font-size:.85em;cursor:pointer;backdrop-filter:blur(6px)}
 #${BTN_ID}.open{background:rgba(180,120,0,.85)}
 body.jms-accu-hide #${BTN_ID}{display:none}
+#${EMPTY_ID}{margin:12vh auto 0;max-width:560px;padding:28px 24px;text-align:center;color:#fff;opacity:.92}
+#${EMPTY_ID} i{font-size:2.4em;margin-bottom:12px;display:block;opacity:.8}
+#${EMPTY_ID} p{margin:6px 0;font-size:1.05em;line-height:1.5}
 #${DLG_ID}{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6)}
 #${DLG_ID} .box{background:#1b1b20;color:#fff;border-radius:14px;padding:22px;width:min(92vw,340px);box-shadow:0 10px 40px rgba(0,0,0,.6)}
 #${DLG_ID} h3{margin:0 0 10px}
@@ -163,6 +167,64 @@ function openDialog() {
   });
 }
 
+function isHomeRoute() {
+  const h = String(location.hash || "").toLowerCase();
+  return h === "" || h === "#" || h.startsWith("#/home") || h.startsWith("#/index");
+}
+
+function countHomeContent(page) {
+  try {
+    return page.querySelectorAll(".homeSectionsContainer .card, .homeSectionsContainer .cardBox, .monwui-slide, #monwui-slides-container .monwui-slide").length;
+  } catch {
+    return 1;
+  }
+}
+
+// Perfil que bloqueia tudo: sem nenhum cartao na home, mostra um aviso (o Jellyfin nativo mostra o dele
+// apenas quando nao ha bibliotecas; com o Home Screen Sections a tela ficava vazia ou com linha vazia).
+let emptyCheckTimers = [];
+function clearEmptyNotice() {
+  emptyCheckTimers.forEach((t) => clearTimeout(t));
+  emptyCheckTimers = [];
+  document.getElementById(EMPTY_ID)?.remove();
+}
+
+function evaluateEmptyHome(status) {
+  const locked = !!status && status.hasProfile && status.isUnlocked !== true;
+  const page = document.querySelector("#indexPage:not(.hide), #homePage:not(.hide)");
+  const existing = document.getElementById(EMPTY_ID);
+  if (!locked || !page || !isHomeRoute()) {
+    existing?.remove();
+    return;
+  }
+  // O Jellyfin nativo ja mostra a propria mensagem (.centerMessage) quando nao ha bibliotecas.
+  const nativeMessage = !!page.querySelector(".centerMessage");
+  const hasContent = nativeMessage || countHomeContent(page) > 0;
+  if (hasContent) {
+    existing?.remove();
+    return;
+  }
+  if (existing && existing.isConnected) return;
+  const host = page.querySelector(".homeSectionsContainer") || page;
+  const box = document.createElement("div");
+  box.id = EMPTY_ID;
+  const icon = document.createElement("i");
+  icon.className = "fas fa-lock";
+  const p1 = document.createElement("p");
+  p1.textContent = tr("accessEmptyHome", "No content is available for this profile.");
+  const p2 = document.createElement("p");
+  p2.textContent = tr("accessEmptyHomeHint", "Contact the server administrator to request access.");
+  box.append(icon, p1, p2);
+  host.appendChild(box);
+}
+
+function scheduleEmptyHomeCheck(status) {
+  emptyCheckTimers.forEach((t) => clearTimeout(t));
+  emptyCheckTimers = [2500, 6000, 12000].map((ms) => setTimeout(() => {
+    try { evaluateEmptyHome(status); } catch {}
+  }, ms));
+}
+
 function formatRemaining(untilMs) {
   const mins = Math.max(0, Math.ceil((untilMs - Date.now()) / 60000));
   return `${mins} min`;
@@ -222,6 +284,7 @@ async function refresh() {
     handleGenerationChange(status);
     renderButton(status);
     scheduleExpiry(status);
+    scheduleEmptyHomeCheck(status);
   } catch {
     // silent: not logged in or plugin endpoint unavailable
   }
@@ -242,7 +305,11 @@ export function initAccessUnlock() {
   window.addEventListener("jms:cache-generation-stale", () => {
     void refresh();
   });
+  window.addEventListener("hashchange", () => {
+    if (lastStatus) scheduleEmptyHomeCheck(lastStatus);
+  });
   document.addEventListener("jms:auth-profile-changed", () => {
+    clearEmptyNotice();
     removeEls();
     lastStatus = null;
     refresh();
@@ -250,6 +317,7 @@ export function initAccessUnlock() {
 }
 
 export function stopAccessUnlock() {
+  clearEmptyNotice();
   clearInterval(pollTimer);
   clearTimeout(expiryTimer);
   removeEls();

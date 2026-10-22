@@ -507,6 +507,8 @@ export const languageLabels = {
   accessUnlockWrong: "Wrong PIN.",
   accessUnlockLockNow: "Lock now",
   accessUnlockButton: "Unlock",
+  accessEmptyHome: "No content is available for this profile.",
+  accessEmptyHomeHint: "Contact the server administrator to request access.",
   otherLibrariesRecentCardCount: "Other Libraries • Recently Added Card Count",
   otherLibrariesContinueCardCount: "Other Libraries • Continue Watching Card Count",
   otherLibrariesEpisodesCardCount: "Other Libraries • Recently Added Episode Count",
