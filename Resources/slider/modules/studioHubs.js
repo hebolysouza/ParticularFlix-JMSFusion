@@ -60,11 +60,47 @@ const CORE_TOKENS = {
   "DreamWorks Animation": ["dreamworks", "animation"]
 };
 
+// Fork ParticularFlix: um hub agrupa TODOS os estudios da mesma marca (ex.: "Paramount+",
+// "Paramount Animation" e "Paramount Pictures" no hub Paramount Pictures; "Marvel Enterprises"
+// no hub Marvel Studios). Um estudio entra no grupo quando o nome tem a palavra-chave inteira.
+// Configuravel: studioHubGroupTokens {hub: [palavras]} e studioHubGroupMerge:false desliga.
+const GROUP_TOKENS = {
+  "Marvel Studios": ["marvel"],
+  "Pixar": ["pixar"],
+  "Lucasfilm Ltd.": ["lucasfilm"],
+  "Paramount Pictures": ["paramount"],
+  "Warner Bros. Pictures": ["warner"],
+  "Columbia Pictures": ["columbia"],
+  "Netflix": ["netflix"],
+  "DreamWorks Animation": ["dreamworks"],
+  "DC": ["dc"]
+};
+
+function buildStudioGroupIds(desired, primary, allStudios) {
+  const primaryId = primary?.Id;
+  const out = primaryId ? [primaryId] : [];
+  let cfg = {};
+  try { cfg = getConfig?.() || {}; } catch {}
+  if (cfg.studioHubGroupMerge === false) return out;
+  const custom = cfg.studioHubGroupTokens && typeof cfg.studioHubGroupTokens === "object"
+    ? cfg.studioHubGroupTokens : null;
+  const canon = CANONICALS.get(String(desired || "").toLowerCase()) || desired;
+  const wantTokens = ((custom && (custom[desired] || custom[canon])) || GROUP_TOKENS[canon] || [])
+    .map((t) => nbase(t)).filter(Boolean);
+  if (!wantTokens.length) return out;
+  for (const st of Array.isArray(allStudios) ? allStudios : []) {
+    if (!st?.Id || out.includes(st.Id)) continue;
+    const parts = nbase(st.Name).split(" ");
+    if (wantTokens.some((t) => parts.includes(t))) out.push(st.Id);
+  }
+  return out;
+}
+
 const LOGO_H = 160;
 const CACHE_TTL = 6 * 60 * 60 * 1000;
 const MAP_TTL   = 30 * 24 * 60 * 60 * 1000;
 const IMG_TTL   = 7  * 24 * 60 * 60 * 1000;
-const LS_KEY    = "studioHub_cache_v5";
+const LS_KEY    = "studioHub_cache_v6";
 const MAP_KEY   = "studioHub_nameIdMap_v5";
 const MISS_KEY  = "studioHub_nameMiss_v1";
 const MISS_TTL  = 6 * 60 * 60 * 1000; // estudio ausente da biblioteca: nao procurar de novo por 6 h
@@ -754,7 +790,7 @@ async function resolveLogoUrl(name) {
 }
 
 async function fetchStudios(signal) {
-  const url = `/Studios?Limit=300&Recursive=true&SortBy=SortName&SortOrder=Ascending`;
+  const url = `/Studios?Limit=2000&Recursive=true&SortBy=SortName&SortOrder=Ascending`;
   const res = await fetch(withServer(url), { headers: hJSON(), signal, credentials: 'same-origin' });
   if (!res.ok) throw new Error("Studios alınamadı");
   const data = await res.json();
@@ -1053,6 +1089,10 @@ export async function renderStudioHubs() {
     // guardado por 6 h e as buscas rodam em paralelo (ate 3 estudios por vez).
     const missMap = loadCache(MISS_KEY, MISS_CACHE_TTL) || {};
     const nowMs = Date.now();
+    const manualIdOf = (n) => {
+      const me = (manualEntries || []).find(entry => nameKey(entry?.name || entry?.Name) === nameKey(n)) || null;
+      return String(me?.studioId || me?.StudioId || "").trim();
+    };
     const resolveSignal = __fetchAbort ? __fetchAbort.signal : undefined;
     const settledResolve = await mapSettledLimit(wanted, 3, async (desired) => {
       const manualEntry = (manualEntries || []).find(entry => nameKey(entry?.name || entry?.Name) === nameKey(desired)) || null;
@@ -1103,7 +1143,9 @@ export async function renderStudioHubs() {
         card.style.removeProperty('--hub-card-bg');
         card.style.removeProperty('--hub-card-shadow');
       }
-      const detailsHref = buildStudioHref(studio.Id, serverId);
+      const groupIds = (!manualIdOf(name) ? buildStudioGroupIds(name, studio, studios) : [studio.Id]);
+      const groupParam = groupIds.join("|");
+      const detailsHref = buildStudioHref(groupParam || studio.Id, serverId);
       card.href = detailsHref;
       card.classList.remove("hub-card-textonly");
 
@@ -1115,7 +1157,7 @@ export async function renderStudioHubs() {
       const customVideoUrl = buildStudioHubVideoUrl(sharedVideoEntry);
       const needsStudioItems = isDefaultHub && !logoUrl;
       const studioItems = needsStudioItems
-        ? await fetchStudioItemsViaUsers(studio.Id, studio.Name || name, userId, __fetchAbort.signal, {
+        ? await fetchStudioItemsViaUsers(groupParam || studio.Id, studio.Name || name, userId, __fetchAbort.signal, {
             limit: STUDIO_ITEMS_LIMIT
           })
         : null;
@@ -1156,14 +1198,14 @@ export async function renderStudioHubs() {
         }
       }
 
-      ensurePreviewButton(card, name, studio.Id, userId);
+      ensurePreviewButton(card, name, groupParam || studio.Id, userId);
 
       if (config.studioHubsHoverVideo) {
         await setupHoverVideo(card, {
           logoUrl,
           customVideoUrl,
           studioName: name,
-          studioId: studio.Id,
+          studioId: groupParam || studio.Id,
           userId
         });
       }
