@@ -2646,6 +2646,7 @@ function injectOrUpdateModalStyle() {
     }
 
     .video-preview-modal .video-container {
+      order: 0;
       position: relative;
       width: 100%;
       height: auto;
@@ -2693,7 +2694,8 @@ function injectOrUpdateModalStyle() {
     }
 
     .video-preview-modal .preview-info {
-      padding: 6px 20px 20px 20px;
+      order: 2;
+      padding: 16px 20px 20px 20px;
       position: relative;
       z-index: 2;
       background: none;
@@ -2790,15 +2792,16 @@ function injectOrUpdateModalStyle() {
     }
 
     .video-preview-modal .preview-buttons {
+      order: 1;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       position: relative;
-      margin-top: -22px;
+      margin-top: -24px;
       opacity: 1;
       z-index: 6;
       pointer-events: auto;
-      padding: 0 20px 4px 20px;
+      padding: 0 20px 0 20px;
       transition:
         opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
         transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -2971,10 +2974,11 @@ function injectOrUpdateModalStyle() {
 
     .preview-volume-slider {
       position: absolute;
-      top: 100%;
-      left: 140%;
-      transform: translateX(-50%) rotate(-90deg);
+      right: calc(100% + 8px);
+      top: 50%;
+      transform: translateY(-50%);
       width: 0;
+      margin: 0;
       opacity: 0;
       pointer-events: none;
       transition: width .18s ease, opacity .18s ease;
@@ -2984,16 +2988,15 @@ function injectOrUpdateModalStyle() {
     .preview-volume-wrap::after {
       content: '';
       position: absolute;
-      top: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 48px;
-      height: 20px;
+      top: 0;
+      bottom: 0;
+      right: 100%;
+      width: 10px;
     }
 
     .preview-volume-wrap.vol-open .preview-volume-slider,
     .preview-volume-wrap:focus-within .preview-volume-slider {
-      width: 80px;
+      width: 96px;
       opacity: 1;
       pointer-events: auto;
     }
