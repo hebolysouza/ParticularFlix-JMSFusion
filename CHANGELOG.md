@@ -5,6 +5,10 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.8.2.14 (fork release)
+
+- Home section order no longer needs custom CSS or an external script. The built-in order module now also recognizes the Home Screen Sections rows by their type class (Continue Watching, My Media, Upcoming Movies, Upcoming Shows, Discover, Because You Watched) and by their Portuguese titles ("Filmes em breve", "Séries em breve", "Porque você assistiu"), and any row without a rule, or an empty row slot, now goes to the end of the page (`homeSectionOrderDefault`, `false` disables) instead of jumping to the top when the CSS `order: 999` rule is removed.
+
 ## 3.8.2.13 (fork release)
 
 - Home rows snapshot: when you leave the home page, an inert copy of the rows already drawn is kept, and it is put back instantly when you return with the Back button. Each copy disappears as soon as the real row has its cards (or after 12 s), so the page no longer comes back blank or jumps while the rows are rebuilt. Options: `homeSectionSnapshot: false` turns it off, `homeSectionSnapshotMaxAgeMs`, `homeSectionSnapshotTimeoutMs`.

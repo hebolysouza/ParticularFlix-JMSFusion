@@ -19,6 +19,7 @@
  *   enforceHomeSectionOrder: false  -> desliga o modulo
  *   homeSectionOrderSelectors: [[selector, ordem], ...]
  *   homeSectionOrderTitles: [[ordem, ["trecho do titulo", ...]], ...]
+ *   homeSectionOrderDefault: numero (padrao 999) ou false  -> ordem das secoes sem regra
  */
 import { getConfig } from "./config.js";
 import {
@@ -30,6 +31,15 @@ import {
 const CONTAINER_SELECTOR = ".sections.homeSectionsContainer, .homeSectionsContainer";
 
 const DEFAULT_SELECTORS = [
+  // Secoes do Home Screen Sections: identificadas pela classe do tipo (nao dependem de idioma nem de titulo).
+  ['[class*="ContinueWatching" i]', 1],
+  ['[class*="MyMedia" i]', 3],
+  ['[class*="UpcomingMovies" i]', 5],
+  ['[class*="UpcomingShows" i]', 6],
+  ['[class*="DiscoverMovies" i]', 9],
+  ['[class*="DiscoverTV" i]', 10],
+  ['[class*="Discover" i]:not([class*="DiscoverMovies" i]):not([class*="DiscoverTV" i])', 11],
+  ['[class*="BecauseYouWatched" i]', 17],
   ['[data-managed-section-key="nextUpRows"]', 2],
   ["#nextup-rows", 2],
   [".NextUp, .nextUpSection, [data-section-type='nextup']", 2],
@@ -49,11 +59,11 @@ const DEFAULT_TITLES = [
   [1, ["continuar assistindo", "continue watching"]],
   [2, ["próximo", "proximo", "next up", "up next", "a seguir", "siguiente", "a continuación", "a continuacion"]],
   [3, ["minha mídia", "minha midia", "my media"]],
-  [5, ["filmes a estrear", "upcoming movies"]],
-  [6, ["séries a estrear", "series a estrear", "upcoming shows"]],
+  [5, ["filmes a estrear", "filmes em breve", "upcoming movies"]],
+  [6, ["séries a estrear", "series a estrear", "séries em breve", "series em breve", "upcoming shows"]],
   [9, ["descobrir filmes", "discover movies"]],
   [10, ["descobrir séries", "descobrir series", "discover tv"]],
-  [17, ["porque viu", "because you watched"]],
+  [17, ["porque viu", "porque você assistiu", "porque voce assistiu", "because you watched"]],
   [11, ["descobrir", "discover"]],
 ];
 
@@ -73,7 +83,10 @@ function readOptions() {
   const titles = Array.isArray(cfg.homeSectionOrderTitles) && cfg.homeSectionOrderTitles.length
     ? cfg.homeSectionOrderTitles
     : DEFAULT_TITLES;
-  return { enabled: cfg.enforceHomeSectionOrder !== false, selectors, titles };
+  const defaultOrder = cfg.homeSectionOrderDefault === false
+    ? null
+    : (Number.isFinite(Number(cfg.homeSectionOrderDefault)) ? Number(cfg.homeSectionOrderDefault) : 999);
+  return { enabled: cfg.enforceHomeSectionOrder !== false, selectors, titles, defaultOrder };
 }
 
 function getContainer() {
@@ -126,8 +139,20 @@ export function applyHomeSectionOrder() {
     for (const [order, needles] of opts.titles) {
       if (needles.some((needle) => text.includes(needle))) {
         setOrder(child, order);
+        handled.add(child);
         break;
       }
+    }
+  }
+
+  // Secao sem regra e sem order proprio (nem do Home Screen Sections): vai para o fim,
+  // como o CSS `.homeSectionsContainer * { order: 999 }` fazia. Sem isso o padrao seria 0 (topo da pagina).
+  if (opts.defaultOrder !== null) {
+    for (const child of container.children) {
+      if (handled.has(child)) continue;
+      if (child.classList.contains("jms-home-snapshot")) continue;
+      if (child.style.getPropertyValue("order")) continue;
+      setOrder(child, opts.defaultOrder);
     }
   }
 }
