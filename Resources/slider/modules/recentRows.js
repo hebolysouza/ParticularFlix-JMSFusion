@@ -3624,10 +3624,12 @@ async function attachSeriesPosterSourceToEpsAndSeasons(items) {
   return list;
 }
 
-async function fetchRecentGeneric(userId, limit, parentId) {
+async function fetchRecentGeneric(userId, limit, parentId, collectionType = "") {
+  const isBoxSetLib = String(collectionType || "").toLowerCase() === "boxsets";
   const url =
     `/Users/${userId}/Items?` +
     `Recursive=true&Fields=${encodeURIComponent(COMMON_FIELDS)}&` +
+    (isBoxSetLib ? `IncludeItemTypes=BoxSet&` : ``) +
     `EnableUserData=true&` +
     (parentId ? `ParentId=${encodeURIComponent(parentId)}&` : ``) +
     `SortBy=DateCreated&SortOrder=Descending&Limit=${Math.max(10, limit * 2)}&` +
@@ -3971,7 +3973,11 @@ async function fillSectionWithItemsInner({
 
     let best = null;
     if (useHero && pool.length) {
-      if (randomHero) {
+      const prevHeroId = heroHost.__jmsHeroId;
+      const prevHero = (randomHero && prevHeroId) ? pool.find((x) => x?.Id === prevHeroId) : null;
+      if (prevHero) {
+        best = prevHero;
+      } else if (randomHero) {
         const idx = pickRandomIndex(pool.length);
         best = idx >= 0 ? pool[idx] : pool[0];
       } else {
@@ -3983,12 +3989,17 @@ async function fillSectionWithItemsInner({
       ? pool.filter((x) => x?.Id && x.Id !== best.Id)
       : pool.slice();
 
-    heroHost.innerHTML = "";
-    if (useHero && best) {
-      const hero = await createRowHeroCard(best, STATE.serverId, heroLabel, { showProgress });
-      if (!isPassCurrent()) return false;
-      heroHost.appendChild(hero);
-      queueEnterAnimation(hero);
+    const keepHero = !!(useHero && best && heroHost.__jmsHeroId === best.Id && heroHost.firstChild && !showProgress);
+    if (!keepHero) {
+      heroHost.innerHTML = "";
+      heroHost.__jmsHeroId = null;
+      if (useHero && best) {
+        const hero = await createRowHeroCard(best, STATE.serverId, heroLabel, { showProgress });
+        if (!isPassCurrent()) return false;
+        heroHost.appendChild(hero);
+        heroHost.__jmsHeroId = best.Id;
+        queueEnterAnimation(hero);
+      }
     }
 
     row.innerHTML = "";
@@ -5076,7 +5087,7 @@ async function initAndRender({ sectionKey = "recentRows", mountState = null } = 
         showProgress: false,
         hideHero: runtimeCfg.showOtherLibrariesHeroCards === false,
         fetcher: Object.assign(
-          () => fetchRecentGeneric(userId, runtimeCfg.effectiveOtherRecentCount + 1, libId).then(async (items) => {
+          () => fetchRecentGeneric(userId, runtimeCfg.effectiveOtherRecentCount + 1, libId, (STATE.otherLibs || []).find(x => x.Id === libId)?.CollectionType || "").then(async (items) => {
             await writeCachedList("other_recent", `lib:${libId}`, items.map(x=>x?.Id).filter(Boolean));
             return items;
           }),

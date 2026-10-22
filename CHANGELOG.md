@@ -5,6 +5,11 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.8.2.4 (fork release)
+
+- Collections row: when the library is a Collections (BoxSet) library, the recent items query now asks only for BoxSet items instead of scanning everything below it, so the row loads faster.
+- Recent rows: when a row is re-rendered with fresh data, the hero card is kept if it is still in the list, which removes the visible image swap ("flick") after scrolling to the row.
+
 ## 3.8.2.3 (fork release)
 
 Home-page behaviour fixes (3.8.2.0 to 3.8.2.2 were internal test builds and were never published). Same plugin GUID, no setting changes, nothing to reconfigure.
