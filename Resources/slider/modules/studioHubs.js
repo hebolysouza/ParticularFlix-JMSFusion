@@ -96,6 +96,39 @@ function buildStudioGroupIds(desired, primary, allStudios) {
   return out;
 }
 
+// Fork ParticularFlix: a tela nativa #/list?studioId=a,b,c busca o "estudio" pelo id inteiro
+// (/Items/a,b,c), o servidor responde 500 e a tela fica girando. Aqui a consulta do item de
+// cabecalho usa so o primeiro id; a lista de filmes continua usando todos os ids.
+const MULTI_ID_ITEM_RE = /(\/Items\/)([0-9a-fA-F]{32})(?:(?:,|%2C)[0-9a-fA-F]{32})+(?=$|[/?#])/i;
+function rewriteMultiIdItemUrl(u) {
+  try {
+    const str = typeof u === "string" ? u : (u && u.url) ? u.url : String(u || "");
+    if (!MULTI_ID_ITEM_RE.test(str)) return null;
+    return str.replace(MULTI_ID_ITEM_RE, "$1$2");
+  } catch { return null; }
+}
+(function installStudioGroupRequestShim() {
+  try {
+    if (window.__jmsStudioGroupShim) return;
+    window.__jmsStudioGroupShim = true;
+    const origFetch = window.fetch;
+    if (typeof origFetch === "function") {
+      window.fetch = function (input, init) {
+        const fixed = rewriteMultiIdItemUrl(input);
+        if (fixed) {
+          input = (typeof input === "string") ? fixed : new Request(fixed, input);
+        }
+        return origFetch.call(this, input, init);
+      };
+    }
+    const origOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+      const fixed = rewriteMultiIdItemUrl(url);
+      return origOpen.call(this, method, fixed || url, ...rest);
+    };
+  } catch {}
+})();
+
 const LOGO_H = 160;
 const CACHE_TTL = 6 * 60 * 60 * 1000;
 const MAP_TTL   = 30 * 24 * 60 * 60 * 1000;
