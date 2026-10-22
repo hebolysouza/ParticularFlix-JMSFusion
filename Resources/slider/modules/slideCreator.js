@@ -998,11 +998,7 @@ html body .monwui-trailer-video-container iframe,html body .monwui-trailer-video
 html body .monwui-trailer-error{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;opacity:.8}
 html body .monwui-trailer-modal-footer{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 20px;flex:0 0 auto;width:100%;box-sizing:border-box;padding:10px 20px;background:rgba(0,0,0,.35)}
 html body .monwui-trailer-modal-footer .official-rating{white-space:nowrap}
-html body .monwui-trailer-star-rating{display:inline-flex;position:relative;width:fit-content;line-height:1}
-html body .monwui-trailer-star-track,html body .monwui-trailer-star-fill{display:inline-flex;white-space:nowrap;color:#ffc107}
-html body .monwui-trailer-star-track{color:rgba(255,255,255,.35)}
-html body .monwui-trailer-star-track i,html body .monwui-trailer-star-fill i{display:inline-block;box-sizing:border-box;width:1.2em;padding:0;margin:0;text-align:center;line-height:1;font-size:1em}
-html body .monwui-trailer-star-track,html body .monwui-trailer-star-fill{gap:0;line-height:1;font-size:1rem}
+html body .monwui-trailer-star-rating{display:inline-block;font-size:1.2rem;line-height:1;letter-spacing:1px;white-space:nowrap;color:transparent;-webkit-text-fill-color:transparent;background:linear-gradient(90deg,#ffc107 0,#ffc107 var(--monwui-star-pct,0%),rgba(255,255,255,.3) var(--monwui-star-pct,0%),rgba(255,255,255,.3) 100%);-webkit-background-clip:text;background-clip:text}
 html body .monwui-trailer-loading{position:absolute;top:50%;left:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border:5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:monwui-trailer-spin 1s ease-in-out infinite;z-index:10}
 @keyframes monwui-trailer-spin{to{transform:rotate(360deg)}}
 @media (max-width:768px){
@@ -1229,22 +1225,10 @@ function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '',
     starWrap.className = "monwui-trailer-star-rating";
     starWrap.setAttribute("aria-label", `${rating5.toFixed(1)} / 5`);
 
-    const track = buildStarLayer(false);
-    const fill = buildStarLayer(true);
-    starWrap.style.display = 'inline-flex';
-    starWrap.style.position = 'relative';
-    starWrap.style.width = 'fit-content';
-    fill.style.width = `${fillPercent}%`;
-    fill.style.overflow = 'hidden';
-    fill.style.position = 'absolute';
-    fill.style.top = '0';
-    fill.style.left = '0';
-    fill.style.pointerEvents = 'none';
-    track.style.position = 'relative';
-    track.style.zIndex = '1';
-
-    starWrap.appendChild(track);
-    starWrap.appendChild(fill);
+    // Uma unica camada: o texto das 5 estrelas recebe um gradiente com corte duro
+    // na porcentagem da nota. Evita o desalinhamento entre duas camadas de icones.
+    starWrap.textContent = "\u2605\u2605\u2605\u2605\u2605";
+    starWrap.style.setProperty("--monwui-star-pct", `${fillPercent.toFixed(1)}%`);
 
     const ratingText = document.createElement("span");
     ratingText.textContent = `${rating5.toFixed(1)} / 5`;
