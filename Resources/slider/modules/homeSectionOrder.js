@@ -21,6 +21,11 @@
  *   homeSectionOrderTitles: [[ordem, ["trecho do titulo", ...]], ...]
  */
 import { getConfig } from "./config.js";
+import {
+  restoreHomeSnapshot,
+  reconcileHomeSnapshot,
+  installHomeSnapshotLeaveCapture,
+} from "./homeSectionSnapshot.js";
 
 const CONTAINER_SELECTOR = ".sections.homeSectionsContainer, .homeSectionsContainer";
 
@@ -55,6 +60,7 @@ const DEFAULT_TITLES = [
 let installed = false;
 let observer = null;
 let observedContainer = null;
+let lastKnownContainer = null; // ultimo container valido (para a foto das esteiras ao sair da home)
 let rafId = 0;
 let burstTimers = [];
 
@@ -131,6 +137,7 @@ function scheduleApply() {
   rafId = requestAnimationFrame(() => {
     rafId = 0;
     try { applyHomeSectionOrder(); } catch (e) { console.warn("[JMS] homeSectionOrder:", e); }
+    try { reconcileHomeSnapshot(observedContainer); } catch {}
   });
 }
 
@@ -147,6 +154,8 @@ function bindToCurrentContainer() {
   try { observer?.disconnect(); } catch {}
   observedContainer = container;
   if (!container) return;
+  lastKnownContainer = container;
+  try { restoreHomeSnapshot(container); } catch (e) { console.warn("[JMS] homeSectionSnapshot:", e); }
   observer = new MutationObserver(scheduleApply);
   observer.observe(container, {
     childList: true,
@@ -160,6 +169,9 @@ function bindToCurrentContainer() {
 export function installHomeSectionOrder() {
   if (installed) return;
   installed = true;
+
+  // Registrado antes dos ouvintes de navegacao abaixo, para a foto sair antes de o container sumir.
+  try { installHomeSnapshotLeaveCapture(() => lastKnownContainer); } catch {}
 
   // Detecta troca/recriacao do container e navegacao de rota.
   let rootRaf = 0;

@@ -6,6 +6,25 @@ import { applyContainerStyles } from './positionUtils.js';
 import { withServer } from "./jfUrl.js";
 import { ensureWatchlistLoaded, getCachedWatchlistMembership, getWatchlistButtonText } from "./watchlist.js";
 
+// Fork ParticularFlix: fila das checagens de trailer local (uma por vez, espacada).
+const __localTrailerQueue = [];
+let __localTrailerQueueBusy = false;
+function enqueueLocalTrailerCheck(task) {
+  __localTrailerQueue.push(task);
+  if (__localTrailerQueueBusy) return;
+  __localTrailerQueueBusy = true;
+  const next = async () => {
+    const job = __localTrailerQueue.shift();
+    if (!job) {
+      __localTrailerQueueBusy = false;
+      return;
+    }
+    try { await job(); } catch {}
+    setTimeout(next, 120);
+  };
+  setTimeout(next, 250);
+}
+
 let __castModulePromise = null;
 
 async function getCastModule() {
@@ -287,31 +306,28 @@ export function createButtons(slide, config, UserData, itemId, RemoteTrailers, u
           );
         }
       );
-      buttonContainer.appendChild(trailerBtnContainer);
+      // Fork ParticularFlix: o botao entra no mesmo lugar do botao fixo (logo depois de
+      // "Assistir"), mesmo quando e criado depois dos demais.
+      const watchSlot = Array.from(buttonContainer.children).find((c) => c.querySelector?.(".monwui-watch-btn"));
+      buttonContainer.insertBefore(trailerBtnContainer, watchSlot ? watchSlot.nextSibling : buttonContainer.firstChild);
     };
 
     appendTrailerButton(trailers[0]);
 
     // Fork ParticularFlix: itens que so tem trailer LOCAL (sem URL remota no item) nao
-    // ganhavam o botao, mesmo com o trailer tocando no card. A checagem e feita uma unica
-    // vez, no primeiro hover (o botao so e visivel nesse momento), e reaproveita o cache
-    // de trailer local que o proprio card ja usa; assim nao ha requisicoes extras na criacao
-    // dos slides.
+    // ganhavam o botao, mesmo com o trailer tocando no card. A checagem agora roda sozinha,
+    // em fila (uma por vez, espacada), para o botao ficar sempre visivel como os demais e sem
+    // rajada de requisicoes na criacao dos slides. Reaproveita o cache de trailer local.
     if (config.showTrailerButton && !trailerButtonMounted && (item?.Id || itemId)) {
-      let localTrailerChecked = false;
-      mainContainer.addEventListener('mouseenter', () => {
-        if (localTrailerChecked || trailerButtonMounted) return;
-        localTrailerChecked = true;
-        (async () => {
-          try {
-            const entry = await prefetchLocalTrailer(item?.Id || itemId);
-            if (entry?.bestId) appendTrailerButton({ Url: "local-trailer", Name: "", IsLocal: true });
-          } catch (err) {
-            localTrailerChecked = false;
-            console.warn("Local trailer button check failed:", err);
-          }
-        })();
-      }, { once: false });
+      enqueueLocalTrailerCheck(async () => {
+        if (trailerButtonMounted || !slide?.isConnected) return;
+        try {
+          const entry = await prefetchLocalTrailer(item?.Id || itemId);
+          if (entry?.bestId) appendTrailerButton({ Url: "local-trailer", Name: "", IsLocal: true });
+        } catch (err) {
+          console.warn("Local trailer button check failed:", err);
+        }
+      });
     }
 
     // Se o item ja veio com RemoteTrailers (mesmo vazio), o detalhe individual nao traz nada novo.

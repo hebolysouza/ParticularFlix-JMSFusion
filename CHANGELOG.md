@@ -5,6 +5,11 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.8.2.13 (fork release)
+
+- Home rows snapshot: when you leave the home page, an inert copy of the rows already drawn is kept, and it is put back instantly when you return with the Back button. Each copy disappears as soon as the real row has its cards (or after 12 s), so the page no longer comes back blank or jumps while the rows are rebuilt. Options: `homeSectionSnapshot: false` turns it off, `homeSectionSnapshotMaxAgeMs`, `homeSectionSnapshotTimeoutMs`.
+- TRAILER button on slider cards: the check for a local trailer now runs automatically in a small queue, so the button is always visible (no more waiting for the mouse to hover the card), and it is inserted right after the Watch button, the same place as on cards that already had it.
+
 ## 3.8.2.12 (fork release)
 
 - Studio hubs now group every studio of the same brand: the Paramount Pictures hub also lists items tagged Paramount+ or Paramount Animation, the Marvel Studios hub includes Marvel Enterprises and so on (Pixar, Lucasfilm, Warner, Columbia, Netflix, DreamWorks and DC too). Configurable with `studioHubGroupTokens`; `studioHubGroupMerge: false` turns it off.
