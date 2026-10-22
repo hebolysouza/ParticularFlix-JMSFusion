@@ -333,6 +333,50 @@ function ensureSliderHeaderObserver(header) {
   try { sliderHeaderResizeObserver.observe(header); } catch {}
 }
 
+// Fork ParticularFlix: animacoes de entrada de pagina (ex. scale .98 -> 1) e
+// transforms em ancestrais deslocam getBoundingClientRect(). Medir o overlap
+// nesse momento gravava um offset errado (slider mais alto que o limite, topo
+// cortado) que so era corrigido por uma medicao posterior. Agora a medicao e
+// adiada ate os ancestrais ficarem sem transform nem animacao em andamento.
+let sliderHeaderTransformRetries = 0;
+function hasUnsettledTransformAncestor(container) {
+  let node = container;
+  let guard = 0;
+  while (node && node.nodeType === 1 && node !== document.documentElement && guard++ < 40) {
+    try {
+      if (node !== container && node.getAnimations) {
+        const running = node.getAnimations().some((a) => {
+          if (a.playState !== 'running') return false;
+          const iterations = a.effect?.getComputedTiming?.().iterations;
+          return iterations !== Infinity;
+        });
+        if (running) return true;
+      }
+      const t = window.getComputedStyle(node).transform;
+      if (t && t !== 'none') {
+        const m2 = t.match(/^matrix\(([^)]+)\)$/);
+        const m3 = t.match(/^matrix3d\(([^)]+)\)$/);
+        let a, b, c, d, e, f;
+        if (m2) {
+          [a, b, c, d, e, f] = m2[1].split(',').map((x) => Number.parseFloat(x));
+        } else if (m3) {
+          const v = m3[1].split(',').map((x) => Number.parseFloat(x));
+          a = v[0]; b = v[1]; c = v[4]; d = v[5]; e = v[12]; f = v[13];
+        } else {
+          return true;
+        }
+        const identity =
+          Math.abs(a - 1) < 0.001 && Math.abs(d - 1) < 0.001 &&
+          Math.abs(b) < 0.001 && Math.abs(c) < 0.001 &&
+          Math.abs(e) < 0.5 && Math.abs(f) < 0.5;
+        if (!identity) return true;
+      }
+    } catch {}
+    node = node.parentElement;
+  }
+  return false;
+}
+
 function computeSliderHeaderOffsetPx(header, container) {
   const currentOffset = readSliderHeaderOffsetPx(container);
   if (!isSliderContextNearTop()) return currentOffset;
@@ -386,6 +430,14 @@ export function syncSliderHeaderOffset(container = findActiveSlidesContainer()) 
   }
 
   ensureSliderHeaderObserver(header);
+  if (hasUnsettledTransformAncestor(container) && sliderHeaderTransformRetries < 40) {
+    sliderHeaderTransformRetries += 1;
+    setTimeout(() => {
+      try { scheduleSliderHeaderOffsetSync(); } catch {}
+    }, 80);
+    return;
+  }
+  sliderHeaderTransformRetries = 0;
   setSliderHeaderOffsetVar(container, computeSliderHeaderOffsetPx(header, container));
 }
 

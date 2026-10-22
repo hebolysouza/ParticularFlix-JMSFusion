@@ -1,5 +1,5 @@
 import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, createTrailerIframe, debounce, getHighResImageUrls, prefetchImages, getHighestQualityBackdropIndex, createImageWarmQueue } from "./utils.js";
-import { updateFavoriteStatus, updatePlayedStatus, getSessionInfo } from "../../Plugins/JMSFusion/runtime/api.js";
+import { updateFavoriteStatus, updatePlayedStatus, getSessionInfo, fetchLocalTrailers, pickBestLocalTrailer } from "../../Plugins/JMSFusion/runtime/api.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
 import { createSlidesContainer, createHorizontalGradientOverlay, createLogoContainer, createStatusContainer, createFormatContainer, createActorSlider, createInfoContainer, createDirectorContainer, createRatingContainer, createLanguageContainer, createMetaContainer, createMainContentContainer, createPlotContainer, createTitleContainer } from "./containerUtils.js";
@@ -983,7 +983,45 @@ function buildStarLayer(useSolid) {
   return layer;
 }
 
+const TRAILER_MODAL_CORE_STYLE_ID = "monwui-trailer-modal-core";
+const TRAILER_MODAL_CORE_CSS = `
+html body .monwui-trailer-modal-overlay{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:rgba(8,8,14,.84);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:16px;box-sizing:border-box;transition:opacity .25s ease-in-out}
+html body .monwui-trailer-modal{position:relative;display:flex;flex-direction:column;width:min(1100px,94vw);max-width:94vw;max-height:94vh;background:#141420;color:#fff;border-radius:14px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.65);transform:scale(.97);transition:transform .25s ease;outline:none}
+html body .monwui-trailer-modal-overlay.is-open .monwui-trailer-modal{transform:scale(1)}
+html body .monwui-trailer-modal-header{display:flex;align-items:center;gap:12px;flex:0 0 auto;padding:12px 16px;background:rgba(0,0,0,.55);border-bottom:1px solid rgba(255,255,255,.1)}
+html body .monwui-trailer-modal-header h3{flex:1;min-width:0;margin:0 !important;text-align:center;font-size:1rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html body .monwui-trailer-modal-logo{flex:0 0 auto}
+html body .monwui-trailer-modal-close{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;margin:0 !important;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:26px;line-height:1;cursor:pointer;transition:background .15s ease}
+html body .monwui-trailer-modal-close:hover,html body .monwui-trailer-modal-close:focus-visible{background:rgba(255,255,255,.3);outline:2px solid rgba(255,255,255,.7);outline-offset:2px}
+html body .monwui-trailer-video-container{position:relative;flex:0 1 auto;width:100%;height:auto !important;padding-bottom:0 !important;aspect-ratio:16/9;max-height:calc(94vh - 130px);background:#000;overflow:hidden}
+html body .monwui-trailer-video-container iframe,html body .monwui-trailer-video-container video{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;object-fit:contain}
+html body .monwui-trailer-error{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;opacity:.8}
+html body .monwui-trailer-modal-footer{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 20px;flex:0 0 auto;width:100%;box-sizing:border-box;padding:10px 20px;background:rgba(0,0,0,.35)}
+html body .monwui-trailer-modal-footer .official-rating{white-space:nowrap}
+html body .monwui-trailer-star-rating{display:inline-flex;position:relative;width:fit-content;line-height:1}
+html body .monwui-trailer-star-track,html body .monwui-trailer-star-fill{display:inline-flex;white-space:nowrap;color:#ffc107}
+html body .monwui-trailer-star-track{color:rgba(255,255,255,.35)}
+html body .monwui-trailer-star-track i,html body .monwui-trailer-star-fill i{padding-right:2px}
+html body .monwui-trailer-loading{position:absolute;top:50%;left:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border:5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:monwui-trailer-spin 1s ease-in-out infinite;z-index:10}
+@keyframes monwui-trailer-spin{to{transform:rotate(360deg)}}
+@media (max-width:768px){
+html body .monwui-trailer-modal-overlay{padding:8px}
+html body .monwui-trailer-modal{width:96vw;max-width:96vw}
+html body .monwui-trailer-modal-header h3{font-size:.85rem}
+html body .monwui-trailer-modal-logo{max-width:110px !important;height:30px !important}
+}
+`;
+
+function ensureTrailerModalCoreStyle() {
+  if (document.getElementById(TRAILER_MODAL_CORE_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = TRAILER_MODAL_CORE_STYLE_ID;
+  style.textContent = TRAILER_MODAL_CORE_CSS;
+  document.head.appendChild(style);
+}
+
 function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '', isFavorite = false, itemId = null, updateFavoriteCallback = null, CommunityRating = null, CriticRating = null, OfficialRating = null) {
+  document.querySelectorAll(".monwui-trailer-modal-overlay").forEach((el) => { try { el.__jmsClose?.(); } catch {} });
   const embedUrl = getYoutubeEmbedUrl(trailerUrl);
   const sep = embedUrl.includes('?') ? '&' : '?';
   const logoUrl = withServer(`/Items/${itemId}/Images/Logo?maxHeight=200&quality=90`);
@@ -994,9 +1032,6 @@ function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '',
 
   const modal = document.createElement("div");
   modal.className = "monwui-trailer-modal";
-  modal.style.maxWidth = "90vw";
-  modal.style.maxHeight = "90vh";
-  modal.style.width = "800px";
 
   const modalHeader = document.createElement("div");
   modalHeader.className = "monwui-trailer-modal-header";
@@ -1041,91 +1076,114 @@ function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '',
 
   const videoContainer = document.createElement("div");
   videoContainer.className = "monwui-trailer-video-container";
-  videoContainer.style.paddingBottom = "56.25%";
 
   const loadingSpinner = document.createElement("div");
   loadingSpinner.className = "monwui-trailer-loading";
   videoContainer.appendChild(loadingSpinner);
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const mediaState = { iframe: null, video: null };
+  let modalClosed = false;
 
-  let finalEmbedUrl = embedUrl;
-  if (isMobile) {
-    finalEmbedUrl = embedUrl;
-
-    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-      finalEmbedUrl += '&playsinline=1&autoplay=1';
-    }
-  }
-
-  const iframe = document.createElement("iframe");
-  try {
-    const u = new URL(finalEmbedUrl, window.location.origin);
-    u.searchParams.set('autoplay', '1');
-    u.searchParams.set('mute', '0');
-    u.searchParams.set('playsinline', '1');
-    if (hasJsApi) {
-      u.searchParams.set('enablejsapi', '1');
-      u.searchParams.set('origin', window.location.origin);
-    }
-    finalEmbedUrl = u.toString();
-  } catch {}
-  iframe.src = finalEmbedUrl;
-  iframe.title = trailerName;
-  iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture; fullscreen');
-  iframe.referrerPolicy = 'origin-when-cross-origin';
-  iframe.setAttribute('playsinline', 'true');
-  iframe.style.position = "absolute";
-  iframe.style.top = "0";
-  iframe.style.left = "0";
-  iframe.style.width = "100%";
-  iframe.style.height = "100%";
-  iframe.style.border = "none";
-
-  let audioUnlocked = false;
-  const hasJsApi = (() => {
-   try { return new URL(finalEmbedUrl).searchParams.get("enablejsapi") === "1"; }
-   catch { return false; }
- })();
-
- const playViaAPI = () => {
-    if (!hasJsApi) return;
-    try {
-      iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-    } catch {}
-  };
-
-  const unlockAudio = () => {
-    if (audioUnlocked) return;
-
-    if (!hasJsApi) return;
-    try {
-      iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-      iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', '*');
-      iframe.contentWindow.postMessage('{"event":"command","func":"setVolume","args":[50]}', '*');
-      audioUnlocked = true;
-    } catch (e) {
-      console.log("Ses açma hatası:", e);
-    }
-  };
-
-  iframe.onload = () => {
+  const showMediaError = () => {
     loadingSpinner.style.display = "none";
-    playViaAPI();
-    if (isMobile) {
-      const userInteractionHandler = () => {
-        unlockAudio();
-        document.removeEventListener('click', userInteractionHandler);
-        document.removeEventListener('touchstart', userInteractionHandler);
-      };
-
-      document.addEventListener('click', userInteractionHandler, { once: true });
-      document.addEventListener('touchstart', userInteractionHandler, { once: true });
-      setTimeout(playViaAPI, 400);
-    }
+    if (videoContainer.querySelector(".monwui-trailer-error")) return;
+    const box = document.createElement("div");
+    box.className = "monwui-trailer-error";
+    box.textContent = config.languageLabels?.fragman
+      ? `${config.languageLabels.fragman}: indisponivel`
+      : "Trailer indisponivel";
+    videoContainer.appendChild(box);
   };
 
-  videoContainer.appendChild(iframe);
+  const mountYoutube = () => {
+    if (modalClosed || mediaState.iframe) return;
+    if (!trailerUrl || typeof embedUrl !== "string" || !embedUrl) {
+      showMediaError();
+      return;
+    }
+    let finalEmbedUrl = embedUrl;
+    try {
+      const u = new URL(finalEmbedUrl, window.location.origin);
+      u.searchParams.set("autoplay", "1");
+      u.searchParams.set("mute", "0");
+      u.searchParams.set("playsinline", "1");
+      u.searchParams.set("enablejsapi", "1");
+      u.searchParams.set("origin", window.location.origin);
+      finalEmbedUrl = u.toString();
+    } catch {}
+
+    const iframe = document.createElement("iframe");
+    iframe.src = finalEmbedUrl;
+    iframe.title = trailerName || "";
+    iframe.setAttribute("allow", "autoplay; encrypted-media; picture-in-picture; fullscreen");
+    iframe.referrerPolicy = "origin-when-cross-origin";
+    iframe.setAttribute("playsinline", "true");
+    iframe.onload = () => {
+      loadingSpinner.style.display = "none";
+      try {
+        iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
+      } catch {}
+      // O iframe do YouTube captura o teclado; devolve o foco ao botao fechar
+      // para que o ESC continue chegando ao documento logo apos o carregamento.
+      try { closeBtn.focus({ preventScroll: true }); } catch {}
+      if (isMobile) setTimeout(() => {
+        try {
+          iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
+        } catch {}
+      }, 400);
+    };
+    mediaState.iframe = iframe;
+    videoContainer.appendChild(iframe);
+  };
+
+  const mountLocalVideo = (src) => {
+    const video = document.createElement("video");
+    video.controls = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.setAttribute("controlsList", "nodownload");
+    video.addEventListener("loadeddata", () => {
+      loadingSpinner.style.display = "none";
+    }, { once: true });
+    video.addEventListener("error", () => {
+      // Codec sem suporte ou arquivo inacessivel: cai para o player do YouTube.
+      try { video.removeAttribute("src"); video.load(); } catch {}
+      try { video.remove(); } catch {}
+      mediaState.video = null;
+      mountYoutube();
+    }, { once: true });
+    video.src = src;
+    mediaState.video = video;
+    videoContainer.appendChild(video);
+    const p = video.play?.();
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  };
+
+  const buildLocalTrailerSrc = (trailerId) => {
+    let token = "";
+    try { token = getSessionInfo()?.accessToken || ""; } catch {}
+    const q = new URLSearchParams({ static: "true", MediaSourceId: String(trailerId) });
+    if (token) q.set("api_key", token);
+    return withServer(`/Videos/${encodeURIComponent(trailerId)}/stream?${q.toString()}`);
+  };
+
+  (async () => {
+    try {
+      let src = null;
+      if (itemId) {
+        const list = await fetchLocalTrailers(itemId);
+        const best = pickBestLocalTrailer(list);
+        if (best?.Id) src = buildLocalTrailerSrc(best.Id);
+      }
+      if (modalClosed) return;
+      if (src) mountLocalVideo(src);
+      else mountYoutube();
+    } catch {
+      mountYoutube();
+    }
+  })();
   const modalFooter = document.createElement("div");
   modalFooter.className = "monwui-trailer-modal-footer";
   modalFooter.style.display = "flex";
@@ -1266,107 +1324,91 @@ function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '',
   modal.append(modalHeader, videoContainer, modalFooter);
   overlay.appendChild(modal);
 
-  if (!document.getElementById('trailer-modal-styles')) {
-    const style = document.createElement('style');
-    style.id = 'trailer-modal-styles';
-    style.textContent = `
-      .monwui-trailer-modal-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 15px 20px;
-        background: rgba(0, 0, 0, 0.8);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        position: relative;
-      }
+  ensureTrailerModalCoreStyle();
 
-      .monwui-trailer-modal-logo {
-        flex-shrink: 0;
-      }
-
-      .monwui-trailer-loading {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 50px;
-        height: 50px;
-        border: 5px solid rgba(255, 255, 255, 0.3);
-        border-radius: 50%;
-        border-top-color: #fff;
-        animation: spin 1s ease-in-out infinite;
-        z-index: 10;
-      }
-
-      @keyframes spin {
-        to { transform: translate(-50%, -50%) rotate(360deg); }
-      }
-
-      @media (max-width: 768px) {
-        .monwui-trailer-modal {
-          width: 95vw !important;
-          height: auto !important;
-        }
-
-        .monwui-trailer-modal-header h3 {
-          font-size: 14px;
-          margin-left: 10px !important;
-        }
-
-        .monwui-trailer-modal-logo {
-          max-width: 120px !important;
-          height: 30px !important;
-        }
-
-        .trailer-audio-notice {
-          background: rgba(255, 193, 7, 0.2);
-          border: 1px solid #FFC107;
-          border-radius: 5px;
-          padding: 8px 12px;
-          margin: 10px 20px;
-          font-size: 12px;
-          text-align: center;
-          color: #FFC107;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  const closeModal = () => {
-    overlay.style.opacity = "0";
-    setTimeout(() => {
-      if (document.body.contains(overlay)) {
-        try { iframe.src = "about:blank"; } catch {}
-        document.body.removeChild(overlay);
-      }
-      document.removeEventListener("keydown", escListener);
-    }, 300);
+  // Pausa o trailer do card e o timer do slider enquanto o modal esta aberto.
+  const pausedVideos = [];
+  const pausedFrames = [];
+  let timerApi = null;
+  const pauseBackground = () => {
+    try {
+      document.querySelectorAll("#monwui-slides-container video").forEach((v) => {
+        if (!v.paused) { v.pause(); pausedVideos.push(v); }
+      });
+      document.querySelectorAll("#monwui-slides-container iframe").forEach((f) => {
+        try {
+          f.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', "*");
+          pausedFrames.push(f);
+        } catch {}
+      });
+    } catch {}
+    import("./timer.js").then((m) => {
+      timerApi = m;
+      if (!modalClosed) { try { m.pauseSlideTimer?.(); } catch {} }
+      else { try { m.resumeSlideTimer?.(); } catch {} }
+    }).catch(() => {});
   };
-
-  closeBtn.addEventListener("click", closeModal);
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) {
-      closeModal();
-    }
-  });
+  const restoreBackground = () => {
+    pausedVideos.forEach((v) => { try { v.play?.()?.catch?.(() => {}); } catch {} });
+    pausedFrames.forEach((f) => {
+      try { f.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*"); } catch {}
+    });
+    try { timerApi?.resumeSlideTimer?.(); } catch {}
+  };
 
   const escListener = (e) => {
     if (e.key === "Escape" || e.keyCode === 27) {
+      e.preventDefault();
+      e.stopPropagation();
       closeModal();
     }
   };
 
-  document.addEventListener("keydown", escListener);
-  document.body.appendChild(overlay);
+  const closeModal = () => {
+    if (modalClosed) return;
+    modalClosed = true;
+    window.removeEventListener("keydown", escListener, true);
+    overlay.classList.remove("is-open");
+    overlay.style.opacity = "0";
+    // Para a midia imediatamente (nao espera a transicao).
+    try { mediaState.video?.pause(); } catch {}
+    try { if (mediaState.video) { mediaState.video.removeAttribute("src"); mediaState.video.load(); } } catch {}
+    try { if (mediaState.iframe) mediaState.iframe.src = "about:blank"; } catch {}
+    restoreBackground();
+    setTimeout(() => {
+      try { overlay.remove(); } catch {}
+    }, 260);
+  };
+  overlay.__jmsClose = closeModal;
 
-  setTimeout(() => {
+  closeBtn.type = "button";
+  closeBtn.setAttribute("aria-label", "Close");
+  closeBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeModal();
+  });
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeModal();
+  });
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  modal.tabIndex = -1;
+
+  // Captura na window: funciona mesmo que outro handler pare a propagacao.
+  window.addEventListener("keydown", escListener, true);
+  document.body.appendChild(overlay);
+  pauseBackground();
+
+  requestAnimationFrame(() => {
     overlay.style.opacity = "1";
-  }, 10);
+    overlay.classList.add("is-open");
+    try { closeBtn.focus({ preventScroll: true }); } catch {}
+  });
 
   return {
     close: closeModal,
-    getIframe: () => iframe
+    getIframe: () => mediaState.iframe
   };
 }
 

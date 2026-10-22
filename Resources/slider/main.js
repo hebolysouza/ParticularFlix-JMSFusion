@@ -30,6 +30,7 @@ import { initUserProfileAvatarPicker } from "./modules/avatarPicker.js";
 import { startBackgroundCollectionIndexer, getBackgroundCollectionIndexerStatus } from "./modules/collectionIndexer.js";
 import { initProfileChooser, syncProfileChooserHeaderButtonVisibility } from "./modules/profileChooser.js";
 import { waitForNativeHomeSectionStability, waitForVisibleHomeSections } from "./modules/homeSectionNative.js";
+import { installHomeSectionOrder } from "./modules/homeSectionOrder.js";
 export { loadCSS } from "./modules/playerStyles.js";
 export { waitForAnyVisible };
 const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 0));
@@ -2494,6 +2495,28 @@ window.__jmsSliderBootToken = Number(window.__jmsSliderBootToken || 0);
 window.__jmsSlidesInitToken = Number(window.__jmsSlidesInitToken || 0);
 window.__jmsSliderResetToken = Number(window.__jmsSliderResetToken || 0);
 window.__jmsHomeInitPending = window.__jmsHomeInitPending || false;
+window.__jmsHomeInitPendingAt = Number(window.__jmsHomeInitPendingAt || 0);
+
+// Fork ParticularFlix: o flag __jmsHomeInitPending so era limpo no finally de
+// slidesInit(). Se slidesInit() saisse cedo ("home not visible", slider
+// desligado, token invalido) o flag ficava preso em true e todo retorno a home
+// virava "skip:pending", deixando o espaco preto ate recarregar a pagina.
+// Agora o flag expira sozinho depois de HOME_INIT_PENDING_STALE_MS.
+const HOME_INIT_PENDING_STALE_MS = 15000;
+function isHomeInitPending() {
+  if (!window.__jmsHomeInitPending) return false;
+  const at = Number(window.__jmsHomeInitPendingAt) || 0;
+  if (at > 0 && Date.now() - at > HOME_INIT_PENDING_STALE_MS) {
+    window.__jmsHomeInitPending = false;
+    window.__jmsHomeInitPendingAt = 0;
+    return false;
+  }
+  return true;
+}
+function clearHomeInitPending() {
+  window.__jmsHomeInitPending = false;
+  window.__jmsHomeInitPendingAt = 0;
+}
 window.__jmsStartWhenAllReadyHandler = window.__jmsStartWhenAllReadyHandler || null;
 window.__jmsSliderIdleHandles = window.__jmsSliderIdleHandles || new Set();
 
@@ -4574,7 +4597,7 @@ function shouldRepairVisibleSliderOnRestore({ forcePrime = false } = {}) {
 }
 
 function scheduleVisibleSliderRestoreRepair(options = {}) {
-  if (window.__jmsHomeInitPending || window.__slidesInitRunning || window.sliderResetInProgress) return;
+  if (isHomeInitPending() || window.__slidesInitRunning || window.sliderResetInProgress) return;
 
   const totalSlides = Math.max(0, Number(window.__totalSlidesPlanned) || 0);
   const createdSlides = Math.max(0, Number(window.__slidesCreated) || 0);
@@ -5522,7 +5545,7 @@ export async function slidesInit() {
     }
     window.sliderResetInProgress = false;
     window.__slidesInitRunning = false;
-    window.__jmsHomeInitPending = false;
+    clearHomeInitPending();
   }
 }
 
@@ -5742,6 +5765,49 @@ if (window.__totalSlidesPlanned > 0 && window.__slidesCreated >= window.__totalS
   }
 }
 
+// Fork ParticularFlix: vigia de saude do slider. Trocar de aba dentro da home
+// (Solicitacoes, Calendario, Catalogo) nao conta como "sair da home", entao o
+// slider nunca era remontado se tivesse sido esvaziado no caminho. Depois de
+// uma navegacao dentro da home conferimos se o slider esta inteiro e, se nao
+// estiver, remontamos uma unica vez.
+let __homeHealthTimers = [];
+function isHomeSliderHealthy() {
+  const page = getVisibleHomePageEl();
+  if (!page) return true;
+  const sc = page.querySelector("#monwui-slides-container");
+  if (!sc || !sc.isConnected) return false;
+  if (!sc.querySelector(".monwui-slide")) return false;
+  const r = sc.getBoundingClientRect?.();
+  return !!r && r.width > 1 && r.height > 50;
+}
+function scheduleHomeHealthWatchdog(reason = "home-tab-change") {
+  for (const t of __homeHealthTimers) clearTimeout(t);
+  __homeHealthTimers = [];
+  const delays = [500, 1600, 4200];
+  delays.forEach((delay, idx) => {
+    __homeHealthTimers.push(window.setTimeout(() => {
+      try {
+        if (document.hidden) return;
+        if (!isSliderEnabled() || !isHomeVisible()) return;
+        if (document.documentElement.dataset.jmsHomeTabActive === "0") return;
+        if (isHomeInitPending() || window.__slidesInitRunning || window.sliderResetInProgress) return;
+        if (isHomeSliderHealthy()) {
+          if (idx === 0) scheduleVisibleSliderRestoreRepair({ forcePrime: true });
+          return;
+        }
+        homeSectionWarn("navigation:home-health:rebuild", { reason, attempt: idx + 1 });
+        for (const t of __homeHealthTimers) clearTimeout(t);
+        __homeHealthTimers = [];
+        window.__initOnHomeOnce = false;
+        fullSliderReset({ reason: `home-health:${reason}` });
+        initializeSliderOnHome({ forceManagedSectionsBoot: true });
+      } catch (e) {
+        console.warn("home health watchdog hata:", e);
+      }
+    }, delay));
+  });
+}
+
 function setupNavigationObserver() {
   if (navObsBooted) return () => {};
   navObsBooted = true;
@@ -5762,10 +5828,16 @@ function setupNavigationObserver() {
         wasOnHomePage: isOnHomePage,
         nowOnHomePage,
       });
+      const stayedOnHome = isOnHomePage && nowOnHomePage && currentUrl !== previousUrl;
       previousUrl = currentUrl;
       isOnHomePage = nowOnHomePage;
 
-      if (isOnHomePage) {
+      if (stayedOnHome) {
+        // Troca de aba dentro da home (#/home?tab=N): o slider continua no DOM,
+        // so oculto. Antes isso destruia e remontava o slider a cada troca de
+        // aba. Agora so conferimos a saude do slider (vigia) e seguimos.
+        scheduleHomeHealthWatchdog("url-change-within-home");
+      } else if (isOnHomePage) {
         window.__initOnHomeOnce = false;
         fullSliderReset({ reason: "navigation:home-enter" });
         if (getMainConfig().enableNotifications === false) {
@@ -5796,6 +5868,7 @@ function setupNavigationObserver() {
         });
         dismissCustomSplashImmediately("route-not-home");
         cleanupSlider({ reason: "navigation:left-home" });
+        clearHomeInitPending();
         window.__initOnHomeOnce = false;
       }
       startPauseOverlayOnce();
@@ -6041,7 +6114,7 @@ function initializeSliderOnHome({ forceManagedSectionsBoot = false } = {}) {
 
       await waitForManagedHomeSectionCleanup({ timeoutMs: 2500 });
 
-      if (window.__jmsHomeInitPending) {
+      if (isHomeInitPending()) {
         homeSectionLog("initializeSliderOnHome:skip:pending", {
           forceManagedSectionsBoot,
           slidesInitRunning: !!window.__slidesInitRunning,
@@ -6051,6 +6124,7 @@ function initializeSliderOnHome({ forceManagedSectionsBoot = false } = {}) {
       }
 
       window.__jmsHomeInitPending = true;
+      window.__jmsHomeInitPendingAt = Date.now();
 
       if (!isSliderEnabled()) {
         window.__jmsHomeInitPending = false;
@@ -6735,6 +6809,7 @@ function observeWhenHomeReady(cb, maxMs = 20000) {
     installAuthContextRecovery();
     installFocusedPlaybackUserDataSync();
     installHomeTabSliderOnlyGate();
+    try { installHomeSectionOrder(); } catch (e) { console.warn("homeSectionOrder hata:", e); }
     idle(() => {
       if (shouldRenderStudioHubsUi(getMainConfig())) {
         void ensureStudioHubsMountedLazy();
