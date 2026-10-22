@@ -2265,7 +2265,36 @@ function scheduleManagedHomeSectionRecovery({
   }
 }
 
+let __homeRowsEagerTimer = 0;
+function scheduleHomeRowsEager(cfg) {
+  if (__homeRowsEagerTimer) {
+    clearTimeout(__homeRowsEagerTimer);
+    __homeRowsEagerTimer = 0;
+  }
+  if (cfg?.homeRowsEagerLoad === false) return;
+  const raw = Number(cfg?.homeRowsEagerDelayMs);
+  const delay = Number.isFinite(raw) && raw >= 0 ? raw : 900;
+  __homeRowsEagerTimer = window.setTimeout(() => {
+    __homeRowsEagerTimer = 0;
+    loadHomeSectionChainModule()
+      .then((m) => m.setHomeRowsEager?.(true))
+      .catch(() => {});
+  }, delay);
+}
+function stopHomeRowsEager() {
+  if (__homeRowsEagerTimer) {
+    clearTimeout(__homeRowsEagerTimer);
+    __homeRowsEagerTimer = 0;
+  }
+  if (__homeSectionChainModulePromise) {
+    __homeSectionChainModulePromise
+      .then((m) => m.setHomeRowsEager?.(false))
+      .catch(() => {});
+  }
+}
+
 function bootHomeSections(cfg, { eagerStudioHubs = false, forceManagedSections = false } = {}) {
+  scheduleHomeRowsEager(cfg);
   homeSectionMountSeq += 1;
   const seq = homeSectionMountSeq;
   clearHomeSectionMountTimers();
@@ -5840,6 +5869,7 @@ function setupNavigationObserver() {
       } else if (isOnHomePage) {
         window.__initOnHomeOnce = false;
         fullSliderReset({ reason: "navigation:home-enter" });
+        pinHomeScrollToTop();
         if (getMainConfig().enableNotifications === false) {
           document.getElementById('jfNotifBtn')?.remove();
           document.querySelector('.jf-notif-panel')?.remove();
@@ -5868,6 +5898,7 @@ function setupNavigationObserver() {
         });
         dismissCustomSplashImmediately("route-not-home");
         cleanupSlider({ reason: "navigation:left-home" });
+        stopHomeRowsEager();
         clearHomeInitPending();
         window.__initOnHomeOnce = false;
       }
@@ -6125,6 +6156,40 @@ function resetHomeScrollToTop() {
   }
 }
 
+// Fork ParticularFlix: a rolagem restaurada nao some com um unico scrollTo (algo reaplica a
+// posicao antiga por mais ~1 s). Seguramos a pagina no topo, a cada quadro, durante a janela de
+// montagem do slider, e paramos assim que o usuario interage ou sai da home.
+let __homeScrollPinStop = null;
+function pinHomeScrollToTop({ durationMs = 3200 } = {}) {
+  try { __homeScrollPinStop?.(); } catch {}
+  const startedAt = performance.now();
+  let rafId = 0;
+  let stopped = false;
+  const userEvents = ["wheel", "touchstart", "pointerdown", "keydown"];
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    if (rafId) cancelAnimationFrame(rafId);
+    userEvents.forEach((ev) => {
+      try { window.removeEventListener(ev, stop, true); } catch {}
+    });
+    if (__homeScrollPinStop === stop) __homeScrollPinStop = null;
+  };
+  userEvents.forEach((ev) => window.addEventListener(ev, stop, { passive: true, capture: true }));
+  __homeScrollPinStop = stop;
+  const tick = () => {
+    rafId = 0;
+    if (stopped) return;
+    if (!isHomeRouteActive() || performance.now() - startedAt > durationMs) {
+      stop();
+      return;
+    }
+    if (window.scrollY > 2) resetHomeScrollToTop();
+    rafId = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
 function initializeSliderOnHome({ forceManagedSectionsBoot = false } = {}) {
   const start = async () => {
     try {
@@ -6250,7 +6315,7 @@ function initializeSliderOnHome({ forceManagedSectionsBoot = false } = {}) {
       fullSliderReset({ reason: "initializeSliderOnHome:slider-enabled" });
       bootPersonalRecsWires();
       upsertSlidesContainerAtTop(indexPage);
-      resetHomeScrollToTop();
+      pinHomeScrollToTop();
       const sc = indexPage.querySelector('#monwui-slides-container');
       if (config.peakSlider && sc) {
         sc.scrollLeft = 0;

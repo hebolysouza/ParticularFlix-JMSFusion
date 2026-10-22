@@ -286,6 +286,15 @@ function bindSliderHeaderLifecycle() {
   sliderHeaderLifecycleBound = true;
 
   window.addEventListener('resize', scheduleSliderHeaderOffsetBurst, { passive: true });
+  // Fork ParticularFlix: o deslocamento do cabecalho so e medido com a pagina no topo; quando a
+  // rolagem chega ao topo (ex. depois de restaurar a posicao com o botao voltar) nada disparava a
+  // medicao e o slider ficava ~40 px acima do lugar ate a proxima rajada.
+  let lastNearTop = null;
+  window.addEventListener('scroll', () => {
+    const near = isSliderContextNearTop();
+    if (near && lastNearTop !== true) scheduleSliderHeaderOffsetBurst();
+    lastNearTop = near;
+  }, { passive: true });
   window.addEventListener('pageshow', scheduleSliderHeaderOffsetBurst);
   window.addEventListener('load', scheduleSliderHeaderOffsetBurst);
   window.addEventListener('hashchange', scheduleSliderHeaderOffsetBurst);

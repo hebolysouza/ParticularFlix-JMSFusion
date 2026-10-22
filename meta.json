@@ -3,13 +3,13 @@
   "description": "JMSFusion injects your custom JS modules into the Jellyfin web UI (response rewrite) and serves them from an external directory or embedded /Resources/slider.",
   "name": "JMSFusion",
   "owner": "G-Grbz",
-  "version": "3.8.2.2",
+  "version": "3.8.2.3",
   "status": "Active",
   "autoUpdate": false,
   "targetAbi": "10.11.0.0",
   "sourceUrl": "https://github.com/hebolysouza/ParticularFlix-JMSFusion",
-  "imagePathLinux": "/var/lib/jellyfin/plugins/JMSFusion_3.8.2.2/icon.png",
-  "imagePathWindows": "%ProgramData%/Jellyfin/Server/plugins/JMSFusion_3.8.2.2/icon.png",
+  "imagePathLinux": "/var/lib/jellyfin/plugins/JMSFusion_3.8.2.3/icon.png",
+  "imagePathWindows": "%ProgramData%/Jellyfin/Server/plugins/JMSFusion_3.8.2.3/icon.png",
   "timestamp": "2026-06-10T22:57:27.6694349Z",
   "guid": "c0b4a5e0-2f6a-4e70-9c5f-1e7c2d0b7f12"
 }

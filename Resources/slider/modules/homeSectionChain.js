@@ -31,6 +31,31 @@ const HOME_SECTION_QUEUE_ACTIVATE_ROOT_MARGIN = HOME_IS_MOBILE_WEBVIEW
   ? "0px 0px 34% 0px"
   : "0px 0px 18% 0px";
 const HOME_SECTION_QUEUE_HANDOFF_TIMEOUT_MS = 1800;
+// Fork ParticularFlix: carregamento antecipado das linhas da home. Por padrao cada secao do
+// plugin (Recentes, TMDB, Top 10, Lancamentos...) so busca os dados quando a ancora chega perto
+// da area visivel, entao ao rolar a pagina ela ainda esta vazia. No modo antecipado (ligado
+// pouco depois de o slider ficar pronto) todas as comportas por viewport abrem, e a fila
+// continua entregando uma secao por vez, na ordem planejada, em segundo plano.
+const HOME_ROWS_EAGER_EVENT = "jms:home-rows-eager";
+let HOME_ROWS_EAGER_ON = false;
+export function setHomeRowsEager(on) {
+  const next = !!on;
+  if (next === HOME_ROWS_EAGER_ON) return;
+  HOME_ROWS_EAGER_ON = next;
+  if (next) {
+    try { document.dispatchEvent(new CustomEvent(HOME_ROWS_EAGER_EVENT)); } catch {}
+  }
+}
+export function isHomeRowsEager() {
+  return HOME_ROWS_EAGER_ON;
+}
+function homeRowsEagerSignal() {
+  if (HOME_ROWS_EAGER_ON) return Promise.resolve();
+  return new Promise((resolve) => {
+    document.addEventListener(HOME_ROWS_EAGER_EVENT, () => resolve(), { once: true });
+  });
+}
+
 const HOME_SECTION_QUEUE_DISCOVERY_WAIT_MS = 350;
 const HOME_SECTION_QUEUE_DISCOVERY_MAX_WAITS = 12;
 const HOME_INITIAL_EAGER_ROW_COUNT = 5;
@@ -956,7 +981,7 @@ export function waitForManagedHomeRowRelease({
   ).then(() => releaseIndex).catch(() => releaseIndex);
 }
 
-export function waitForManagedSectionViewportReveal(anchor, {
+function waitForManagedSectionViewportRevealGated(anchor, {
   timeoutMs = 20000,
   rootMargin = HOME_SECTION_QUEUE_ACTIVATE_ROOT_MARGIN,
 } = {}) {
@@ -1575,7 +1600,7 @@ export function waitForSectionTailReveal(anchor, {
   });
 }
 
-export function waitForSectionTailAdvance(anchor, {
+function waitForSectionTailAdvanceGated(anchor, {
   timeoutMs = 20000,
   rootMargin = "0px 0px 0px 0px",
 } = {}) {
@@ -1681,4 +1706,20 @@ export async function waitForManagedSectionDependencyCompletion(targetKey, optio
     }
   }
   return dependencyKey;
+}
+
+export function waitForManagedSectionViewportReveal(anchor, options = {}) {
+  if (HOME_ROWS_EAGER_ON) return Promise.resolve();
+  return Promise.race([
+    waitForManagedSectionViewportRevealGated(anchor, options),
+    homeRowsEagerSignal(),
+  ]);
+}
+
+export function waitForSectionTailAdvance(anchor, options = {}) {
+  if (HOME_ROWS_EAGER_ON) return Promise.resolve();
+  return Promise.race([
+    waitForSectionTailAdvanceGated(anchor, options),
+    homeRowsEagerSignal(),
+  ]);
 }
