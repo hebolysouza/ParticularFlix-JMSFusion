@@ -1903,8 +1903,9 @@ export function primePeakFirstPaint(slides, activeIndex, slidesContainer, spanOr
 }
   });
 
+  // Fork ParticularFlix: o quadro intermediario ja confirma o estado inicial; a leitura forcada
+  // de offsetHeight (~90 ms de layout com 55 slides) era redundante.
   requestAnimationFrame(() => {
-    void document.body.offsetHeight;
     requestAnimationFrame(() => {
       arr.forEach(s => {
         s.style.removeProperty('transition');
