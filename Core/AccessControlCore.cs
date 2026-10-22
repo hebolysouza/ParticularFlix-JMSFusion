@@ -172,6 +172,42 @@ namespace Jellyfin.Plugin.JMSFusion.Core
             };
         }
 
+        // Os caches de listas (slider, fileiras recentes, diretores, recomendacoes, colecoes) guardam itens
+        // que o usuario via antes da mudanca de permissao. Sao apenas caches e se refazem sozinhos.
+        private static readonly string[] ItemCacheTypes =
+        {
+            "sliderCache", "recentRows", "directorRows", "personalRecommendations", "collectionCache"
+        };
+
+        public static void PurgeItemCaches()
+        {
+            var plugin = JMSFusionPlugin.Instance;
+            if (plugin is null)
+            {
+                return;
+            }
+
+            foreach (var type in ItemCacheTypes)
+            {
+                try
+                {
+                    var dir = plugin.GetStorageDirectory("scoped-cache", type);
+                    if (!Directory.Exists(dir))
+                    {
+                        continue;
+                    }
+
+                    foreach (var file in Directory.EnumerateFiles(dir, "*.json"))
+                    {
+                        try { File.Delete(file); } catch { }
+                    }
+                }
+                catch
+                {
+                }
+            }
+        }
+
         // Devolve false quando o usuario nao existe ou e administrador (nunca restringimos administradores).
         public static async Task<bool> ApplyAsync(IUserManager users, Guid userId, AccessPolicyValues values)
         {
@@ -199,6 +235,7 @@ namespace Jellyfin.Plugin.JMSFusion.Core
                 .ToArray();
 
             await UserAccessor.UpdatePolicyAsync(users, userId, policy).ConfigureAwait(false);
+            PurgeItemCaches();
             return true;
         }
 

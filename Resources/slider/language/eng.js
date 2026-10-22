@@ -487,6 +487,8 @@ export const languageLabels = {
   accessCtlUnlockMinutes: "Unlock duration (minutes)",
   accessCtlUnlockMode: "While unlocked",
   accessCtlUnlockOriginal: "Back to the original permissions",
+  accessCtlConfirmNoLibrary: "No library is selected: this user will see NO library until unlocked. Continue?",
+  accessCtlConfirmNoChange: "These values are the same as the user's current permissions, so nothing will be blocked yet. Continue anyway?",
   accessCtlUnlockFull: "Full access",
   accessCtlNoPin: "No PIN is configured yet. Set one in the PIN tab to enable the temporary unlock.",
   accessCtlUnlockedUntil: "Unlocked until",

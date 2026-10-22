@@ -232,6 +232,15 @@ function buildUserCard(user, ctx) {
     card.appendChild(el("div", "jms-acc-note", `${t(labels, "accessCtlUnlockedUntil", "Unlocked until")} ${new Date(profile.unlockedUntilUtc).toLocaleTimeString()}`));
   }
 
+  const collectBase = () => ({
+    maxParentalRating: base.maxParentalRating === undefined ? null : base.maxParentalRating,
+    blockUnratedItems: base.blockUnratedItems || [],
+    blockedTags: base.blockedTags || [],
+    allowedTags: base.allowedTags || [],
+    enableAllFolders: base.enableAllFolders !== false,
+    enabledFolders: base.enableAllFolders !== false ? [] : (base.enabledFolders || [])
+  });
+
   const collect = () => {
     const restricted = {
       maxParentalRating: ratingSel.value === "" ? null : Number(ratingSel.value),
@@ -271,11 +280,12 @@ function buildUserCard(user, ctx) {
   saveBtn.type = "button";
   saveBtn.addEventListener("click", async () => {
     const payload = collect();
+    let msg = t(labels, "accessCtlConfirmApply", "This changes the native Jellyfin permissions of this user right now. Continue?");
     if (!payload.restricted.enableAllFolders && payload.restricted.enabledFolders.length === 0) {
-      notify(t(labels, "accessCtlNeedLibrary", "Select at least one library or allow all libraries."), "error");
-      return;
+      msg = t(labels, "accessCtlConfirmNoLibrary", "No library is selected: this user will see NO library until unlocked. Continue?");
+    } else if (!profile && JSON.stringify(payload.restricted) === JSON.stringify(collectBase())) {
+      msg = t(labels, "accessCtlConfirmNoChange", "These values are the same as the user's current permissions, so nothing will be blocked yet. Continue anyway?");
     }
-    const msg = t(labels, "accessCtlConfirmApply", "This changes the native Jellyfin permissions of this user right now. Continue?");
     if (!window.confirm(msg)) return;
     saveBtn.disabled = true;
     try {

@@ -476,6 +476,8 @@ export const languageLabels = {
   accessCtlUnlockMinutes: "Duración del desbloqueo (minutos)",
   accessCtlUnlockMode: "Mientras está desbloqueado",
   accessCtlUnlockOriginal: "Volver a los permisos originales",
+  accessCtlConfirmNoLibrary: "Ninguna biblioteca seleccionada: este usuario NO verá ninguna biblioteca hasta desbloquear. ¿Continuar?",
+  accessCtlConfirmNoChange: "Estos valores son iguales a los permisos actuales del usuario, por lo que aún no se bloqueará nada. ¿Continuar de todos modos?",
   accessCtlUnlockFull: "Acceso total",
   accessCtlNoPin: "Aún no hay PIN configurado. Defínelo en la pestaña de PIN para habilitar el desbloqueo temporal.",
   accessCtlUnlockedUntil: "Desbloqueado hasta",

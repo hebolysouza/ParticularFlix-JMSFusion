@@ -53,6 +53,16 @@ function isPlayerActive() {
   return !!document.querySelector("video.htmlvideoplayer, .videoPlayerContainer:not(.hide)");
 }
 
+function clearListCaches() {
+  try {
+    const prefix = "jms:scoped-json-cache:v1:";
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith(prefix)) sessionStorage.removeItem(k);
+    }
+  } catch {}
+}
+
 function closeDialog() {
   document.getElementById(DLG_ID)?.remove();
 }
@@ -98,6 +108,7 @@ function openDialog() {
     try {
       const res = await unlockAccess(pin);
       if (res && res.valid) {
+        clearListCaches();
         location.reload();
         return;
       }
@@ -152,6 +163,7 @@ function renderButton(status) {
       btn.disabled = true;
       try {
         await lockAccess();
+        clearListCaches();
         location.reload();
       } catch {
         btn.disabled = false;
@@ -169,7 +181,7 @@ function scheduleExpiry(status) {
   if (status && status.isUnlocked && status.unlockedUntilUtc) {
     // The server relocks within ~20s after expiry; reload once it had time to do so.
     const wait = Math.max(5000, status.unlockedUntilUtc - Date.now() + 30_000);
-    expiryTimer = window.setTimeout(() => location.reload(), Math.min(wait, 2_147_000_000));
+    expiryTimer = window.setTimeout(() => { clearListCaches(); location.reload(); }, Math.min(wait, 2_147_000_000));
   }
 }
 
