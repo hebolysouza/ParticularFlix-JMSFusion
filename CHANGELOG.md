@@ -5,16 +5,16 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.2.0 (fork release)
+## 3.8.2.1 (fork release)
 
-Home-page behaviour fixes. Same plugin GUID, no setting changes, nothing to reconfigure.
+Home-page behaviour fixes (3.8.2.0 was an internal test build and was never published). Same plugin GUID, no setting changes, nothing to reconfigure.
 
 ### Changes
 
-- **Trailer button rebuilt.** The slider's TRAILER button now opens a cinema-style window that plays the item's local trailer in a native video player (YouTube is only the fallback when no local trailer exists or the file cannot be played). It always carries its own styling, so it no longer breaks with the peakslider variant (stars and ratings floating in the middle of the screen). It closes with the X button, ESC (captured on the window, so it works even right after the YouTube frame loads) or a click outside, and it pauses the card trailer and the slide timer while open.
+- **Trailer button rebuilt.** The slider's TRAILER button now opens a cinema-style window that plays the item's local trailer in a native video player (YouTube is only the fallback when no local trailer exists or the file cannot be played). It always carries its own styling, so it no longer breaks with the peakslider variant (stars and ratings floating in the middle of the screen). It closes with the X button, ESC (captured on the window, so it works even right after the YouTube frame loads) or a click outside, the rating stars line up, and it pauses the card trailer and the slide timer while open.
 - **Slider no longer blurred or cut at the top after navigating.** The header offset is no longer measured while a page transition (scale or animation) is still running, which used to store a wrong offset until a later measurement fixed it.
 - **Slider survives tab changes on the home page.** Switching between home tabs (Requests, Calendar, Catalog...) no longer tears down and rebuilds the slider; a health watchdog rebuilds it only if it comes back empty. The "home init pending" flag now expires by itself, so an interrupted start can no longer block every later return to the home page until a reload.
-- **Home section order inside the plugin.** New built-in module that keeps the home sections in the configured order (Continue Watching, Next Up, My Media, ...), re-binding to the current container after every navigation and reacting when another plugin rewrites an inline `order`. Defaults match the ParticularFlix layout; disable with `enforceHomeSectionOrder: false`, customise with `homeSectionOrderSelectors` and `homeSectionOrderTitles`.
+- **Home section order inside the plugin.** New built-in module that keeps the home sections in the configured order (Continue Watching, Next Up, My Media, ...), re-binding to the current container after every navigation and reacting when another plugin rewrites an inline `order`. The Next Up row is matched by its localized titles too ("Next Up", "Próximo", "A seguir"). Defaults match the ParticularFlix layout; disable with `enforceHomeSectionOrder: false`, customise with `homeSectionOrderSelectors` and `homeSectionOrderTitles`.
 
 ## 3.8.1.1 (fork release)
 

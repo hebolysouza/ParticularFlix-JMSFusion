@@ -42,7 +42,7 @@ const DEFAULT_SELECTORS = [
 // A ordem da lista importa: termos especificos antes do generico "descobrir".
 const DEFAULT_TITLES = [
   [1, ["continuar assistindo", "continue watching"]],
-  [2, ["próximo", "proximo", "next up", "up next"]],
+  [2, ["próximo", "proximo", "next up", "up next", "a seguir", "siguiente", "a continuación", "a continuacion"]],
   [3, ["minha mídia", "minha midia", "my media"]],
   [5, ["filmes a estrear", "upcoming movies"]],
   [6, ["séries a estrear", "series a estrear", "upcoming shows"]],

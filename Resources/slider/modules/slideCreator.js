@@ -1001,7 +1001,8 @@ html body .monwui-trailer-modal-footer .official-rating{white-space:nowrap}
 html body .monwui-trailer-star-rating{display:inline-flex;position:relative;width:fit-content;line-height:1}
 html body .monwui-trailer-star-track,html body .monwui-trailer-star-fill{display:inline-flex;white-space:nowrap;color:#ffc107}
 html body .monwui-trailer-star-track{color:rgba(255,255,255,.35)}
-html body .monwui-trailer-star-track i,html body .monwui-trailer-star-fill i{padding-right:2px}
+html body .monwui-trailer-star-track i,html body .monwui-trailer-star-fill i{display:inline-block;box-sizing:border-box;width:1.2em;padding:0;margin:0;text-align:center;line-height:1;font-size:1em}
+html body .monwui-trailer-star-track,html body .monwui-trailer-star-fill{gap:0;line-height:1;font-size:1rem}
 html body .monwui-trailer-loading{position:absolute;top:50%;left:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border:5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:monwui-trailer-spin 1s ease-in-out infinite;z-index:10}
 @keyframes monwui-trailer-spin{to{transform:rotate(360deg)}}
 @media (max-width:768px){
