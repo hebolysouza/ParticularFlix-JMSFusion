@@ -33,7 +33,27 @@ import { waitForNativeHomeSectionStability, waitForVisibleHomeSections } from ".
 import { installHomeSectionOrder } from "./modules/homeSectionOrder.js";
 export { loadCSS } from "./modules/playerStyles.js";
 export { waitForAnyVisible };
-const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 0));
+// Fork ParticularFlix 3.8.2.25: igual ao requestIdleCallback original, mas avisa no console quando uma tarefa
+// ociosa passa de 80 ms, com o inicio do codigo dela, para achar facilmente quem trava a tela.
+const __idleNative = window.requestIdleCallback
+  ? window.requestIdleCallback.bind(window)
+  : ((cb) => setTimeout(cb, 0));
+const idle = (cb, opts) => {
+  if (typeof cb !== "function") return __idleNative(cb, opts);
+  return __idleNative((deadline) => {
+    const startedAt = performance.now();
+    try {
+      return cb(deadline);
+    } finally {
+      const spent = performance.now() - startedAt;
+      if (spent > 80) {
+        try {
+          console.warn("[JMS] tarefa ociosa lenta:", Math.round(spent) + " ms", String(cb).replace(/\s+/g, " ").slice(0, 200));
+        } catch {}
+      }
+    }
+  }, opts);
+};
 const cancelIdle = window.cancelIdleCallback || ((id) => clearTimeout(id));
 ensureAutoLanguageSync({ reloadOnChange: true });
 const MATERIAL_ICONS_REPAIR_STYLE_ID = "jms-material-icons-utf8-repair";
@@ -4633,6 +4653,7 @@ function shouldRepairVisibleSliderOnRestore({ forcePrime = false } = {}) {
 }
 
 let __lastRestoreRepairAt = 0;
+let __sliderPageWasHidden = !!document.hidden;
 
 function scheduleVisibleSliderRestoreRepair(options = {}) {
   if (isHomeInitPending() || window.__slidesInitRunning || window.sliderResetInProgress) return;
@@ -4652,6 +4673,7 @@ function scheduleVisibleSliderRestoreRepair(options = {}) {
 
   if (!shouldRepairVisibleSliderOnRestore(options)) return;
   __lastRestoreRepairAt = Date.now();
+  __sliderPageWasHidden = false;
   scheduleVisibleSliderRepair(options);
 }
 
@@ -6959,17 +6981,25 @@ window.addEventListener(
     } catch {}
   }, 150)
 );
-window.addEventListener("pageshow", () => {
+// Fork ParticularFlix 3.8.2.25: o reparo "de restauracao" so faz sentido quando a pagina esteve oculta ou
+// voltou do cache do navegador. No carregamento normal o pageshow e o focus tambem disparam, e o reparo
+// completo custava ate 400 ms de layout forcado logo na abertura da home.
+window.addEventListener("pageshow", (event) => {
+  if (!event?.persisted && !__sliderPageWasHidden) return;
   scheduleVisibleSliderRestoreRepair({ forcePrime: true });
 });
 
 if (!window.__sliderRestoreRepairBound) {
   window.__sliderRestoreRepairBound = true;
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) return;
+    if (document.hidden) {
+      __sliderPageWasHidden = true;
+      return;
+    }
     scheduleVisibleSliderRestoreRepair({ forcePrime: true });
   }, { passive: true });
   window.addEventListener("focus", () => {
+    if (!__sliderPageWasHidden) return;
     scheduleVisibleSliderRestoreRepair({ forcePrime: true });
   }, { passive: true });
 }
