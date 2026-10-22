@@ -679,7 +679,7 @@ export function closeVideoModal() {
 export function animatedShow(modal) {
   if (!modal) return;
 
-  modal.style.display = 'block';
+  modal.style.display = 'flex';
   modal.style.transition = 'none';
   modal.classList.add('video-preview-modal--hidden');
   modal.classList.remove('video-preview-modal--visible');
@@ -755,6 +755,8 @@ export function createVideoModal({ showButtons = true, context = 'monwui-dot' } 
   video.setAttribute('playsinline', '');
   video.setAttribute('webkit-playsinline', '');
   video.setAttribute('x-webkit-airplay', 'allow');
+  video.disablePictureInPicture = true;
+  video.disableRemotePlayback = true;
   video.autoplay = true;
   applyPreviewTrailerAudioToVideo(video, { config, soundOn: modalState._soundOn });
   video.loop = true;
@@ -2541,6 +2543,7 @@ function injectOrUpdateModalStyle() {
         0 6px 18px rgba(0, 0, 0, 0.38);
       z-index: 1000;
       display: none;
+      flex-direction: column;
       overflow: hidden;
       transform: scale(0.9);
       transform-origin: center center;
@@ -2559,7 +2562,6 @@ function injectOrUpdateModalStyle() {
 
     .video-preview-modal.video-preview-modal--visible {
       display: flex;
-      flex-direction: column;
       transform: scale(1);
       opacity: 1;
     }
@@ -2974,7 +2976,7 @@ function injectOrUpdateModalStyle() {
 
     .preview-volume-slider {
       position: absolute;
-      right: calc(100% + 8px);
+      right: calc(100% + 10px);
       top: 50%;
       transform: translateY(-50%);
       width: 0;
@@ -2991,12 +2993,12 @@ function injectOrUpdateModalStyle() {
       top: 0;
       bottom: 0;
       right: 100%;
-      width: 10px;
+      width: 12px;
     }
 
     .preview-volume-wrap.vol-open .preview-volume-slider,
     .preview-volume-wrap:focus-within .preview-volume-slider {
-      width: 96px;
+      width: 72px;
       opacity: 1;
       pointer-events: auto;
     }
