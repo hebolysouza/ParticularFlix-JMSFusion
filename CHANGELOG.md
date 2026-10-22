@@ -5,9 +5,10 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.2.11 (fork release)
+## 3.8.2.12 (fork release)
 
 - Studio hubs now group every studio of the same brand: the Paramount Pictures hub also lists items tagged Paramount+ or Paramount Animation, the Marvel Studios hub includes Marvel Enterprises and so on (Pixar, Lucasfilm, Warner, Columbia, Netflix, DreamWorks and DC too). Configurable with `studioHubGroupTokens`; `studioHubGroupMerge: false` turns it off.
+- Rows drawn from the local cache now appear complete in one frame and without the per-card fade-in, so the extra cards no longer pop in one by one after the page returns to the home (`homeRowsInstantCache: false` restores the old behavior). Fresh data from the server keeps the animation.
 - Home rows start about 1.5 s sooner: they boot 500 ms after the slider starts instead of waiting for the first slide to finish (`homeRowsEarlyBootMs`, `-1` restores the old behavior), and the eager loading delay dropped from 900 ms to 500 ms.
 - Grouped studio hubs: the native list page only used the first studio id for the item list (it takes the id from the header item). On `#/list?studioId=a,b,c` that list request now carries all the ids of the group, so items tagged with any studio of the brand (for example DC Vertigo for the DC hub) show up.
 - Opening a grouped studio hub no longer hangs: the native list page asked the server for the studio header with all ids at once (HTTP 500); that one request now uses only the first id.

@@ -2696,7 +2696,8 @@ function createRecommendationCard(item, serverId, {
   aboveFold = false,
   showProgress = false,
   variant = "default",
-  rank = null
+  rank = null,
+  noEnter = false
 } = {}) {
   const { itemId, itemName } = primeItemIdentity(item);
   const card = document.createElement("div");
@@ -2705,7 +2706,7 @@ function createRecommendationCard(item, serverId, {
   const isTop10 = variant === "top10" || isTrailerVariant;
   if (isTop10) card.classList.add("top10-card");
   if (isTrailerVariant) card.classList.add("tmdb-trailer-card");
-  queueEnterAnimation(card);
+  if (!noEnter) queueEnterAnimation(card);
   if (itemId) card.dataset.itemId = itemId;
   if (isTop10 && Number.isFinite(rank)) card.dataset.rank = String(rank);
 
@@ -3959,7 +3960,7 @@ async function fillSectionWithItemsInner({
     return false;
   };
 
-  const renderResolvedItems = async (sourceItems, { aboveFoldLimit = 2 } = {}) => {
+  const renderResolvedItems = async (sourceItems, { aboveFoldLimit = 2, instant = false } = {}) => {
     stopProgressiveRender();
     const renderPass = ++__renderPass;
     const isPassCurrent = () => isRenderCurrent() && __renderPass === renderPass;
@@ -3998,7 +3999,7 @@ async function fillSectionWithItemsInner({
         if (!isPassCurrent()) return false;
         heroHost.appendChild(hero);
         heroHost.__jmsHeroId = best.Id;
-        queueEnterAnimation(hero);
+        if (!instant) queueEnterAnimation(hero);
       }
     }
 
@@ -4024,7 +4025,9 @@ async function fillSectionWithItemsInner({
         row,
         items: remaining,
         limit: targetCount,
-        initialCount: Math.min(
+        // Fork ParticularFlix: render vindo do cache entra inteiro e sem animacao (antes os cards
+        // apareciam um a um com fade e parecia outra esteira carregando).
+        initialCount: instant ? targetCount : Math.min(
           targetCount,
           IS_MOBILE
             ? Math.max(2, Math.min(targetCount, aboveFoldLimit))
@@ -4037,7 +4040,8 @@ async function fillSectionWithItemsInner({
           aboveFold: index < Math.max(1, Math.min(aboveFoldLimit, IS_MOBILE ? 2 : 4)),
           showProgress,
           variant: cardVariant,
-          rank: cardVariant === "top10" ? (index + 1) : null
+          rank: cardVariant === "top10" ? (index + 1) : null,
+          noEnter: instant
         }),
         onAppend: () => {
           if (!scrollerReady) {
@@ -4078,7 +4082,7 @@ async function fillSectionWithItemsInner({
 
   if (cachedItems?.length) {
     try {
-      await renderResolvedItems(cachedItems, { aboveFoldLimit: 2 });
+      await renderResolvedItems(cachedItems, { aboveFoldLimit: 2, instant: (getLiveConfig() || {}).homeRowsInstantCache !== false });
     } catch {}
   }
 
