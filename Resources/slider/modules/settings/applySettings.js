@@ -699,6 +699,9 @@ const USER_ONLY_KEYS = [
             })(),
 
             enableOtherLibRows: formData.get('enableOtherLibRows') === 'on',
+            otherLibRecentEnabled: formData.get('otherLibRecentEnabled') === 'on',
+            otherLibContinueEnabled: formData.get('otherLibContinueEnabled') === 'on',
+            otherLibEpisodesEnabled: formData.get('otherLibEpisodesEnabled') === 'on',
             showOtherLibrariesHeroCards: formData.get('showOtherLibrariesHeroCards') === 'on',
             otherLibrariesRecentCardCount: (() => {
               const v = parseInt(formData.get('otherLibrariesRecentCardCount'), 10);

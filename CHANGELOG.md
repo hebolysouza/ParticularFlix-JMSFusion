@@ -5,6 +5,11 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.8.2.18 (fork release)
+
+- Other libraries rows now have one checkbox per row. The "Other libraries" feature used a single switch that turned on three rows per library at once (Recently Added, Continue Watching and Recent Episodes), so a library that can never have anything to continue, such as a Collections (boxsets) library, still showed an empty "Continue Watching" row that appeared while the page loaded and then disappeared. The Studio Collections settings page now has a separate checkbox for each of the three rows (all on by default, so nothing changes for existing setups), each card count field is only shown while its row is on, and the count fields are no longer squeezed by long labels.
+- The pause screen debug log is now off by default (it was on unless explicitly turned off, which filled the browser console).
+
 ## 3.8.2.17 (fork release)
 
 - Slider list cache is now an option. The "recent releases" and "recent premieres" slider sources kept their candidate list in the browser for a fixed 30 minutes, so a movie or show added just now could take a long time to show up in the main slider. The Query API page has a new field, "Slider list cache (minutes)", from 1 to 120 and defaulting to 3, used only by those two sources (the custom query keeps its own cache). The cache key was renewed, so lists cached by earlier versions are not reused.

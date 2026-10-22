@@ -192,7 +192,7 @@ function isRecentRowsSectionEnabled(cfg = {}, masterEnabled = cfg?.enableHomeSec
       cfg?.enableRecentMusicRow !== false
     );
 
-  return hasRecentContent || (masterEnabled && cfg?.enableOtherLibRows === true);
+  return hasRecentContent || (masterEnabled && cfg?.enableOtherLibRows === true && (cfg?.otherLibRecentEnabled !== false || cfg?.otherLibEpisodesEnabled !== false));
 }
 
 function isTop10SeriesRowsSectionEnabled(cfg = {}, masterEnabled = cfg?.enableHomeSectionsMaster !== false) {
@@ -221,7 +221,7 @@ function isContinueRowsSectionEnabled(cfg = {}, masterEnabled = cfg?.enableHomeS
       cfg?.enableContinueSeries !== false
     );
 
-  return hasRecentTracks || hasContinueContent || (masterEnabled && cfg?.enableOtherLibRows === true);
+  return hasRecentTracks || hasContinueContent || (masterEnabled && cfg?.enableOtherLibRows === true && cfg?.otherLibContinueEnabled !== false);
 }
 
 function isNextUpRowsSectionEnabled(cfg = {}, masterEnabled = cfg?.enableHomeSectionsMaster !== false) {
@@ -650,7 +650,7 @@ function computeConfig() {
         cssVariant: normalizePauseOverlayCssVariant(j.cssVariant),
         imagePreference: j.imagePreference || 'auto',
         showPlot: j.showPlot !== false,
-        debug: j.debug !== false,
+        debug: j.debug === true,
         requireWebSocket: j.requireWebSocket !== false,
         showMetadata: j.showMetadata !== false,
         showLogo: j.showLogo !== false,
@@ -709,7 +709,7 @@ function computeConfig() {
     cssVariant: normalizePauseOverlayCssVariant(rawCssVariant),
     imagePreference: rawImagePref || 'auto',
     showPlot: rawShowPlot !== 'false',
-    debug: rawDebug !== 'false',
+    debug: rawDebug === 'true',
     showMetadata: rawShowMeta !== 'false',
     showLogo: rawShowLogo !== 'false',
     showBackdrop: rawShowBackdrop !== 'false',
@@ -840,7 +840,7 @@ function computeConfig() {
     useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
     fullscreenMode: localStorage.getItem('fullscreenMode') === 'true' ? true : false,
     listLimit: 20,
-    version: "v3.8.2.17",
+    version: "v3.8.2.18",
     historySize: 20,
     updateInterval: 300000,
     nextTracksSource: localStorage.getItem('nextTracksSource') || 'playlist',
@@ -1107,6 +1107,10 @@ function computeConfig() {
     continueSeriesCardCount: parseInt(localStorage.getItem('continueSeriesCardCount'), 10) || 10,
 
     enableOtherLibRows: localStorage.getItem('enableOtherLibRows') === 'true',
+    // Fork ParticularFlix: cada fileira de "Outras bibliotecas" tem a sua propria caixa (padrao ligado)
+    otherLibRecentEnabled: localStorage.getItem('otherLibRecentEnabled') !== 'false',
+    otherLibContinueEnabled: localStorage.getItem('otherLibContinueEnabled') !== 'false',
+    otherLibEpisodesEnabled: localStorage.getItem('otherLibEpisodesEnabled') !== 'false',
     showOtherLibrariesHeroCards: (localStorage.getItem('showOtherLibrariesHeroCards') || 'true') !== 'false',
     otherLibrariesRecentCardCount: parseInt(localStorage.getItem('otherLibrariesRecentCardCount'), 10) || 10,
     otherLibrariesContinueCardCount: parseInt(localStorage.getItem('otherLibrariesContinueCardCount'), 10) || 10,

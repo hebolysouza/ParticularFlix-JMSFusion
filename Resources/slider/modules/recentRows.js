@@ -148,6 +148,9 @@ function getRecentRowsRuntimeConfig(source = getLiveConfig()) {
     showContinueMoviesHeroCards: cfg.showContinueMoviesHeroCards !== false,
     showContinueSeriesHeroCards: cfg.showContinueSeriesHeroCards !== false,
     enableOtherLibRows: homeSectionsConfig.enableOtherLibRows,
+    enableOtherRecent: homeSectionsConfig.enableOtherLibRows && cfg.otherLibRecentEnabled !== false,
+    enableOtherContinue: homeSectionsConfig.enableOtherLibRows && cfg.otherLibContinueEnabled !== false,
+    enableOtherEpisodes: homeSectionsConfig.enableOtherLibRows && cfg.otherLibEpisodesEnabled !== false,
     showOtherLibrariesHeroCards: cfg.showOtherLibrariesHeroCards !== false,
     effectiveRecentMoviesCount: getEffectiveRowCount(clampPositiveCount(cfg.recentMoviesCardCount, DEFAULT_RECENT_ROWS_COUNT)),
     effectiveRecentSeriesCount: getEffectiveRowCount(clampPositiveCount(cfg.recentSeriesCardCount, DEFAULT_RECENT_ROWS_COUNT)),
@@ -441,7 +444,8 @@ function hasRecentRowsSectionEnabled(runtimeCfg) {
     runtimeCfg.enableRecentSeries ||
     runtimeCfg.enableRecentEpisodes ||
     runtimeCfg.enableRecentMusic ||
-    runtimeCfg.enableOtherLibRows
+    runtimeCfg.enableOtherRecent ||
+    runtimeCfg.enableOtherEpisodes
   );
 }
 
@@ -450,7 +454,7 @@ function hasContinueRowsSectionEnabled(runtimeCfg) {
     runtimeCfg.enableRecentTracks ||
     runtimeCfg.enableContinueMovies ||
     runtimeCfg.enableContinueSeries ||
-    runtimeCfg.enableOtherLibRows
+    runtimeCfg.enableOtherContinue
   );
 }
 
@@ -5082,7 +5086,7 @@ async function initAndRender({ sectionKey = "recentRows", mountState = null } = 
       };
     });
 
-    for (const { libId, libName } of otherDefs) {
+    for (const { libId, libName } of (runtimeCfg.enableOtherRecent ? otherDefs : [])) {
       pushPlan(recentPlans, () => buildManagedSection({
         titleText: `${config.languageLabels.otherLibRecent || "Son eklenenler"} • ${libName}`,
         badgeType: "new",
@@ -5106,7 +5110,7 @@ async function initAndRender({ sectionKey = "recentRows", mountState = null } = 
       }));
     }
 
-    for (const { libId, libName } of otherDefs) {
+    for (const { libId, libName } of (runtimeCfg.enableOtherContinue ? otherDefs : [])) {
       pushPlan(continuePlans, () => buildManagedSection({
         titleText: `${config.languageLabels.otherLibContinue || "İzlemeye devam et"} • ${libName}`,
         badgeType: "continue",
@@ -5131,7 +5135,7 @@ async function initAndRender({ sectionKey = "recentRows", mountState = null } = 
       }));
     }
 
-    for (const { libId, libName } of otherDefs) {
+    for (const { libId, libName } of (runtimeCfg.enableOtherEpisodes ? otherDefs : [])) {
       pushPlan(episodePlans, () => buildManagedSection({
         titleText: `${config.languageLabels.recentEpisodes || "Son eklenen bölümler"} • ${libName}`,
         badgeType: "episode",

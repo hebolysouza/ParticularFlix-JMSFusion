@@ -2606,6 +2606,26 @@ export function createStudioHubsPanel(config, labels) {
   otherLibBox.style.marginBottom = "10px";
   section.appendChild(otherLibBox);
 
+  // Fork ParticularFlix: uma caixa por tipo de fileira de "Outras bibliotecas"
+  const otherRecentEnabled = createCheckbox(
+    "otherLibRecentEnabled",
+    labels?.otherLibRecentEnabled || "Other Libraries: show the Recently Added row",
+    config.otherLibRecentEnabled !== false
+  );
+  otherLibBox.appendChild(otherRecentEnabled);
+  const otherContinueEnabled = createCheckbox(
+    "otherLibContinueEnabled",
+    labels?.otherLibContinueEnabled || "Other Libraries: show the Continue Watching row",
+    config.otherLibContinueEnabled !== false
+  );
+  otherLibBox.appendChild(otherContinueEnabled);
+  const otherEpisodesEnabled = createCheckbox(
+    "otherLibEpisodesEnabled",
+    labels?.otherLibEpisodesEnabled || "Other Libraries: show the Recent Episodes row",
+    config.otherLibEpisodesEnabled !== false
+  );
+  otherLibBox.appendChild(otherEpisodesEnabled);
+
   const otherRecentCountWrap = createNumberInput(
     "otherLibrariesRecentCardCount",
     labels?.otherLibrariesRecentCardCount || "Diğer kütüphaneler • Son eklenen kart sayısı",
@@ -2632,6 +2652,21 @@ export function createStudioHubsPanel(config, labels) {
     20
   );
   otherLibBox.appendChild(otherEpisodesCountWrap);
+
+  // o campo de quantidade nao pode ser espremido pelo texto longo do rotulo
+  [otherRecentCountWrap, otherContinueCountWrap, otherEpisodesCountWrap].forEach((w) => {
+    const inp = w?.querySelector?.('input');
+    if (inp) { inp.style.minWidth = '64px'; inp.style.flexShrink = '0'; }
+  });
+  const bindOtherCountVisibility = (checkWrap, countWrap) => {
+    const cb = checkWrap?.querySelector?.('input[type="checkbox"]');
+    const sync = () => { if (countWrap) countWrap.style.display = cb?.checked ? '' : 'none'; };
+    sync();
+    checkWrap?.addEventListener?.('change', sync, { passive: true });
+  };
+  bindOtherCountVisibility(otherRecentEnabled, otherRecentCountWrap);
+  bindOtherCountVisibility(otherContinueEnabled, otherContinueCountWrap);
+  bindOtherCountVisibility(otherEpisodesEnabled, otherEpisodesCountWrap);
 
   const hiddenOtherLibIds = (() => {
     const inp = document.createElement("input");
