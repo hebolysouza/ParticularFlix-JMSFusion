@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/hebolysouza/ParticularFlix-JMSFusion/main/img/icon.png",
     "versions": [
     {
+      "version": "3.8.2.17",
+      "changelog": "v3.8.2.17 (ParticularFlix fork)\n\nSame plugin GUID, no setting changes required (new options have safe defaults).\n\nChanges:\n- New option: slider list cache (minutes). The recent releases and recent premieres slider sources now refresh their candidate list every 3 minutes by default (was a fixed 30), so a title added just now shows up in the main slider much sooner. Query API page, 1 to 120 minutes.\n- Trailer preview card redesigned in a bigger, Netflix-style layout: 500 px wide, true 16:9 video, action row under the video, volume slider opening sideways, softer shadow and animation, no picture-in-picture or cast icons over the preview.\n- New option: preview card size (Small 400 px, Medium 500 px, Large 600 px, Extra large 700 px). The whole card scales together and is limited to fit the window.\n\nUpgrade notes: the plugin folder is now named JMSFusion_3.8.2.17; update the Docker volume mount path if you mount it. Full notes: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
+      "targetAbi": "10.11.0.0",
+      "sourceUrl": "https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases/download/v3.8.2.17/JMSFusion-3.8.2.17-server.zip",
+      "checksum": "b66a22e586dc6b7fc63e30f9679241e1",
+      "timestamp": "2026-10-22T17:48:28.0000000Z"
+    },
+    {
       "version": "3.8.2.14",
       "changelog": "v3.8.2.14 (ParticularFlix fork)\n\nHome page release on top of 3.8.1.1 (rolls up the unpublished 3.8.2.x builds). Same plugin GUID, no setting changes.\n\nChanges:\n- TRAILER button rebuilt: plays the local trailer in a native video player (YouTube only as fallback), also for local-only trailers, always visible and placed right after the Watch button.\n- Slider no longer blurred, cut or mounted above the visible area after Back, and no longer rebuilt when switching home tabs.\n- Home rows load ahead of scrolling, render complete from cache, and come back instantly after Back (inert snapshot).\n- Built-in home section order module (Home Screen Sections aware); custom CSS or scripts to force the order are no longer needed.\n- Studio hubs group every studio of the same brand, no longer hang on open, and the preview is completed with the best remaining items.\n\nUpgrade notes: the plugin folder is now named JMSFusion_3.8.2.14; update the Docker volume mount path if you mount it. Full notes: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
       "targetAbi": "10.11.0.0",
