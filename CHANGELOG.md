@@ -5,10 +5,11 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.2.18 (fork release)
+## 3.8.2.19 (fork release)
 
 - Other libraries rows now have one checkbox per row. The "Other libraries" feature used a single switch that turned on three rows per library at once (Recently Added, Continue Watching and Recent Episodes), so a library that can never have anything to continue, such as a Collections (boxsets) library, still showed an empty "Continue Watching" row that appeared while the page loaded and then disappeared. The Studio Collections settings page now has a separate checkbox for each of the three rows (all on by default, so nothing changes for existing setups), each card count field is only shown while its row is on, and the count fields are no longer squeezed by long labels.
 - The pause screen debug log is now off by default (it was on unless explicitly turned off, which filled the browser console).
+- Missing translations filled in (Portuguese, English and Spanish): the slider list source and cache options, the new preview card size options, and about 25 labels that fell back to Turkish or to a hard coded text (collection, show more genres and directors, system notifications, playlists, statistics and backup messages, music player labels).
 
 ## 3.8.2.17 (fork release)
 
