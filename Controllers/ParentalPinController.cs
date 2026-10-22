@@ -38,6 +38,7 @@ public partial class ParentalPinController : ControllerBase
     public ParentalPinController(IUserManager users, ILibraryManager libraries, ILogger<ParentalPinController> logger)
     {
         _users = users;
+        Jellyfin.Plugin.JMSFusion.Core.AccessControlCore.Log ??= logger;
         _libraries = libraries;
         _logger = logger;
     }

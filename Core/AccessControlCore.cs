@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Users;
@@ -230,6 +232,75 @@ namespace Jellyfin.Plugin.JMSFusion.Core
             }
         }
 
+        // Isolamento: so estes campos da politica pertencem ao controle de acesso. Todo o resto
+        // (permissoes, dispositivos, canais, sessoes...) deve permanecer exatamente como estava.
+        private static readonly HashSet<string> AccessFieldNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "MaxParentalRating", "BlockUnratedItems", "BlockedTags", "AllowedTags", "EnableAllFolders", "EnabledFolders"
+        };
+
+        public static ILogger? Log { get; set; }
+
+        private static JsonObject? SnapshotNonAccessFields(UserPolicy policy)
+        {
+            try
+            {
+                var node = JsonSerializer.SerializeToNode(policy) as JsonObject;
+                if (node is null)
+                {
+                    return null;
+                }
+
+                foreach (var name in AccessFieldNames)
+                {
+                    node.Remove(name);
+                }
+
+                return node;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        // Le a politica de novo depois da gravacao e avisa no log se algum campo fora do controle de acesso mudou.
+        private static void ReportPolicyDrift(IUserManager users, object user, Guid userId, JsonObject? before)
+        {
+            try
+            {
+                if (before is null)
+                {
+                    return;
+                }
+
+                var fresh = UserAccessor.PolicyOf(users, user);
+                var after = fresh is null ? null : SnapshotNonAccessFields(fresh);
+                if (after is null)
+                {
+                    return;
+                }
+
+                var changed = new List<string>();
+                foreach (var kv in before)
+                {
+                    var other = after[kv.Key];
+                    if (!string.Equals(kv.Value?.ToJsonString(), other?.ToJsonString(), StringComparison.Ordinal))
+                    {
+                        changed.Add(kv.Key);
+                    }
+                }
+
+                if (changed.Count > 0)
+                {
+                    Log?.LogWarning("[JMSFusion] Access control: policy fields outside the access control changed for {UserId}: {Fields}", userId, string.Join(", ", changed));
+                }
+            }
+            catch
+            {
+            }
+        }
+
         // Devolve false quando o usuario nao existe ou e administrador (nunca restringimos administradores).
         public static async Task<bool> ApplyAsync(IUserManager users, Guid userId, AccessPolicyValues values)
         {
@@ -245,6 +316,8 @@ namespace Jellyfin.Plugin.JMSFusion.Core
                 return false;
             }
 
+            var beforeJson = SnapshotNonAccessFields(policy);
+
             policy.MaxParentalRating = values.MaxParentalRating;
             policy.BlockUnratedItems = ToUnrated(values.BlockUnratedItems);
             policy.BlockedTags = values.BlockedTags ?? Array.Empty<string>();
@@ -258,6 +331,7 @@ namespace Jellyfin.Plugin.JMSFusion.Core
 
             await UserAccessor.UpdatePolicyAsync(users, userId, policy).ConfigureAwait(false);
             BumpCacheGeneration(userId);
+            ReportPolicyDrift(users, user, userId, beforeJson);
             return true;
         }
 
@@ -320,6 +394,7 @@ namespace Jellyfin.Plugin.JMSFusion.Core
         {
             _users = users;
             _logger = logger;
+            AccessControlCore.Log ??= logger;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
