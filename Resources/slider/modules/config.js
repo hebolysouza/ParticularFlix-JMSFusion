@@ -909,6 +909,10 @@ function computeConfig() {
       const v = localStorage.getItem('cardPreviewIcon');
       return ['clapper', 'film', 'screen', 'camera', 'text'].includes(v) ? v : 'clapper';
     })(),
+    previewModalSize: (() => {
+      const v = localStorage.getItem('previewModalSize');
+      return ['small', 'medium', 'large', 'xlarge'].includes(v) ? v : 'medium';
+    })(),
     cardActionsPosition: (() => {
       const v = localStorage.getItem('cardActionsPosition');
       return ['top-left', 'top-center', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'].includes(v)

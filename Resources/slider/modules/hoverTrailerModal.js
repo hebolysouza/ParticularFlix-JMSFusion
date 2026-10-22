@@ -2527,11 +2527,42 @@ export function applyVolumePreference(modal = modalState.videoModal) {
   }
 }
 
+// Fork ParticularFlix: tamanhos do popover. A escala multiplica TODAS as medidas em px e rem do CSS do card
+// (texto, botoes, espacos), por isso nada se desalinha. Em telas estreitas fica sempre 1 (o card ja se adapta).
+const PREVIEW_SIZE_SCALES = { small: 0.8, medium: 1, large: 1.2, xlarge: 1.4 };
+const PREVIEW_BASE_WIDTH = 500;
+const PREVIEW_BASE_HEIGHT = 430;
+
+function getPreviewModalScale() {
+  try {
+    if (window.innerWidth <= 750) return 1;
+    const key = String(getConfig()?.previewModalSize || 'medium');
+    const wanted = PREVIEW_SIZE_SCALES[key] || 1;
+    const fitH = (window.innerHeight - 32) / PREVIEW_BASE_HEIGHT;
+    const fitW = (window.innerWidth - 32) / PREVIEW_BASE_WIDTH;
+    return Math.max(0.6, Math.min(wanted, fitH, fitW));
+  } catch { return 1; }
+}
+
+function scaleModalCss(css, scale) {
+  if (!(Math.abs(scale - 1) > 0.001)) return css;
+  const lines = String(css).split('\n').map((line) => {
+    if (/^\s*@media/.test(line)) return line;
+    return line.replace(/(-?\d*\.?\d+)(px|rem)\b/g, (m, n, unit) => {
+      const v = Math.round(parseFloat(n) * scale * 100) / 100;
+      return `${v}${unit}`;
+    });
+  });
+  // selos de qualidade vem de outro modulo, com medidas proprias: escalam por zoom
+  lines.push(`.video-preview-modal .preview-meta .monwui-quality-group { zoom: ${Math.round(scale * 100) / 100}; }`);
+  return lines.join('\n');
+}
+
 function injectOrUpdateModalStyle() {
   const id = 'video-modal-modern-style';
   const style = document.getElementById(id) || document.createElement('style');
   style.id = id;
-  style.textContent = `
+  const rawCss = `
     .video-preview-modal {
       position: absolute;
       width: 500px;
@@ -3067,6 +3098,9 @@ function injectOrUpdateModalStyle() {
       transform: translateY(8px);
     }
   `;
+  const scale = getPreviewModalScale();
+  style.textContent = scaleModalCss(rawCss, scale);
+  modalState.__cssScale = scale;
   if (!style.isConnected) document.head.appendChild(style);
 }
 
@@ -3438,9 +3472,11 @@ export function positionModalRelativeToItem(modal, item, options = {}) {
     const viewportHeight = window.innerHeight;
     // Fork ParticularFlix: largura limitada pela janela e altura real do card (altura automatica)
     const mobile = viewportWidth <= 750;
-    const width = Math.max(240, Math.min(mobile ? 380 : settings.modalWidth, viewportWidth - settings.windowPadding * 2));
+    const scale = getPreviewModalScale();
+    if (Math.abs(scale - (modalState.__cssScale || 1)) > 0.001) { try { injectOrUpdateModalStyle(); } catch {} }
+    const width = Math.max(240, Math.min(mobile ? 380 : Math.round(settings.modalWidth * scale), viewportWidth - settings.windowPadding * 2));
     const measured = modal.offsetHeight;
-    const height = measured > 0 ? measured : Math.round(width * 9 / 16) + (settings.modalHeight - Math.round(settings.modalWidth * 9 / 16));
+    const height = measured > 0 ? measured : Math.round(width * 9 / 16) + Math.round((settings.modalHeight - Math.round(settings.modalWidth * 9 / 16)) * scale);
     let left = itemRect.left + scrollX + (itemRect.width - width) / 2;
     let top = itemRect.top + scrollY + (itemRect.height - height) / 2;
     switch(settings.preferredPosition) {

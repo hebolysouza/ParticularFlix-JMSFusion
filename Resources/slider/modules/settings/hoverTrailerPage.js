@@ -73,6 +73,18 @@ export function createHoverTrailerPanel(config, labels) {
   ));
 
   section.appendChild(createSelect(
+    'previewModalSize',
+    labels.previewModalSize || 'Tamanho do card de trailer (hover)',
+    [
+      { value: 'small',  text: labels.previewModalSizeSmall  || 'Pequeno (400 px)' },
+      { value: 'medium', text: labels.previewModalSizeMedium || 'Medio (500 px, padrao)' },
+      { value: 'large',  text: labels.previewModalSizeLarge  || 'Grande (600 px)' },
+      { value: 'xlarge', text: labels.previewModalSizeXLarge || 'Extra grande (700 px)' }
+    ],
+    config.previewModalSize || 'medium'
+  ));
+
+  section.appendChild(createSelect(
     'cardActionsPosition',
     labels.cardActionsPosition || 'Posicao dos botoes no cartao',
     [
