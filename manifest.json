@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/hebolysouza/ParticularFlix-JMSFusion/main/img/icon.png",
     "versions": [
     {
+      "version": "3.8.2.24",
+      "changelog": "v3.8.2.24 (ParticularFlix fork)\n\nAccess control release on top of 3.8.2.17 (rolls up the unpublished 3.8.2.18 to 3.8.2.23 builds). Same plugin GUID, no setting changes (new options have safe defaults).\n\nChanges:\n- New Access Control tab (administrators only): edits the native Jellyfin permissions of each non-administrator user (maximum parental rating, unrated content, blocked and allowed tags, libraries), so the server enforces them on every app and device. Templates included, and the original permissions of each user are stored and can be restored with one click. Administrators can never be restricted.\n- Optional temporary unlock with the global parental PIN (1 to 480 minutes): full access, a higher rating, or back to the original permissions. The restriction is restored automatically by the server, and list caches are cleared on every change.\n- Other libraries rows now have one checkbox per row (Recently Added, Continue Watching, Recent Episodes), so a Collections library no longer shows an empty Continue Watching row.\n- Pause screen debug log is off by default; missing Portuguese, English and Spanish translations filled in.\n\nUpgrade notes: the plugin folder is now named JMSFusion_3.8.2.24; update the Docker volume mount path if you mount it. Full notes: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
+      "targetAbi": "10.11.0.0",
+      "sourceUrl": "https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases/download/v3.8.2.24/JMSFusion-3.8.2.24-server.zip",
+      "checksum": "0a77900579cd42d8cd1d52976e1cad2a",
+      "timestamp": "2026-10-22T20:35:37.8039688Z"
+    },
+    {
       "version": "3.8.2.17",
       "changelog": "v3.8.2.17 (ParticularFlix fork)\n\nSame plugin GUID, no setting changes required (new options have safe defaults).\n\nChanges:\n- New option: slider list cache (minutes). The recent releases and recent premieres slider sources now refresh their candidate list every 3 minutes by default (was a fixed 30), so a title added just now shows up in the main slider much sooner. Query API page, 1 to 120 minutes.\n- Trailer preview card redesigned in a bigger, Netflix-style layout: 500 px wide, true 16:9 video, action row under the video, volume slider opening sideways, softer shadow and animation, no picture-in-picture or cast icons over the preview.\n- New option: preview card size (Small 400 px, Medium 500 px, Large 600 px, Extra large 700 px). The whole card scales together and is limited to fit the window.\n\nUpgrade notes: the plugin folder is now named JMSFusion_3.8.2.17; update the Docker volume mount path if you mount it. Full notes: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
       "targetAbi": "10.11.0.0",
