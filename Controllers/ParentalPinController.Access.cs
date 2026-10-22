@@ -384,6 +384,8 @@ public partial class ParentalPinController
         return new
         {
             ok = true,
+            generation = cfg.AccessCacheGenerations.FirstOrDefault(g => string.Equals(g.UserId, userId.ToString("N"), StringComparison.OrdinalIgnoreCase))?.Generation ?? 0,
+            userId = userId.ToString("N"),
             hasProfile = entry is not null,
             unlockAvailable = entry is not null && entry.UnlockEnabled && HasConfiguredPin(cfg),
             unlockMinutes = entry?.UnlockMinutes ?? 0,

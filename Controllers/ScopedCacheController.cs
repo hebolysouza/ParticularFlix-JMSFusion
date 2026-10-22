@@ -46,6 +46,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             {
                 var raw = await _cacheService.ReadAsync(normalizedCacheType, scope, cancellationToken).ConfigureAwait(false);
                 NoCache();
+                Response.Headers["X-JMS-Gen"] = ScopedCacheJsonService.CurrentGeneration(normalizedCacheType, scope).ToString();
                 return Content(raw, "application/json; charset=utf-8", Encoding.UTF8);
             }
             catch (ArgumentException ex)
@@ -73,6 +74,17 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
 
             try
             {
+                // O cliente informa a geracao com que leu os dados; se a politica de acesso mudou desde entao,
+                // a gravacao e recusada para nao reviver conteudo de permissoes antigas.
+                if (Request.Headers.TryGetValue("X-JMS-Gen", out var sentGen)
+                    && long.TryParse(sentGen.ToString(), out var clientGen)
+                    && clientGen != ScopedCacheJsonService.CurrentGeneration(normalizedCacheType, scope))
+                {
+                    NoCache();
+                    Response.Headers["X-JMS-Gen"] = ScopedCacheJsonService.CurrentGeneration(normalizedCacheType, scope).ToString();
+                    return StatusCode(409, new { ok = false, stale = true });
+                }
+
                 var raw = payload.ValueKind == JsonValueKind.Undefined
                     ? "{}"
                     : payload.GetRawText();

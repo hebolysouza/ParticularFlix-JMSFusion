@@ -172,14 +172,10 @@ namespace Jellyfin.Plugin.JMSFusion.Core
             };
         }
 
-        // Os caches de listas (slider, fileiras recentes, diretores, recomendacoes, colecoes) guardam itens
-        // que o usuario via antes da mudanca de permissao. Sao apenas caches e se refazem sozinhos.
-        private static readonly string[] ItemCacheTypes =
-        {
-            "sliderCache", "recentRows", "directorRows", "personalRecommendations", "collectionCache"
-        };
-
-        public static void PurgeItemCaches()
+        // Sobe a geracao dos caches de lista (slider, fileiras recentes, diretores, recomendacoes, colecoes).
+        // Arquivos de geracoes antigas deixam de ser lidos; paginas abertas com dados antigos recebem 409 ao
+        // tentar grava-los de volta. Sao apenas caches e se refazem sozinhos.
+        public static void BumpCacheGeneration(Guid userId)
         {
             var plugin = JMSFusionPlugin.Instance;
             if (plugin is null)
@@ -187,7 +183,24 @@ namespace Jellyfin.Plugin.JMSFusion.Core
                 return;
             }
 
-            foreach (var type in ItemCacheTypes)
+            var cfg = plugin.Configuration;
+            var key = userId.ToString("N");
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var entry = cfg.AccessCacheGenerations.FirstOrDefault(e => string.Equals(e.UserId, key, StringComparison.OrdinalIgnoreCase));
+            if (entry is null)
+            {
+                entry = new AccessGenEntry { UserId = key };
+                cfg.AccessCacheGenerations.Add(entry);
+            }
+
+            entry.Generation = Math.Max(entry.Generation + 1, now);
+            PruneOldCaches(plugin, entry.Generation);
+        }
+
+        private static void PruneOldCaches(JMSFusionPlugin plugin, long generation)
+        {
+            var cutoff = DateTimeOffset.FromUnixTimeMilliseconds(generation).UtcDateTime;
+            foreach (var type in Core.ScopedCacheJsonService.GenerationCacheTypes)
             {
                 try
                 {
@@ -199,7 +212,16 @@ namespace Jellyfin.Plugin.JMSFusion.Core
 
                     foreach (var file in Directory.EnumerateFiles(dir, "*.json"))
                     {
-                        try { File.Delete(file); } catch { }
+                        try
+                        {
+                            if (File.GetLastWriteTimeUtc(file) < cutoff)
+                            {
+                                File.Delete(file);
+                            }
+                        }
+                        catch
+                        {
+                        }
                     }
                 }
                 catch
@@ -235,7 +257,7 @@ namespace Jellyfin.Plugin.JMSFusion.Core
                 .ToArray();
 
             await UserAccessor.UpdatePolicyAsync(users, userId, policy).ConfigureAwait(false);
-            PurgeItemCaches();
+            BumpCacheGeneration(userId);
             return true;
         }
 

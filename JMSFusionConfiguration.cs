@@ -154,6 +154,11 @@ namespace Jellyfin.Plugin.JMSFusion
         // Fork ParticularFlix: controle de acesso por usuario. Edita a politica NATIVA do Jellyfin
         // (classificacao maxima, tags, bibliotecas), valida em todos os clientes. O PIN global desbloqueia
         // temporariamente (UnlockedUntilUtc) e a politica restrita volta sozinha.
+        // Geracao dos caches de lista por usuario: sobe a cada mudanca de politica de acesso daquele
+        // usuario. Caches de geracoes antigas nunca sao lidos nem gravados de volta.
+        [JsonPropertyName("accessCacheGenerations")]
+        public List<AccessGenEntry> AccessCacheGenerations { get; set; } = new();
+
         [JsonPropertyName("accessProfiles")]
         public List<AccessProfileEntry> AccessProfiles { get; set; } = new();
 
@@ -475,6 +480,15 @@ namespace Jellyfin.Plugin.JMSFusion
 
         [JsonPropertyName("updatedAtUtc")]
         public long UpdatedAtUtc { get; set; } = 0;
+    }
+
+    public class AccessGenEntry
+    {
+        [JsonPropertyName("userId")]
+        public string UserId { get; set; } = string.Empty;
+
+        [JsonPropertyName("generation")]
+        public long Generation { get; set; }
     }
 
     public class AccessPolicyValues

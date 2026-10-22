@@ -6,6 +6,50 @@ const SESSION_MIRROR_PREFIX = "jms:scoped-json-cache:v1:";
 const SESSION_MIRROR_MAX_AGE_MS = 15 * 60 * 1000;
 let lifecycleFlushBound = false;
 
+// Fork ParticularFlix: geracao do cache por escopo (vem do servidor no cabecalho X-JMS-Gen).
+// Sobe a cada mudanca de permissao do usuario; gravacoes com geracao antiga sao recusadas (409).
+const GEN_HEADER = "X-JMS-Gen";
+const KNOWN_GEN_KEY = "jms:access-gen";
+const SCOPE_GENERATIONS = new Map();
+let cacheFlushBlocked = false;
+
+function scopeGenKey(cacheType, scope) {
+  return `${String(cacheType || "").trim()}::${String(scope || "").trim()}`;
+}
+
+function userKeyFromScope(scope) {
+  const raw = String(scope || "");
+  const part = raw.includes("|") ? raw.slice(raw.lastIndexOf("|") + 1) : raw;
+  return part.replace(/-/g, "").trim().toLowerCase();
+}
+
+function readKnownGeneration(userKey) {
+  if (!userKey) return 0;
+  try {
+    const value = Number(sessionStorage.getItem(`${KNOWN_GEN_KEY}:${userKey}`) || 0);
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function rememberKnownGeneration(value, userId) {
+  const gen = Number(value || 0);
+  const userKey = String(userId || "").replace(/-/g, "").trim().toLowerCase();
+  if (!Number.isFinite(gen) || gen <= 0 || !userKey) return;
+  try { sessionStorage.setItem(`${KNOWN_GEN_KEY}:${userKey}`, String(gen)); } catch {}
+}
+
+export function readKnownGenerationFor(userId) {
+  return readKnownGeneration(String(userId || "").replace(/-/g, "").trim().toLowerCase());
+}
+
+// Chamado antes de recarregar a pagina por causa de mudanca de acesso: impede que os dados
+// em memoria (antigos) sejam gravados de volta no servidor durante o pagehide.
+export function blockScopedCacheFlush() {
+  cacheFlushBlocked = true;
+}
+
 function canUseSessionMirror(cacheType) {
   return String(cacheType || "") === "sliderCache";
 }
@@ -23,6 +67,10 @@ function readSessionMirror(cacheType, scope) {
     const record = JSON.parse(raw);
     const savedAt = Number(record?.savedAt || 0);
     if (!savedAt || (Date.now() - savedAt) > SESSION_MIRROR_MAX_AGE_MS) return null;
+    const knownGen = readKnownGeneration(userKeyFromScope(scope));
+    if (knownGen && Number(record?.gen || 0) !== knownGen) return null;
+    const mirrorGen = Number(record?.gen || 0);
+    if (mirrorGen) SCOPE_GENERATIONS.set(scopeGenKey(cacheType, scope), mirrorGen);
     const payload = record?.payload;
     return payload && typeof payload === "object" && !Array.isArray(payload) ? payload : null;
   } catch {
@@ -34,6 +82,7 @@ function writeSessionMirrorNow(cacheType, scope, payload, savedAt) {
   try {
     sessionStorage.setItem(sessionMirrorKey(cacheType, scope), JSON.stringify({
       savedAt,
+      gen: SCOPE_GENERATIONS.get(scopeGenKey(cacheType, scope)) || 0,
       payload: payload && typeof payload === "object" ? payload : {}
     }));
   } catch {
@@ -157,23 +206,47 @@ async function readScopePayload(cacheType, scope, { allowRemoteRead = true } = {
     throw new Error(`${cacheType} scope load failed (${response.status})`);
   }
 
+  const headerGen = Number(response.headers.get(GEN_HEADER) || 0);
+  if (headerGen > 0) {
+    SCOPE_GENERATIONS.set(scopeGenKey(cacheType, scope), headerGen);
+    rememberKnownGeneration(headerGen, userKeyFromScope(scope));
+  } else {
+    SCOPE_GENERATIONS.delete(scopeGenKey(cacheType, scope));
+  }
+
   const payload = await response.json().catch(() => ({}));
   writeSessionMirror(cacheType, scope, payload);
   return payload;
 }
 
 async function writeScopePayload(cacheType, scope, payload, { keepalive = false } = {}) {
+  if (cacheFlushBlocked) return { ok: false, blocked: true };
+
+  const headers = {
+    "Accept": "application/json",
+    "Content-Type": "application/json"
+  };
+  const sentGen = SCOPE_GENERATIONS.get(scopeGenKey(cacheType, scope));
+  if (sentGen) headers[GEN_HEADER] = String(sentGen);
+
   const response = await fetch(buildUrl(cacheType, scope), {
     method: "POST",
     cache: "no-store",
     credentials: "same-origin",
     keepalive: keepalive === true,
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json"
-    },
+    headers,
     body: JSON.stringify(payload || {})
   });
+
+  if (response.status === 409) {
+    // Permissoes mudaram desde a leitura: estes dados sao de uma geracao antiga e nao serao gravados.
+    try {
+      window.dispatchEvent(new CustomEvent("jms:cache-generation-stale", {
+        detail: { cacheType, generation: Number(response.headers.get(GEN_HEADER) || 0) }
+      }));
+    } catch {}
+    return { ok: false, stale: true };
+  }
 
   if (!response.ok) {
     const raw = await response.text().catch(() => "");
@@ -217,6 +290,7 @@ function bindLifecycleFlush() {
   lifecycleFlushBound = true;
 
   const flush = () => {
+    if (cacheFlushBlocked) return;
     for (const db of STORE_REGISTRY.values()) {
       try { void db.flushAll({ keepalive: true }); } catch {}
     }

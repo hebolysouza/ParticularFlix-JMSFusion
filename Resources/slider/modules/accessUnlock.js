@@ -1,5 +1,6 @@
 import { fetchAccessStatus, unlockAccess, lockAccess } from "./parentalPinApi.js";
 import { getConfig } from "./config.js";
+import { blockScopedCacheFlush, rememberKnownGeneration, readKnownGenerationFor } from "./scopedJsonCache.js";
 
 // ParticularFlix fork: temporary access unlock for restricted (non-admin) users.
 // Shows a small lock button; the global PIN elevates the native Jellyfin policy for
@@ -63,6 +64,37 @@ function clearListCaches() {
   } catch {}
 }
 
+// Recarrega sem que o cache em memoria (antigo) seja gravado de volta no servidor durante o pagehide.
+function reloadClean() {
+  try { blockScopedCacheFlush(); } catch {}
+  clearListCaches();
+  location.reload();
+}
+
+// Se a geracao de cache do usuario mudou no servidor (permissoes alteradas), esta pagina esta com dados
+// antigos: recarrega, mas nunca no meio de uma reproducao e no maximo uma vez a cada 20 s.
+function handleGenerationChange(status) {
+  const gen = Number(status?.generation || 0);
+  const uid = String(status?.userId || "");
+  if (!gen || !uid) return;
+
+  const known = readKnownGenerationFor(uid);
+  if (!known) {
+    rememberKnownGeneration(gen, uid);
+    return;
+  }
+  if (known === gen) return;
+
+  if (isPlayerActive()) return;
+  try {
+    const last = Number(sessionStorage.getItem("jms:accu-reload-at") || 0);
+    if (Date.now() - last < 20000) return;
+    sessionStorage.setItem("jms:accu-reload-at", String(Date.now()));
+  } catch {}
+  rememberKnownGeneration(gen, uid);
+  reloadClean();
+}
+
 function closeDialog() {
   document.getElementById(DLG_ID)?.remove();
 }
@@ -108,8 +140,7 @@ function openDialog() {
     try {
       const res = await unlockAccess(pin);
       if (res && res.valid) {
-        clearListCaches();
-        location.reload();
+        reloadClean();
         return;
       }
       if (res && res.isLocked) {
@@ -163,8 +194,7 @@ function renderButton(status) {
       btn.disabled = true;
       try {
         await lockAccess();
-        clearListCaches();
-        location.reload();
+        reloadClean();
       } catch {
         btn.disabled = false;
       }
@@ -181,7 +211,7 @@ function scheduleExpiry(status) {
   if (status && status.isUnlocked && status.unlockedUntilUtc) {
     // The server relocks within ~20s after expiry; reload once it had time to do so.
     const wait = Math.max(5000, status.unlockedUntilUtc - Date.now() + 30_000);
-    expiryTimer = window.setTimeout(() => { clearListCaches(); location.reload(); }, Math.min(wait, 2_147_000_000));
+    expiryTimer = window.setTimeout(() => reloadClean(), Math.min(wait, 2_147_000_000));
   }
 }
 
@@ -189,6 +219,7 @@ async function refresh() {
   try {
     const status = await fetchAccessStatus();
     lastStatus = status;
+    handleGenerationChange(status);
     renderButton(status);
     scheduleExpiry(status);
   } catch {
@@ -208,6 +239,9 @@ export function initAccessUnlock() {
     if (lastStatus) renderButton(lastStatus);
     refresh();
   }, POLL_MS);
+  window.addEventListener("jms:cache-generation-stale", () => {
+    void refresh();
+  });
   document.addEventListener("jms:auth-profile-changed", () => {
     removeEls();
     lastStatus = null;

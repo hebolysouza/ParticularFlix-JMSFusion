@@ -871,9 +871,49 @@ namespace Jellyfin.Plugin.JMSFusion.Core
             }
         }
 
+        // Tipos de cache que guardam listas de itens e dependem das permissoes do usuario.
+        public static readonly string[] GenerationCacheTypes =
+        {
+            "sliderCache", "recentRows", "directorRows", "personalRecommendations", "collectionCache"
+        };
+
+        // Os escopos dos caches sao "serverId|userId"; a geracao e a do usuario citado no escopo.
+        public static long CurrentGeneration(string cacheType, string? scope)
+        {
+            if (string.IsNullOrWhiteSpace(scope)
+                || !GenerationCacheTypes.Contains(cacheType, StringComparer.OrdinalIgnoreCase))
+            {
+                return 0;
+            }
+
+            var entries = JMSFusionPlugin.Instance?.Configuration?.AccessCacheGenerations;
+            if (entries is null || entries.Count == 0)
+            {
+                return 0;
+            }
+
+            var compact = scope.Replace("-", string.Empty, StringComparison.Ordinal);
+            foreach (var entry in entries)
+            {
+                if (!string.IsNullOrEmpty(entry.UserId)
+                    && compact.Contains(entry.UserId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return entry.Generation;
+                }
+            }
+
+            return 0;
+        }
+
         private static string GetFilePath(string cacheType, string scope)
         {
             var normalizedScope = NormalizeScope(scope);
+            var generation = CurrentGeneration(cacheType, normalizedScope);
+            if (generation > 0)
+            {
+                normalizedScope = $"{normalizedScope}#g{generation}";
+            }
+
             var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedScope))).ToLowerInvariant();
             var directory = JMSFusionPlugin.Instance.GetStorageDirectory("scoped-cache", cacheType);
             return Path.Combine(directory, $"{hash}.json");

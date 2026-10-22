@@ -5,6 +5,10 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.8.2.25 (fork release, build only)
+
+- Access control: list caches (slider, recent rows, director rows, recommendations, collections) now carry a per user generation that the server raises on every permission change. Stale pages can no longer write old content back after a lock, unlock or revert (the browser used to flush its in memory cache while reloading, which revived the previous content in the slider), and a page opened with an old generation reloads itself within a minute (never during playback). Replaces the cache file purge of 3.8.2.24.
+
 ## 3.8.2.24 (fork release)
 
 - New "Access Control" tab (administrators only) that edits the NATIVE Jellyfin permissions of each non-administrator user: maximum parental rating, blocking of unrated content, blocked and allowed tags, and which libraries the user can see. Because it uses the server policy, the restriction is enforced by Jellyfin on every app and device, not only in the web client. Templates are provided (Free, Child, Teen, Almost adult). The original policy of each user is stored the first time and can be restored with one click. Administrators can never be restricted.
