@@ -4626,8 +4626,14 @@ function shouldRepairVisibleSliderOnRestore({ forcePrime = false } = {}) {
   return false;
 }
 
+let __lastRestoreRepairAt = 0;
+
 function scheduleVisibleSliderRestoreRepair(options = {}) {
   if (isHomeInitPending() || window.__slidesInitRunning || window.sliderResetInProgress) return;
+
+  // Fork ParticularFlix 3.8.2.25: focus, visibilitychange e pageshow chegam em sequencia (alternar de janela,
+  // abrir o DevTools). Reparar o layout do slider a cada um deles custava 250 ms ou mais por vez.
+  if (Date.now() - __lastRestoreRepairAt < 4000) return;
 
   const totalSlides = Math.max(0, Number(window.__totalSlidesPlanned) || 0);
   const createdSlides = Math.max(0, Number(window.__slidesCreated) || 0);
@@ -4639,6 +4645,7 @@ function scheduleVisibleSliderRestoreRepair(options = {}) {
   if (getConfig()?.peakSlider && peakContainer && !peakContainer.classList.contains("peak-ready")) return;
 
   if (!shouldRepairVisibleSliderOnRestore(options)) return;
+  __lastRestoreRepairAt = Date.now();
   scheduleVisibleSliderRepair(options);
 }
 
