@@ -38,7 +38,13 @@ const HOME_SECTION_QUEUE_HANDOFF_TIMEOUT_MS = 1800;
 // continua entregando uma secao por vez, na ordem planejada, em segundo plano.
 const HOME_ROWS_EAGER_EVENT = "jms:home-rows-eager";
 let HOME_ROWS_EAGER_ON = false;
-export function setHomeRowsEager(on) {
+// Fork ParticularFlix: no modo eager a fila nao espera cada esteira terminar por completo
+// (rede incluida) para iniciar a proxima; espera no maximo este tempo e segue. As esteiras
+// continuam respeitando suas dependencias de ordem na tela. 0 = comportamento antigo.
+let HOME_ROWS_EAGER_HANDOFF_MS = 300;
+export function setHomeRowsEager(on, options = {}) {
+  const hm = Number(options?.handoffMs);
+  if (Number.isFinite(hm) && hm >= 0) HOME_ROWS_EAGER_HANDOFF_MS = hm;
   const next = !!on;
   if (next === HOME_ROWS_EAGER_ON) return;
   HOME_ROWS_EAGER_ON = next;
@@ -1102,6 +1108,9 @@ async function runManagedRenderTask(task, generation = MANAGED_RENDER_QUEUE.gene
   const isStillValid = typeof task?.options?.isStillValid === "function"
     ? task.options.isStillValid
     : null;
+  const effectiveHandoffMs = (HOME_ROWS_EAGER_ON && HOME_ROWS_EAGER_HANDOFF_MS > 0)
+    ? Math.min(handoffTimeoutMs, HOME_ROWS_EAGER_HANDOFF_MS)
+    : handoffTimeoutMs;
 
   if (isStillValid && !isStillValid()) {
     task.resolve(false);
@@ -1153,8 +1162,8 @@ async function runManagedRenderTask(task, generation = MANAGED_RENDER_QUEUE.gene
   );
 
   const handoffPromise = completionGated
-    ? waitForManagedSectionCompletion(task.key, { timeoutMs: handoffTimeoutMs })
-    : waitForManagedSectionReady(task.key, { timeoutMs: handoffTimeoutMs });
+    ? waitForManagedSectionCompletion(task.key, { timeoutMs: effectiveHandoffMs })
+    : waitForManagedSectionReady(task.key, { timeoutMs: effectiveHandoffMs });
 
   await Promise.race([
     settledPromise,

@@ -2277,7 +2277,7 @@ function scheduleHomeRowsEager(cfg) {
   __homeRowsEagerTimer = window.setTimeout(() => {
     __homeRowsEagerTimer = 0;
     loadHomeSectionChainModule()
-      .then((m) => m.setHomeRowsEager?.(true))
+      .then((m) => m.setHomeRowsEager?.(true, { handoffMs: Number(cfg?.homeRowsEagerHandoffMs) }))
       .catch(() => {});
   }, delay);
 }
