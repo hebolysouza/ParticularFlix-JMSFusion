@@ -6,15 +6,22 @@ let inMemoryOnly = false;
 let pendingSaveId = null;
 let useRIC = typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function';
 
+// Fork ParticularFlix 3.8.2.25: o teste gravava e apagava uma chave no localStorage a cada chamada (e esta
+// funcao e chamada a cada salvamento do cache). O resultado e lembrado; se a gravacao real falhar mais tarde,
+// tryLocalStorageSet ja cai para o modo somente memoria.
+let __storageAvailable = null;
+
 function storageAvailable() {
+  if (__storageAvailable !== null) return __storageAvailable;
   try {
     const x = '__vq_test__';
     localStorage.setItem(x, '1');
     localStorage.removeItem(x);
-    return true;
+    __storageAvailable = true;
   } catch {
-    return false;
+    __storageAvailable = false;
   }
+  return __storageAvailable;
 }
 
 function clearLegacyQualityCacheKeys() {

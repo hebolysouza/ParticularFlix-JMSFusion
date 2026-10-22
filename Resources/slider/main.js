@@ -3932,38 +3932,44 @@ function runNonCriticalUiBootOnce() {
   window.__jmsNonCriticalBooted = true;
 
   whenFirstSlideReadyOrTimeout(() => {
-    idle(() => {
-      try {
-        if (!window.cleanupProfileChooser) {
-          window.cleanupProfileChooser = initProfileChooser();
-        }
-      } catch {}
-
-      try {
-        if (!window.cleanupAvatarSystem) {
-          window.cleanupAvatarSystem = initAvatarSystem();
-        }
-      } catch {}
-
-      try {
-        const liveCfg = getMainConfig();
-        if (liveCfg.enableNotifications !== false) {
-          bootNotificationsOnce();
-        } else {
-          document.getElementById("jfNotifBtn")?.remove();
-          document.getElementById("jfNotifModal")?.remove();
-          document.querySelector(".jf-notif-panel")?.remove();
-          document.documentElement.dataset.jmsNotif = "0";
-        }
-      } catch {}
-
-      if (config.enableQualityBadges && !window.__qualityBadgesBooted) {
-        window.__qualityBadgesBooted = true;
-        try { window.cleanupQualityBadges = initializeQualityBadges(); } catch {}
+    // Fork ParticularFlix 3.8.2.25: as cinco inicializacoes rodavam juntas em um unico callback ocioso
+    // (680 a 1000 ms medidos). Agora cada uma roda separada, devolvendo o controle ao navegador entre elas.
+    const yieldToMain = () => new Promise((resolve) => setTimeout(resolve, 0));
+    idle(async () => {
+      const steps = [
+        () => {
+          if (!window.cleanupProfileChooser) {
+            window.cleanupProfileChooser = initProfileChooser();
+          }
+        },
+        () => {
+          if (!window.cleanupAvatarSystem) {
+            window.cleanupAvatarSystem = initAvatarSystem();
+          }
+        },
+        () => {
+          const liveCfg = getMainConfig();
+          if (liveCfg.enableNotifications !== false) {
+            bootNotificationsOnce();
+          } else {
+            document.getElementById("jfNotifBtn")?.remove();
+            document.getElementById("jfNotifModal")?.remove();
+            document.querySelector(".jf-notif-panel")?.remove();
+            document.documentElement.dataset.jmsNotif = "0";
+          }
+        },
+        () => {
+          if (config.enableQualityBadges && !window.__qualityBadgesBooted) {
+            window.__qualityBadgesBooted = true;
+            window.cleanupQualityBadges = initializeQualityBadges();
+          }
+        },
+        () => { bootSerrIntegrationOnce(); }
+      ];
+      for (const step of steps) {
+        try { step(); } catch {}
+        await yieldToMain();
       }
-
-      try { bootSerrIntegrationOnce(); } catch {}
-
     });
   }, 7000);
 }

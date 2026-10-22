@@ -426,20 +426,55 @@ function __qbTryPrimeQualityFromItem(item) {
     if (!vs) return;
 
     __qbMarkPrimed(item.Id);
-    queueMicrotask(async () => {
-      try {
-        const primer = await __qbEnsurePrimer();
-        const getVideoQualityText = primer?.getVideoQualityText;
-        const setCachedQuality = primer?.setCachedQuality;
-        if (!getVideoQualityText || !setCachedQuality) return;
-
-        const q = getVideoQualityText(vs);
-        if (!q) return;
-        await setCachedQuality(item.Id, q, type);
-      } catch (e) {
-      }
-    });
+    __qbQueue.push({ id: item.Id, vs, type });
+    __qbScheduleDrain();
   } catch {}
+}
+
+// Fork ParticularFlix 3.8.2.25: antes cada item de cada resposta da API gerava, em microtarefa, o HTML de
+// qualidade e uma gravacao no cache, tudo antes do navegador poder pintar (400 a 600 ms medidos na home).
+// Agora os itens entram em uma fila e sao processados em fatias de ~8 ms quando o navegador esta ocioso.
+const __qbQueue = [];
+let __qbDrainScheduled = false;
+
+function __qbScheduleDrain() {
+  if (__qbDrainScheduled) return;
+  __qbDrainScheduled = true;
+  const run = () => {
+    __qbDrainScheduled = false;
+    void __qbDrain();
+  };
+  try {
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(run, { timeout: 1500 });
+    } else {
+      setTimeout(run, 150);
+    }
+  } catch {
+    setTimeout(run, 150);
+  }
+}
+
+async function __qbDrain() {
+  try {
+    const primer = await __qbEnsurePrimer();
+    const getVideoQualityText = primer?.getVideoQualityText;
+    const setCachedQuality = primer?.setCachedQuality;
+    if (!getVideoQualityText || !setCachedQuality) {
+      __qbQueue.length = 0;
+      return;
+    }
+    const startedAt = performance.now();
+    while (__qbQueue.length) {
+      const job = __qbQueue.shift();
+      try {
+        const q = getVideoQualityText(job.vs);
+        if (q) setCachedQuality(job.id, q, job.type);
+      } catch {}
+      if (performance.now() - startedAt > 8) break;
+    }
+  } catch {}
+  if (__qbQueue.length) __qbScheduleDrain();
 }
 
 function __qbTryPrimeQualityFromPayload(payload) {
