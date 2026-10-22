@@ -11,12 +11,49 @@ namespace Jellyfin.Plugin.JMSFusion.Core
     // usuarios e feito por reflexao em tempo de execucao, como no restante do plugin.
     public static class UserAccessor
     {
-        private const BindingFlags Flags = BindingFlags.Instance | BindingFlags.Public;
+        private const BindingFlags Flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+        // Procura primeiro na interface (implementacoes explicitas so aparecem la) e depois na classe real.
+        private static IEnumerable<Type> Sources(IUserManager users)
+        {
+            yield return typeof(IUserManager);
+            yield return users.GetType();
+        }
+
+        private static PropertyInfo? FindProperty(IUserManager users, string name)
+        {
+            return Sources(users).Select(t => t.GetProperty(name, Flags)).FirstOrDefault(p => p is not null);
+        }
+
+        private static MethodInfo? FindMethod(IUserManager users, string name, Func<ParameterInfo[], bool> match)
+        {
+            return Sources(users)
+                .SelectMany(t => t.GetMethods(Flags))
+                .FirstOrDefault(m => m.Name == name && match(m.GetParameters()));
+        }
 
         public static List<object> List(IUserManager users)
         {
             var result = new List<object>();
-            var value = users.GetType().GetProperty("Users", Flags)?.GetValue(users);
+
+            // 1) propriedade Users, 2) metodos sem parametro GetUsers/GetAllUsers, 3) ids + GetUserById.
+            object? value = FindProperty(users, "Users")?.GetValue(users);
+            if (value is null)
+            {
+                foreach (var name in new[] { "GetUsers", "GetAllUsers" })
+                {
+                    var m = FindMethod(users, name, ps => ps.Length == 0);
+                    if (m is not null)
+                    {
+                        value = m.Invoke(users, Array.Empty<object>());
+                        if (value is not null)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+
             if (value is System.Collections.IEnumerable items)
             {
                 foreach (var item in items)
@@ -28,13 +65,27 @@ namespace Jellyfin.Plugin.JMSFusion.Core
                 }
             }
 
+            if (result.Count == 0)
+            {
+                var idsValue = FindProperty(users, "UsersIds")?.GetValue(users);
+                if (idsValue is System.Collections.IEnumerable ids)
+                {
+                    foreach (var rawId in ids)
+                    {
+                        if (rawId is Guid g && Find(users, g) is { } found)
+                        {
+                            result.Add(found);
+                        }
+                    }
+                }
+            }
+
             return result;
         }
 
         public static object? Find(IUserManager users, Guid id)
         {
-            var method = users.GetType().GetMethods(Flags).FirstOrDefault(m =>
-                m.Name == "GetUserById" && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(Guid));
+            var method = FindMethod(users, "GetUserById", ps => ps.Length == 1 && ps[0].ParameterType == typeof(Guid));
             return method?.Invoke(users, new object[] { id });
         }
 
@@ -50,16 +101,7 @@ namespace Jellyfin.Plugin.JMSFusion.Core
 
         public static UserPolicy? PolicyOf(IUserManager users, object user)
         {
-            var method = users.GetType().GetMethods(Flags).FirstOrDefault(m =>
-            {
-                if (m.Name != "GetUserDto")
-                {
-                    return false;
-                }
-
-                var ps = m.GetParameters();
-                return ps.Length >= 1 && ps[0].ParameterType.IsInstanceOfType(user) && ps.Skip(1).All(p => p.IsOptional);
-            });
+            var method = FindMethod(users, "GetUserDto", ps => ps.Length >= 1 && ps[0].ParameterType.IsInstanceOfType(user) && ps.Skip(1).All(p => p.IsOptional));
             if (method is null)
             {
                 throw new MissingMethodException("IUserManager.GetUserDto not found.");
@@ -72,16 +114,7 @@ namespace Jellyfin.Plugin.JMSFusion.Core
 
         public static async Task UpdatePolicyAsync(IUserManager users, Guid id, UserPolicy policy)
         {
-            var method = users.GetType().GetMethods(Flags).FirstOrDefault(m =>
-            {
-                if (m.Name != "UpdatePolicyAsync")
-                {
-                    return false;
-                }
-
-                var ps = m.GetParameters();
-                return ps.Length == 2 && ps[0].ParameterType == typeof(Guid) && ps[1].ParameterType.IsInstanceOfType(policy);
-            });
+            var method = FindMethod(users, "UpdatePolicyAsync", ps => ps.Length == 2 && ps[0].ParameterType == typeof(Guid) && ps[1].ParameterType.IsInstanceOfType(policy));
             if (method is null)
             {
                 throw new MissingMethodException("IUserManager.UpdatePolicyAsync not found.");

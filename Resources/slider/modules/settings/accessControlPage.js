@@ -333,7 +333,8 @@ export function createAccessControlPanel(config, labels) {
       list.textContent = "";
       const users = (data.users || []).filter((u) => !u.isAdmin);
       if (!users.length) {
-        list.appendChild(el("div", "jms-acc-note", t(labels, "accessCtlNoUsers", "No non-administrator users found.")));
+        const diag = data.diagnostics ? ` (read: ${data.diagnostics.usersRead}, listed: ${data.diagnostics.usersListed})` : "";
+        list.appendChild(el("div", "jms-acc-note", t(labels, "accessCtlNoUsers", "No non-administrator users found.") + diag));
         return;
       }
       const ctx = {

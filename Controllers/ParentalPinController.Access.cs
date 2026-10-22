@@ -40,7 +40,9 @@ public partial class ParentalPinController
             var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
             var users = new List<object>();
-            foreach (var u in UserAccessor.List(_users).OrderBy(x => UserAccessor.NameOf(x), StringComparer.OrdinalIgnoreCase))
+            var rawUsers = UserAccessor.List(_users);
+            _logger.LogInformation("[JMSFusion] Access control: {Count} users read from the user manager.", rawUsers.Count);
+            foreach (var u in rawUsers.OrderBy(x => UserAccessor.NameOf(x), StringComparer.OrdinalIgnoreCase))
             {
                 var policy = UserAccessor.PolicyOf(_users, u);
                 if (policy is null)
@@ -69,7 +71,8 @@ public partial class ParentalPinController
                 hasPin = HasConfiguredPin(cfg),
                 allUnratedItems = AccessControlCore.AllUnratedValues(),
                 users,
-                libraries
+                libraries,
+                diagnostics = new { usersRead = rawUsers.Count, usersListed = users.Count }
             });
         }
         catch (Exception ex)
