@@ -406,6 +406,7 @@ const USER_ONLY_KEYS = [
               ? formData.get('sliderSourceMode')
               : 'query',
             sliderSourceWindowMonths: Math.max(1, Math.min(60, parseInt(formData.get('sliderSourceWindowMonths'), 10) || 6)),
+            sliderSourceCacheMinutes: Math.max(1, Math.min(120, parseInt(formData.get('sliderSourceCacheMinutes'), 10) || 3)),
             showCast,
             showProgressBar: false,
             showProgressAsSeconds: formData.get('showProgressAsSeconds') === 'on',

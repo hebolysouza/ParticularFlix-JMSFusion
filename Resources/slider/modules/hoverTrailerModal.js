@@ -2532,24 +2532,25 @@ function injectOrUpdateModalStyle() {
   style.textContent = `
     .video-preview-modal {
       position: absolute;
-      width: 400px;
-      height: 350px;
-      background: rgba(28, 28, 46, 0.97);
-      border-radius: 20px;
+      width: 500px;
+      height: auto;
+      background: rgba(22, 24, 36, 0.985);
+      border-radius: 14px;
       box-shadow:
-        0 8px 32px 0 rgba(31, 38, 135, 0.38),
-        0 1.5px 4px rgba(0, 0, 0, 0.09);
+        0 24px 64px 0 rgba(0, 0, 0, 0.62),
+        0 6px 18px rgba(0, 0, 0, 0.38);
       z-index: 1000;
       display: none;
       overflow: hidden;
-      transform: translateY(8px) scale(0.92);
+      transform: scale(0.9);
+      transform-origin: center center;
       opacity: 0;
       transition:
-        opacity 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
-        transform 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        opacity 260ms cubic-bezier(0.22, 0.8, 0.28, 1),
+        transform 320ms cubic-bezier(0.22, 0.8, 0.28, 1);
       font-family: "Inter", "Netflix Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
       pointer-events: auto;
-      border: 1.5px solid rgba(255, 255, 255, 0.10);
+      border: 1px solid rgba(255, 255, 255, 0.09);
       backdrop-filter: blur(12px) saturate(160%);
       user-select: none;
       box-sizing: border-box;
@@ -2557,13 +2558,14 @@ function injectOrUpdateModalStyle() {
     }
 
     .video-preview-modal.video-preview-modal--visible {
-      display: block;
-      transform: translateY(0) scale(1);
+      display: flex;
+      flex-direction: column;
+      transform: scale(1);
       opacity: 1;
     }
 
     .video-preview-modal.video-preview-modal--hidden {
-      transform: translateY(8px) scale(0.92);
+      transform: scale(0.94);
       opacity: 0;
     }
 
@@ -2620,13 +2622,13 @@ function injectOrUpdateModalStyle() {
 
     .video-preview-modal .preview-backdrop {
       position: absolute;
-      inset: 10px 10px 130px 10px;
-      border-radius: 12px;
-      padding: 10px;
+      inset: 0;
+      border-radius: 0;
+      padding: 0;
       box-sizing: border-box;
       object-fit: cover;
       width: 100%;
-      height: 190px;
+      height: 100%;
       background-position: center;
       opacity: 0;
       transition: opacity 0.25s ease;
@@ -2646,26 +2648,40 @@ function injectOrUpdateModalStyle() {
     .video-preview-modal .video-container {
       position: relative;
       width: 100%;
-      height: 200px;
-      padding: 10px;
+      height: auto;
+      aspect-ratio: 16 / 9;
+      flex: 0 0 auto;
+      padding: 0;
       box-sizing: border-box;
-      background: linear-gradient(160deg, rgba(33, 36, 54, 0.97) 65%, rgba(52, 56, 80, 0.19));
-      border-radius: 16px;
+      background: #0d0e16;
+      border-radius: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      box-shadow: 0 4px 18px 0 rgba(20, 20, 50, 0.06);
+      box-shadow: none;
       opacity: 1;
+    }
+
+    .video-preview-modal .video-container::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 38%;
+      background: linear-gradient(0deg, rgba(22, 24, 36, 0.985) 0%, rgba(22, 24, 36, 0) 100%);
+      pointer-events: none;
+      z-index: 3;
     }
 
     .video-preview-modal .preview-video {
       width: 100%;
       height: 100%;
       object-fit: cover;
-      background: #111;
-      border-radius: 12px;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.21);
+      background: #0d0e16;
+      border-radius: 0;
+      box-shadow: none;
       transition:
         opacity 0.4s ease,
         transform 0.3s ease;
@@ -2677,18 +2693,14 @@ function injectOrUpdateModalStyle() {
     }
 
     .video-preview-modal .preview-info {
-      padding: 16px 18px 12px 18px;
-      position: absolute;
-      bottom: -5px;
-      left: 0;
-      right: 0;
+      padding: 6px 20px 20px 20px;
+      position: relative;
       z-index: 2;
-      background: linear-gradient(0deg, rgba(24, 27, 38, 0.94) 60%, transparent 100%);
-      display: grid;
-      grid-template-columns: auto 1fr;
-      grid-template-rows: repeat(3, auto);
-      gap: 6px 16px;
-      align-items: end;
+      background: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: stretch;
       opacity: 1;
       font-family: "Roboto Condensed",sans-serif;
     }
@@ -2697,7 +2709,7 @@ function injectOrUpdateModalStyle() {
       grid-column: 1 / 2;
       color: #fff;
       font-weight: 700;
-      font-size: 1.24rem;
+      font-size: 1.4rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -2724,12 +2736,12 @@ function injectOrUpdateModalStyle() {
       font-size: 13px;
       display: flex;
       flex-wrap: wrap;
-      gap: 14px 10px;
+      gap: 8px 10px;
       width: 100%;
       opacity: 0.95;
       align-items: center;
-      margin: 0 0 -6px 0;
-      padding: 4px 0;
+      margin: 0;
+      padding: 0;
     }
 
     .video-preview-modal .preview-meta .monwui-quality-group {
@@ -2779,15 +2791,14 @@ function injectOrUpdateModalStyle() {
 
     .video-preview-modal .preview-buttons {
       display: flex;
-      gap: 12px;
-      position: absolute;
-      top: 60%;
-      left: 50%;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      margin-top: -22px;
       opacity: 1;
       z-index: 6;
       pointer-events: auto;
-      padding: 5px 0;
-      transform: translateX(-50%);
+      padding: 0 20px 4px 20px;
       transition:
         opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
         transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -2795,8 +2806,14 @@ function injectOrUpdateModalStyle() {
 
     .video-preview-modal .preview-buttons--hidden {
       opacity: 0;
-      transform: translateX(-50%) scale(0.95);
+      transform: scale(0.97);
     }
+
+    .video-preview-modal .preview-buttons .preview-play-button { order: 1; }
+    .video-preview-modal .preview-buttons .preview-favorite-button { order: 2; }
+    .video-preview-modal .preview-buttons .preview-match-button { order: 3; margin-left: 4px; }
+    .video-preview-modal .preview-buttons .preview-volume-wrap { order: 4; margin-left: auto; }
+    .video-preview-modal .preview-buttons .preview-info-button { order: 5; }
 
     .video-preview-modal button {
       outline: none;
@@ -2810,14 +2827,14 @@ function injectOrUpdateModalStyle() {
       background: linear-gradient(94deg, #fff 78%, #eee 100%) !important;
       color: #000;
       border-radius: 4px;
-      padding: 8px 18px 8px 16px;
-      font-size: 15px;
+      padding: 8px 22px 8px 20px;
+      font-size: 16px;
       display: flex;
       align-items: center;
-      gap: 8px;
-      height: 32px;
+      gap: 9px;
+      height: 40px;
       cursor: pointer;
-      min-width: 82px;
+      min-width: 104px;
       box-shadow: 0 2px 8px 0 rgba(23, 22, 31, 0.05);
       transition:
         box-shadow 0.18s ease,
@@ -2846,14 +2863,14 @@ function injectOrUpdateModalStyle() {
       background: rgba(56, 60, 90, 0.76);
       color: #fff;
       border-radius: 50%;
-      width: 32px;
-      height: 32px;
+      width: 40px;
+      height: 40px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 15px;
-      border: 1px solid rgba(194, 194, 255, 0.17);
+      font-size: 16px;
+      border: 1px solid rgba(194, 194, 255, 0.22);
       transition:
         background 0.18s ease,
         transform 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -2871,11 +2888,12 @@ function injectOrUpdateModalStyle() {
       color: #46d369;
       border: 1px solid rgba(70, 211, 105, 0.3);
       font-weight: 600;
-      font-size: 12px;
+      font-size: 13px;
       border-radius: 6px;
       width: auto;
-      padding: 0 8px;
-      min-width: 50px;
+      height: 32px;
+      padding: 0 9px;
+      min-width: 54px;
     }
 
     .video-preview-modal .preview-favorite-button:hover,
@@ -2895,8 +2913,8 @@ function injectOrUpdateModalStyle() {
 
     .video-preview-modal .trailer-tip {
       position: absolute;
-      top: 11px;
-      left: 11px;
+      top: 14px;
+      left: 14px;
       font-size: 11px;
       padding: 3px 8px;
       border-radius: 6px;
@@ -2988,7 +3006,15 @@ function injectOrUpdateModalStyle() {
       .video-preview-modal {
         width: 95vw;
         max-width: 380px;
-        height: 300px;
+        height: auto;
+      }
+
+      .video-preview-modal .preview-buttons {
+        padding: 0 14px 4px 14px;
+      }
+
+      .video-preview-modal .preview-info {
+        padding: 6px 14px 16px 14px;
       }
 
       .video-preview-modal .preview-buttons {
@@ -3391,8 +3417,8 @@ function softStopPlayback() {
 
 export function positionModalRelativeToItem(modal, item, options = {}) {
   const defaults = {
-    modalWidth: 400,
-    modalHeight: 350,
+    modalWidth: 500,
+    modalHeight: 440,
     windowPadding: 16,
     preferredPosition: 'center',
     autoReposition: true
@@ -3405,27 +3431,34 @@ export function positionModalRelativeToItem(modal, item, options = {}) {
     const scrollY = window.scrollY;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    let left = itemRect.left + scrollX + (itemRect.width - settings.modalWidth) / 2;
-    let top = itemRect.top + scrollY + (itemRect.height - settings.modalHeight) / 2;
+    // Fork ParticularFlix: largura limitada pela janela e altura real do card (altura automatica)
+    const mobile = viewportWidth <= 750;
+    const width = Math.max(240, Math.min(mobile ? 380 : settings.modalWidth, viewportWidth - settings.windowPadding * 2));
+    const measured = modal.offsetHeight;
+    const height = measured > 0 ? measured : Math.round(width * 9 / 16) + (settings.modalHeight - Math.round(settings.modalWidth * 9 / 16));
+    let left = itemRect.left + scrollX + (itemRect.width - width) / 2;
+    let top = itemRect.top + scrollY + (itemRect.height - height) / 2;
     switch(settings.preferredPosition) {
-      case 'top': top = itemRect.top + scrollY - settings.modalHeight - 10; break;
+      case 'top': top = itemRect.top + scrollY - height - 10; break;
       case 'bottom': top = itemRect.bottom + scrollY + 10; break;
-      case 'left': left = itemRect.left + scrollX - settings.modalWidth - 10; break;
+      case 'left': left = itemRect.left + scrollX - width - 10; break;
       case 'right': left = itemRect.right + scrollX + 10; break;
     }
-    const maxLeft = viewportWidth + scrollX - settings.modalWidth - settings.windowPadding;
-    const maxTop = viewportHeight + scrollY - settings.modalHeight - settings.windowPadding;
+    const maxLeft = viewportWidth + scrollX - width - settings.windowPadding;
+    const maxTop = viewportHeight + scrollY - height - settings.windowPadding;
     left = Math.max(settings.windowPadding, Math.min(left, maxLeft));
     top  = Math.max(settings.windowPadding, Math.min(top,  maxTop));
     modalStyle.position = 'absolute';
-    modalStyle.width = `${settings.modalWidth}px`;
-    modalStyle.height = `${settings.modalHeight}px`;
+    modalStyle.width = `${width}px`;
+    modalStyle.height = 'auto';
     modalStyle.left = `${left}px`;
     modalStyle.top  = `${top}px`;
     modalStyle.transformOrigin = 'center center';
   };
 
   positionModal();
+  // o card so tem altura real depois de aparecer: reposiciona uma vez com a medida
+  try { requestAnimationFrame(() => requestAnimationFrame(positionModal)); } catch {}
   if (settings.autoReposition) {
     const handler = () => positionModal();
     window.addEventListener('resize', handler);

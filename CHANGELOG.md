@@ -5,6 +5,11 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.8.2.15 (fork release)
+
+- Slider list cache is now an option. The "recent releases" and "recent premieres" slider sources kept their candidate list in the browser for a fixed 30 minutes, so a movie or show added just now could take a long time to show up in the main slider. The Query API page has a new field, "Slider list cache (minutes)", from 1 to 120 and defaulting to 3, used only by those two sources (the custom query keeps its own cache). The cache key was renewed, so lists cached by earlier versions are not reused.
+- Bigger, Netflix-style trailer preview card. The popover that opens from the card trailer button is now 500 px wide (it still shrinks to fit narrow screens, 380 px max on phones) with a true 16:9 video area and an automatic height. The action row (Watch, add, match, volume, details) sits just below the video, followed by the title, quality badges, year, rating, duration and genres. The card has rounder corners, a softer shadow and a smoother scale and fade when it opens, and it is positioned using its real height so it no longer leaves the screen.
+
 ## 3.8.2.14 (fork release)
 
 - Home section order no longer needs custom CSS or an external script. The built-in order module now also recognizes the Home Screen Sections rows by their type class (Continue Watching, My Media, Upcoming Movies, Upcoming Shows, Discover, Because You Watched) and by their Portuguese titles ("Filmes em breve", "Séries em breve", "Porque você assistiu"), and any row without a rule, or an empty row slot, now goes to the end of the page (`homeSectionOrderDefault`, `false` disables) instead of jumping to the top when the CSS `order: 999` rule is removed.

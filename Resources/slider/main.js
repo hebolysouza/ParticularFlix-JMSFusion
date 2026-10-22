@@ -106,6 +106,7 @@ const HOME_ITEM_USERDATA_CACHE_TTL_MS = 5 * 60 * 1000;
 const HOME_RESUME_CACHE_TTL_MS = 5 * 60 * 1000;
 const HOME_LIBRARY_WATCH_INTERVAL_MS = 5 * 60 * 1000;
 const HOME_ITEMS_POOL_CACHE_TTL_MS = 30 * 60 * 1000;
+const HOME_SLIDER_SOURCE_CACHE_MINUTES = 3;
 const HOME_ITEMS_POOL_MAX_LIMIT = 500;
 const FOCUSED_USERDATA_SYNC_MIN_GAP_MS = 45_000;
 let materialIconsRepairPromise = null;
@@ -5138,6 +5139,8 @@ export async function slidesInit() {
         const configuredShufflingLimit = parseInt(config.maxShufflingLimit || "500", 10);
         const maxShufflingLimit = Math.max(50, Math.min(HOME_ITEMS_POOL_MAX_LIMIT, Number.isFinite(configuredShufflingLimit) ? configuredShufflingLimit : 500));
         const itemsPoolTtlMs = normalizeDurationMs(config?.itemsPoolCacheTtlMs, HOME_ITEMS_POOL_CACHE_TTL_MS);
+        // Fork ParticularFlix: as fontes de lancamentos usam um cache proprio, curto e configuravel (minutos)
+        const sliderSourceTtlMs = Math.max(1, Math.min(120, parseInt(config?.sliderSourceCacheMinutes, 10) || HOME_SLIDER_SOURCE_CACHE_MINUTES)) * 60 * 1000;
         const data = useSliderSource
           ? {
               // Fork ParticularFlix: lista montada por varias consultas e ordenada pela data efetiva
@@ -5156,11 +5159,11 @@ export async function slidesInit() {
                 // O tipo "itemsPool" faz o cache descartar DateCreated e PremiereDate, campos que
                 // esta lista precisa para ordenar. Por isso usa um tipo proprio (sem compactacao).
                 fetchJson: (url) => cachedFetchJson({
-                  keyParts: ["sliderSourcePoolV2", sliderSourceMode, userId, url],
+                  keyParts: ["sliderSourcePoolV3", sliderSourceMode, userId, url],
                   url,
                   opts: { headers: authHeaders },
                   fetchJson: fetchJsonViaSafeFetch,
-                  ttlMs: itemsPoolTtlMs,
+                  ttlMs: sliderSourceTtlMs,
                   entryMeta: { kind: "sliderSourcePool", userId, queryString: url },
                   allowStaleOnError: true,
                 }),

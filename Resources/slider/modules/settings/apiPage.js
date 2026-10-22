@@ -401,14 +401,34 @@ export function createQueryPanel(config, labels) {
         "Lançamentos atuais: vale o ano atual ou os últimos N meses, o que abranger mais (evita lista vazia em janeiro). Estreias recentes: vale somente os últimos N meses. O Jellyfin guarda a data de estreia, não a data de lançamento digital."
     );
 
+    const sourceCacheDiv = document.createElement("div");
+    sourceCacheDiv.className = "setting-item limit-container";
+    const sourceCacheLabel = document.createElement("label");
+    sourceCacheLabel.textContent = labels.sliderSourceCacheMinutes || "Cache da lista do slider (minutos):";
+    const sourceCacheInput = document.createElement("input");
+    sourceCacheInput.type = "number";
+    sourceCacheInput.name = "sliderSourceCacheMinutes";
+    sourceCacheInput.id = "sliderSourceCacheMinutesInput";
+    sourceCacheInput.min = 1;
+    sourceCacheInput.max = 120;
+    sourceCacheInput.value = typeof config.sliderSourceCacheMinutes !== "undefined" ? config.sliderSourceCacheMinutes : 3;
+    sourceCacheLabel.htmlFor = "sliderSourceCacheMinutesInput";
+    sourceCacheDiv.append(sourceCacheLabel, sourceCacheInput);
+    const sourceCacheDesc = createSubsectionDescription(
+        labels.sliderSourceCacheMinutesDesc ||
+        "Por quanto tempo a lista de candidatos do slider fica guardada neste navegador antes de consultar o Jellyfin de novo. Valor menor mostra um filme ou série recém-adicionado mais rápido, ao custo de algumas consultas leves a mais ao carregar a home. Vale só para as duas fontes acima, não para a consulta personalizada."
+    );
+
     function refreshSourceModeState() {
         const custom = sourceModeSelect.value === "query";
         sourceWindowInput.disabled = custom;
         sourceWindowDiv.style.opacity = custom ? "0.5" : "";
+        sourceCacheInput.disabled = custom;
+        sourceCacheDiv.style.opacity = custom ? "0.5" : "";
     }
     sourceModeSelect.addEventListener("change", refreshSourceModeState);
     refreshSourceModeState();
-    sourceModeWrap.append(sourceModeTitle, sourceModeDesc, sourceModeSelect, sourceWindowDesc, sourceWindowDiv);
+    sourceModeWrap.append(sourceModeTitle, sourceModeDesc, sourceModeSelect, sourceWindowDesc, sourceWindowDiv, sourceCacheDesc, sourceCacheDiv);
 
     const balanceTypesDiv = document.createElement("div");
     balanceTypesDiv.className = "setting-item balance-types-container";
