@@ -89,6 +89,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             copy.ArrRadarr4KApiKey = string.Empty;
             copy.ParentalPinHash = null;
             copy.ParentalPinSalt = null;
+            copy.AccessProfiles = new();
 
             if (level == Level.Anonymous)
             {

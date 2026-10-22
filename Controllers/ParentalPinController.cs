@@ -17,7 +17,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers;
 [ApiController]
 [Route("JMSFusion/parental-pin")]
 [Route("Plugins/JMSFusion/parental-pin")]
-public class ParentalPinController : ControllerBase
+public partial class ParentalPinController : ControllerBase
 {
     private const int DefaultMaxAttempts = 5;
     private const int DefaultLockoutMinutes = 15;
@@ -32,11 +32,13 @@ public class ParentalPinController : ControllerBase
     private static readonly Regex PinRegex = new(@"^\d{4,8}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly ConcurrentDictionary<string, ParentalPinAccessState> AccessStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly IUserManager _users;
+    private readonly ILibraryManager _libraries;
     private readonly ILogger<ParentalPinController> _logger;
 
-    public ParentalPinController(IUserManager users, ILogger<ParentalPinController> logger)
+    public ParentalPinController(IUserManager users, ILibraryManager libraries, ILogger<ParentalPinController> logger)
     {
         _users = users;
+        _libraries = libraries;
         _logger = logger;
     }
 

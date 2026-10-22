@@ -521,3 +521,28 @@ if (typeof window !== "undefined" && !window.__jmsParentalPinPolicyCacheBound) {
     document.addEventListener("jms:auth-profile-changed", invalidateParentalPinPolicyCache);
   }
 }
+
+// ParticularFlix fork: access control (native Jellyfin policy per user + temporary unlock)
+export async function fetchAccessProfiles() {
+  return request("/access/profiles");
+}
+
+export async function saveAccessProfile(payload = {}) {
+  return request("/access/profiles", { method: "POST", body: payload || {} });
+}
+
+export async function deleteAccessProfile(userId) {
+  return request(`/access/profiles/${encodeURIComponent(String(userId || ""))}`, { method: "DELETE" });
+}
+
+export async function fetchAccessStatus() {
+  return request("/access/status");
+}
+
+export async function unlockAccess(pin) {
+  return request("/access/unlock", { method: "POST", body: { pin: String(pin || "") } });
+}
+
+export async function lockAccess() {
+  return request("/access/lock", { method: "POST", body: {} });
+}

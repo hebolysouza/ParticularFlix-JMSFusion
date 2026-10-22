@@ -151,6 +151,12 @@ namespace Jellyfin.Plugin.JMSFusion
         [JsonPropertyName("parentalPinTrustMinutes")]
         public int ParentalPinTrustMinutes { get; set; } = 60;
 
+        // Fork ParticularFlix: controle de acesso por usuario. Edita a politica NATIVA do Jellyfin
+        // (classificacao maxima, tags, bibliotecas), valida em todos os clientes. O PIN global desbloqueia
+        // temporariamente (UnlockedUntilUtc) e a politica restrita volta sozinha.
+        [JsonPropertyName("accessProfiles")]
+        public List<AccessProfileEntry> AccessProfiles { get; set; } = new();
+
         [JsonPropertyName("enableCastModule")]
         public bool EnableCastModule { get; set; } = true;
 
@@ -466,6 +472,58 @@ namespace Jellyfin.Plugin.JMSFusion
 
         [JsonPropertyName("orderNames")]
         public List<string> OrderNames { get; set; } = new();
+
+        [JsonPropertyName("updatedAtUtc")]
+        public long UpdatedAtUtc { get; set; } = 0;
+    }
+
+    public class AccessPolicyValues
+    {
+        [JsonPropertyName("maxParentalRating")]
+        public int? MaxParentalRating { get; set; }
+
+        [JsonPropertyName("blockUnratedItems")]
+        public int[] BlockUnratedItems { get; set; } = Array.Empty<int>();
+
+        [JsonPropertyName("blockedTags")]
+        public string[] BlockedTags { get; set; } = Array.Empty<string>();
+
+        [JsonPropertyName("allowedTags")]
+        public string[] AllowedTags { get; set; } = Array.Empty<string>();
+
+        [JsonPropertyName("enableAllFolders")]
+        public bool EnableAllFolders { get; set; } = true;
+
+        [JsonPropertyName("enabledFolders")]
+        public string[] EnabledFolders { get; set; } = Array.Empty<string>();
+    }
+
+    public class AccessProfileEntry
+    {
+        [JsonPropertyName("userId")]
+        public string UserId { get; set; } = string.Empty;
+
+        [JsonPropertyName("userName")]
+        public string? UserName { get; set; }
+
+        // Politica do usuario antes de o plugin mexer (usada para reverter).
+        [JsonPropertyName("original")]
+        public AccessPolicyValues? Original { get; set; }
+
+        [JsonPropertyName("restricted")]
+        public AccessPolicyValues Restricted { get; set; } = new();
+
+        [JsonPropertyName("unlockEnabled")]
+        public bool UnlockEnabled { get; set; } = false;
+
+        [JsonPropertyName("unlockMinutes")]
+        public int UnlockMinutes { get; set; } = 30;
+
+        [JsonPropertyName("unlocked")]
+        public AccessPolicyValues Unlocked { get; set; } = new();
+
+        [JsonPropertyName("unlockedUntilUtc")]
+        public long UnlockedUntilUtc { get; set; } = 0;
 
         [JsonPropertyName("updatedAtUtc")]
         public long UpdatedAtUtc { get; set; } = 0;

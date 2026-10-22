@@ -23,6 +23,7 @@ import { createCinemaPreRollPanel } from './settings/cinemaPreRollPage.js';
 import { createProfileChooserPanel } from './settings/profileChooserPage.js';
 import { createWatchlistPanel } from './settings/watchlistPage.js';
 import { createParentalPinPanel } from './settings/parentalPinPage.js';
+import { createAccessControlPanel } from './settings/accessControlPage.js';
 import { createDbManagementPanel } from './settings/dbManagementPage.js';
 import { createDetailsModalPanel } from './settings/detailsModalPage.js';
 import { createSerrPanel } from './seerr/settingsPage.js';
@@ -165,6 +166,9 @@ export function createSettingsModal() {
     const parentalPinTab = config?.currentUserIsAdmin
       ? createTab('parental-pin', 'fa-key', labels.parentalPinTab || 'PIN Kontrolü Ayarları')
       : null;
+    const accessControlTab = config?.currentUserIsAdmin
+      ? createTab('access-control', 'fa-user-lock', labels.accessCtlTab || 'Access Control')
+      : null;
     const positionTab = createTab('position', 'fa-arrows-up-down-left-right', labels.positionSettings || 'Konumlandırma Ayarları');
     const dbManagementTab = createTab('db-management', 'fa-database', labels.dbManagementTab || 'DB Yönetimi');
     const exporterTab = createTab('exporter', 'fa-download', labels.backupRestore || 'Yedekle ve Geri Yükle');
@@ -173,7 +177,7 @@ export function createSettingsModal() {
     const tabs = [
         mainTab, sliderTab, queryTab, musicTab, studioTab, profileChooserTab,
         pauseTab, watchlistSettingsTab, hoverTab, cinemaPreRollTab, trailersTab, notificationsTab, serrTab, detailsModalTab,
-        avatarTab, parentalPinTab, positionTab, dbManagementTab, exporterTab, aboutTab
+        avatarTab, parentalPinTab, accessControlTab, positionTab, dbManagementTab, exporterTab, aboutTab
     ].filter(Boolean);
     tabContainer.append(...tabs);
 
@@ -210,6 +214,9 @@ export function createSettingsModal() {
     const parentalPinPanel = config?.currentUserIsAdmin
       ? createParentalPinPanel(config, labels)
       : null;
+    const accessControlPanel = config?.currentUserIsAdmin
+      ? createAccessControlPanel(config, labels)
+      : null;
     const mainPanel = createMainSettingsPanel(labels, {
         sliderPanel,
         profileChooserPanel,
@@ -240,7 +247,7 @@ export function createSettingsModal() {
     [
         mainPanel, sliderPanel, queryPanel, musicPanel, studioPanel, profileChooserPanel,
         pausePanel, watchlistSettingsPanel, hoverPanel, cinemaPreRollPanel, trailersPanel, notificationsPanel, serrPanel, detailsModalPanel,
-        avatarPanel, parentalPinPanel, positionPanel, dbManagementPanel, exporterPanel, aboutPanel
+        avatarPanel, parentalPinPanel, accessControlPanel, positionPanel, dbManagementPanel, exporterPanel, aboutPanel
     ].filter(Boolean).forEach(panel => {
         panel.style.display = 'none';
     });
@@ -249,14 +256,14 @@ export function createSettingsModal() {
     const panels = [
         mainPanel, sliderPanel, queryPanel, musicPanel, studioPanel, profileChooserPanel,
         pausePanel, watchlistSettingsPanel, hoverPanel, cinemaPreRollPanel, trailersPanel, notificationsPanel, serrPanel, detailsModalPanel,
-        avatarPanel, parentalPinPanel, positionPanel, dbManagementPanel, exporterPanel, aboutPanel
+        avatarPanel, parentalPinPanel, accessControlPanel, positionPanel, dbManagementPanel, exporterPanel, aboutPanel
     ].filter(Boolean);
     tabContent.append(...panels);
 
     const interactiveTabs = [
         mainTab, sliderTab, queryTab, musicTab, studioTab, profileChooserTab,
         pauseTab, watchlistSettingsTab, hoverTab, cinemaPreRollTab, trailersTab, notificationsTab, serrTab, detailsModalTab,
-        avatarTab, parentalPinTab, positionTab, dbManagementTab, exporterTab, aboutTab
+        avatarTab, parentalPinTab, accessControlTab, positionTab, dbManagementTab, exporterTab, aboutTab
     ].filter(Boolean);
     interactiveTabs.forEach(tab => {
         tab.addEventListener('click', () => {

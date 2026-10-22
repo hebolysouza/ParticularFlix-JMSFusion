@@ -6913,6 +6913,11 @@ function observeWhenHomeReady(cb, maxMs = 20000) {
         });
       } catch {}
       runNonCriticalUiBootOnce();
+      try {
+        import("./modules/accessUnlock.js")
+          .then((m) => m.initAccessUnlock())
+          .catch((e) => console.warn("accessUnlock init hata:", e));
+      } catch {}
     });
 
     setupNavigationObserver();
