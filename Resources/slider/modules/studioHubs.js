@@ -1144,7 +1144,7 @@ export async function renderStudioHubs() {
         card.style.removeProperty('--hub-card-shadow');
       }
       const groupIds = (!manualIdOf(name) ? buildStudioGroupIds(name, studio, studios) : [studio.Id]);
-      const groupParam = groupIds.join("|");
+      const groupParam = groupIds.join(","); // virgula: o Jellyfin 10.11 ignora o filtro com "|" (testado)
       const detailsHref = buildStudioHref(groupParam || studio.Id, serverId);
       card.href = detailsHref;
       card.classList.remove("hub-card-textonly");
