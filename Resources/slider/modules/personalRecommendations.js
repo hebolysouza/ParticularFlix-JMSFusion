@@ -1,3 +1,4 @@
+import { measure, mutate } from "./frameBatch.js";
 import { getSessionInfo, makeApiRequest, getCachedUserTopGenres } from "../../Plugins/JMSFusion/runtime/api.js";
 import { getConfig, getHomeSectionsRuntimeConfig, normalizeManagedCardTitleDisplayMode } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
@@ -3801,17 +3802,16 @@ export function setupScroller(row) {
     bindScrollerButtons();
   };
 
-  const updateButtonsNow = () => {
-    const scrollable = canScroll();
+  const applyButtonState = (scrollable, max, left) => {
+    if (!row.isConnected) return;
     if (!scrollable) {
       releaseButtons({ remove: true });
       return;
     }
 
     ensureScrollerButtons();
-    const max = maxScrollLeft();
-    const atStart = row.scrollLeft <= SNAP_EPSILON;
-    const atEnd = row.scrollLeft >= max - SNAP_EPSILON;
+    const atStart = left <= SNAP_EPSILON;
+    const atEnd = left >= max - SNAP_EPSILON;
     if (btnL) {
       btnL.setAttribute("aria-disabled", "false");
       btnL.disabled = false;
@@ -3834,9 +3834,14 @@ export function setupScroller(row) {
 
   const scheduleUpdate = () => {
     if (_rafToken) return;
-    _rafToken = requestAnimationFrame(() => {
+    _rafToken = true;
+    measure(() => {
       _rafToken = null;
-      updateButtonsNow();
+      if (!row.isConnected) return;
+      const scrollable = canScroll();
+      const max = scrollable ? maxScrollLeft() : 0;
+      const left = row.scrollLeft;
+      mutate(() => applyButtonState(scrollable, max, left));
     });
   };
 
@@ -3910,8 +3915,8 @@ export function setupScroller(row) {
     try { cleanupScroller(row); } catch {}
   }, { once: true });
 
-  requestAnimationFrame(() => updateButtonsNow());
-  setTimeout(() => updateButtonsNow(), 400);
+  scheduleUpdate();
+  setTimeout(() => scheduleUpdate(), 400);
 }
 
 function normalizeGenreKey(genre) {
