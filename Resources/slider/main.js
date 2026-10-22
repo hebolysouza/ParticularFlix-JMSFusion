@@ -6092,6 +6092,39 @@ function queueHomeSectionsBoot({
   scheduleAttempt(delayMs, 0);
 }
 
+// Fork ParticularFlix: ao voltar para a home com o botao voltar, o navegador
+// restaura a rolagem de antes (ex. 500 px) enquanto o slider ainda nao existe;
+// quando o slider e montado ele nasce acima da area visivel (top negativo) e so
+// depois a pagina sobe sozinha para o topo, o que aparece como o slider
+// "cortado, desfocado e acima do limite" que se reencaixa. Como o resultado final
+// ja era sempre a rolagem no topo, levamos a pagina ao topo no momento em que o
+// slider e montado, sem animacao.
+function resetHomeScrollToTop() {
+  try {
+    const els = [
+      document.scrollingElement,
+      document.documentElement,
+      document.body,
+      document.querySelector(".mainAnimatedPages"),
+      document.querySelector(".skinBody"),
+    ];
+    let moved = false;
+    for (const el of els) {
+      if (el && el.scrollTop > 0) {
+        el.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        moved = true;
+      }
+    }
+    if (window.scrollY > 0) {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      moved = true;
+    }
+    return moved;
+  } catch {
+    return false;
+  }
+}
+
 function initializeSliderOnHome({ forceManagedSectionsBoot = false } = {}) {
   const start = async () => {
     try {
@@ -6217,6 +6250,7 @@ function initializeSliderOnHome({ forceManagedSectionsBoot = false } = {}) {
       fullSliderReset({ reason: "initializeSliderOnHome:slider-enabled" });
       bootPersonalRecsWires();
       upsertSlidesContainerAtTop(indexPage);
+      resetHomeScrollToTop();
       const sc = indexPage.querySelector('#monwui-slides-container');
       if (config.peakSlider && sc) {
         sc.scrollLeft = 0;
