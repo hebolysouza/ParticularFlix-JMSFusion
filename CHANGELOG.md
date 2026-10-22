@@ -5,10 +5,11 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.2.7 (fork release)
+## 3.8.2.8 (fork release)
 
 - Studio hubs now group every studio of the same brand: the Paramount Pictures hub also lists items tagged Paramount+ or Paramount Animation, the Marvel Studios hub includes Marvel Enterprises and so on (Pixar, Lucasfilm, Warner, Columbia, Netflix, DreamWorks and DC too). Configurable with `studioHubGroupTokens`; `studioHubGroupMerge: false` turns it off.
 - Opening a grouped studio hub no longer hangs: the native list page asked the server for the studio header with all ids at once (HTTP 500); that one request now uses only the first id.
+- Studio hub preview ("Top picks") no longer hides items below the minimum rating or without a rating: when fewer than 5 pass, it is completed with the best remaining items. Hubs whose only items have low ratings are no longer removed.
 - The studio list request now asks for up to 2000 studios (was 300).
 
 ## 3.8.2.4 (fork release)

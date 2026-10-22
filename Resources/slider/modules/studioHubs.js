@@ -634,6 +634,16 @@ function createPreviewButton(card, studioName, studioId, userId) {
       const signal = __fetchAbort ? __fetchAbort.signal : null;
       const fetched = await fetchStudioItemsViaUsers(studioId, studioName, userId, signal);
       studioItems = selectTopNWithMinRating(fetched, MIN_RATING, 5);
+      // Fork ParticularFlix: itens sem nota ou com nota baixa (ex.: serie nova, filme unico do
+      // estudio) nunca apareciam. Se faltar para 5, completa com os melhores restantes.
+      if (studioItems.length < 5) {
+        const all = await fetchStudioItemsViaUsers(studioId, studioName, userId, signal, { ignoreMinRating: true });
+        const have = new Set(studioItems.map((it) => it?.Id));
+        const rest = (all || [])
+          .filter((it) => it?.Id && !have.has(it.Id))
+          .sort((a, b) => (Number(getRating(b)) || 0) - (Number(getRating(a)) || 0));
+        studioItems = studioItems.concat(rest).slice(0, 5);
+      }
     } catch (err) {
       console.error('Ön izleme verileri alınamadı:', err);
       studioItems = [];
@@ -837,7 +847,7 @@ async function fetchStudios(signal) {
 }
 
 async function fetchStudioItemsViaUsers(studioId, studioName, userId, signal, options = {}) {
-  const ratingPart = Number.isFinite(MIN_RATING) ? `&MinCommunityRating=${MIN_RATING}` : "";
+  const ratingPart = (Number.isFinite(MIN_RATING) && !options.ignoreMinRating) ? `&MinCommunityRating=${MIN_RATING}` : "";
   const limit = Math.max(1, Math.min(STUDIO_ITEMS_LIMIT, Number(options.limit) || STUDIO_ITEMS_LIMIT));
   const common = `StartIndex=0&Limit=${limit}&Fields=PrimaryImageAspectRatio,ImageTags,BackdropImageTags,CommunityRating,CriticRating&Recursive=true&SortOrder=Descending${ratingPart}`;
   const urls = [
@@ -1189,11 +1199,17 @@ export async function renderStudioHubs() {
       const sharedVideoEntry = findStudioHubVideoEntry(sharedVideos, name);
       const customVideoUrl = buildStudioHubVideoUrl(sharedVideoEntry);
       const needsStudioItems = isDefaultHub && !logoUrl;
-      const studioItems = needsStudioItems
+      let studioItems = needsStudioItems
         ? await fetchStudioItemsViaUsers(groupParam || studio.Id, studio.Name || name, userId, __fetchAbort.signal, {
             limit: STUDIO_ITEMS_LIMIT
           })
         : null;
+      if (needsStudioItems && !studioItems?.length) {
+        studioItems = await fetchStudioItemsViaUsers(groupParam || studio.Id, studio.Name || name, userId, __fetchAbort.signal, {
+          limit: STUDIO_ITEMS_LIMIT,
+          ignoreMinRating: true
+        });
+      }
       if (needsStudioItems && !studioItems?.length) {
         try { card.remove(); } catch {}
         return;
