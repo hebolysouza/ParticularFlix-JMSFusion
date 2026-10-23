@@ -365,6 +365,26 @@ function scheduleFlush(state, scope, record, delayMs = state.saveDelayMs) {
 
   record.saveTimer = setTimeout(() => {
     record.saveTimer = null;
+    // Fork ParticularFlix 3.8.2.40: gravar o cache do slider (clone, comparacao e JSON de centenas de KB)
+    // parava a tela por 90 a 110 ms justamente quando o primeiro slide aparece. Nos primeiros 15 s da
+    // pagina, adia a gravacao ate o primeiro slide ficar pronto (no maximo 8 s). Ao fechar ou esconder a
+    // aba a gravacao continua imediata. jms:fastStart = "off" desliga.
+    try {
+      if (
+        state.cacheType === "sliderCache" &&
+        !window.__jmsFirstSlideReady &&
+        performance.now() < 15000 &&
+        localStorage.getItem("jms:fastStart") !== "off"
+      ) {
+        const t = Date.now();
+        record.deferSince = record.deferSince || t;
+        if (t - record.deferSince < 8000) {
+          scheduleFlush(state, scope, record, 500);
+          return;
+        }
+      }
+    } catch {}
+    record.deferSince = 0;
     void flushRecord(state, scope, record);
   }, Math.max(0, Number(delayMs) || state.saveDelayMs));
 

@@ -220,7 +220,10 @@ export async function loadSourceItems({
   resolveLimit = 60,
   concurrency = 4,
   itemFilter = null,
-  maxResolve = 240
+  maxResolve = 240,
+  // Fork ParticularFlix 3.8.2.40: pede os detalhes dos candidatos em lote (poucas requisicoes grandes)
+  // antes de resolver um a um; resolveOne passa a achar tudo no cache.
+  prefetchDetails = null
 } = {}) {
   const requests = buildSourceRequests({ mode, userId, now, windowMonths });
   if (!requests.length) return [];
@@ -262,6 +265,15 @@ export async function loadSourceItems({
       return d.kind === "Movie" ? d.item : null;
     }
   };
+
+  if (typeof prefetchDetails === "function") {
+    try {
+      const prefetchIds = candidates.slice(0, wanted).map((d) => d?.id).filter(Boolean);
+      if (prefetchIds.length) await prefetchDetails(prefetchIds);
+    } catch (err) {
+      console.debug("[JMS] prefetch em lote dos detalhes falhou, seguindo item a item:", err);
+    }
+  }
 
   const out = [];
   let cursor = 0;

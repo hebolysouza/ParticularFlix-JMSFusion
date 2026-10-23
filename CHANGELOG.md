@@ -5,9 +5,21 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.2.39 (fork build)
+## 3.8.2.40 (fork build)
 
-Rolls up the test-only build 3.8.2.38.
+Rolls up the test-only builds 3.8.2.38 and 3.8.2.39.
+
+- Slider, cold start: with the "current releases" source, the plugin used to fetch the details of every candidate (about 80 items) one request at a time, four at a time. On a cold start (new tab, empty cache) this took 13 to 18 seconds in our measurements. The details are now requested in bulk (two requests instead of about 80), and bulk batches run up to three at a time. Simulated with 150 ms per single request: 3026 ms before, 258 ms after.
+- Slider first paint: the watched/favorite/resume data of the first slides used to be fetched on every reload (the persisted cache drops it on purpose). A small per-user copy is now kept in `localStorage`, used only when it is at most 2 h old, and confirmed from the server about 1.2 s later (the slide is patched only if something changed). Details and watched data are requested at the same time.
+- Cache save: saving the slider cache blocked the page for 90 to 110 ms right when the first slide appears. During the first 15 s of a page, the save now waits for the first slide to be ready (8 s at most); closing or hiding the tab still saves immediately.
+- Cache save on page hide: browsers refuse `keepalive` requests above 64 KB ("Failed to fetch" for a ~680 KB cache). Large payloads now use a normal request.
+- Home rows (Studio Hubs, TMDb, recent rows) start when the slider item list arrives, or after 4 s at most, instead of a fixed 500 ms after the slider begins.
+- New performance marks: `jms:home-init`, `jms:auth-wait-done`, `jms:head-details-items`, `jms:head-userdata`.
+- `localStorage jms:fastStart = "off"` restores the previous behavior of all the items above except the keepalive fix.
+
+## 3.8.2.39 (fork build, test only)
+
+Rolled into 3.8.2.40.
 
 - Slider first paint: the watched/favorite/resume data of the first slides used to be fetched on every reload (the persisted cache drops it on purpose), adding 300 to 700 ms before the first slide. A small per-user copy is now kept in `localStorage`, used only when it is at most 2 h old, and confirmed from the server about 1.2 s later (the slide is patched only if something changed). The details and the watched data are now requested at the same time. `localStorage jms:fastStart = "off"` restores the previous behavior.
 - Cache save: the page-hide flush sent the slider cache with `keepalive`, which browsers refuse above 64 KB ("Failed to fetch" for a ~680 KB cache). Large payloads now use a normal request.

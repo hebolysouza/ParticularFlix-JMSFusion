@@ -5281,6 +5281,9 @@ export async function slidesInit() {
                   allowStaleOnError: true,
                 }),
                 fetchItemDetails: (id) => fetchItemDetailsCached(id),
+                prefetchDetails: isFastStartEnabled()
+                  ? (ids) => fetchItemDetailsCached.many(ids, { prefetchOnly: true, persistFetched: true })
+                  : null,
               })
             }
           : await cachedFetchJson({

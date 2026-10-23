@@ -1639,8 +1639,13 @@ export function createCachedItemDetailsFetcher({
     const uniq = dedupeIds(ids);
     if (!uniq.length || typeof fetchMany !== "function") return false;
 
+    const chunks = [];
     for (let start = 0; start < uniq.length; start += resolvedBatchSize) {
-      const chunk = uniq.slice(start, start + resolvedBatchSize);
+      chunks.push(uniq.slice(start, start + resolvedBatchSize));
+    }
+
+    // Fork ParticularFlix 3.8.2.40: os lotes saem ate 3 por vez (antes um depois do outro).
+    await mapLimit(chunks, 3, async (chunk) => {
       const items = await fetchMany(chunk);
       if (Array.isArray(items) && items.length) {
         if (persistFetched) {
@@ -1649,7 +1654,7 @@ export function createCachedItemDetailsFetcher({
           cachePutItemsMemory(items, { ttlMs });
         }
       }
-    }
+    });
 
     return true;
   }
