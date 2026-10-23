@@ -107,6 +107,15 @@ function normalizeSliderCssVariant(value) {
   return "normalslider";
 }
 
+export function getSliderLayoutFromVariant(value) {
+  const v = String(value || "").trim().toLowerCase();
+  if (v.includes("coverflow")) return "coverflow";
+  if (v.includes("cinema")) return "cinema";
+  if (v.includes("split")) return "split";
+  if (v.includes("mosaic")) return "mosaic";
+  return "";
+}
+
 function isRecognizedManagedHomeSectionOrderKey(value) {
   const key = String(value || "").trim();
   return !!key && (
@@ -840,7 +849,7 @@ function computeConfig() {
     useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
     fullscreenMode: localStorage.getItem('fullscreenMode') === 'true' ? true : false,
     listLimit: 20,
-    version: "v3.8.2.26",
+    version: "v3.8.2.27",
     historySize: 20,
     updateInterval: 300000,
     nextTracksSource: localStorage.getItem('nextTracksSource') || 'playlist',
@@ -1456,6 +1465,7 @@ function computeConfig() {
     backdropMaxWidth: parseInt(localStorage.getItem("backdropMaxWidth"), 10) || 1920,
     minPixelCount: parseInt(localStorage.getItem("minPixelCount"), 10) || (1920 * 1080),
     cssVariant: normalizeSliderCssVariant(localStorage.getItem('cssVariant')),
+    sliderLayout: getSliderLayoutFromVariant(localStorage.getItem('cssVariant')),
     peakSlider: readPeakSlider(),
     peakDiagonal: (() => {
       const v = localStorage.getItem('peakDiagonal');

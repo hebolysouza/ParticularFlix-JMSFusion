@@ -31,6 +31,7 @@ import { startBackgroundCollectionIndexer, getBackgroundCollectionIndexerStatus 
 import { initProfileChooser, syncProfileChooserHeaderButtonVisibility } from "./modules/profileChooser.js";
 import { waitForNativeHomeSectionStability, waitForVisibleHomeSections } from "./modules/homeSectionNative.js";
 import { installHomeSectionOrder } from "./modules/homeSectionOrder.js";
+import { installSliderLayouts, readSliderLayout } from "./modules/sliderLayouts.js";
 export { loadCSS } from "./modules/playerStyles.js";
 export { waitForAnyVisible };
 // Fork ParticularFlix 3.8.2.25: igual ao requestIdleCallback original, mas avisa no console quando uma tarefa
@@ -3101,6 +3102,8 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     syncCSS('/slider/src/profileChooser.css', 'jms-css-profileChooser', profileChooserCssEnabled);
     syncCSS('/slider/src/subtitleCustomizer.css', 'jms-css-subtitleCustomizer', subtitleCustomizerCssEnabled);
     syncCSS(vmap[variant] || vmap.normalslider, 'jms-css-variant', sliderCssEnabled);
+    const sliderLayout = sliderCssEnabled ? readSliderLayout(cfg) : '';
+    syncCSS('/slider/src/layouts.css', 'jms-css-layout', !!sliderLayout);
 
     if (!notificationsCssEnabled) {
       removeCssByHref([
@@ -3139,13 +3142,17 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
         'slider/src/peakslider.css',
         'slider/src/normalslider.css',
         'slider/src/slider.css',
-        'slider/src/auroraSlider.css'
+        'slider/src/auroraSlider.css',
+        'slider/src/layouts.css'
       ]);
     }
 
     document.documentElement.dataset.cssVariant =
       variant === 'slider' ? 'slider' : variant;
     window.__cssVariant = document.documentElement.dataset.cssVariant;
+    if (sliderLayout) document.documentElement.dataset.sliderLayout = sliderLayout;
+    else delete document.documentElement.dataset.sliderLayout;
+    try { installSliderLayouts(); } catch {}
     document.documentElement.setAttribute('data-jms-notif', cfg.enableNotifications ? '1' : '0');
   }
 
@@ -5096,6 +5103,8 @@ export async function slidesInit() {
     window.myUserId = userId;
 
     let items = [];
+    let headItemIdx = null;
+    let ensureTailDetails = () => Promise.resolve();
     let backgroundWarmIds = [];
     let backgroundWarmPoolIds = [];
 
@@ -5419,17 +5428,42 @@ export async function slidesInit() {
             .filter((it) => it?.Id)
             .map((it) => [it.Id, it])
         );
-        const detailed = await fetchItemDetailsCached.many(selectedItems.map(i => i.Id), {
-          persistFetched: true
-        });
-        const userDataById = await fetchHomeItemUserDataMap(selectedItems.map((item) => item?.Id));
-        items = detailed
-          .map((detail, idx) => {
-            const base = selectedById.get(detail?.Id || selectedItems[idx]?.Id) || selectedItems[idx] || null;
-            const id = detail?.Id || base?.Id || selectedItems[idx]?.Id;
-            return mergeHomeSliderItem(base, detail, userDataById.get(id) || null);
-          })
-          .filter((x) => x);
+        const headIdx = new Set([0]);
+        try {
+          const firstBatch = config.peakSlider
+            ? (buildPeakCreationBatches(selectedItems.length, getPeakDisplayOptions())[0] || [0])
+            : [0, 1];
+          firstBatch.forEach((i) => { if (i >= 0 && i < selectedItems.length) headIdx.add(i); });
+        } catch {}
+        const mergeRange = async (idxList) => {
+          const ids = idxList.map((i) => selectedItems[i]?.Id);
+          const detailed = await fetchItemDetailsCached.many(ids, { persistFetched: true });
+          const userDataById = await fetchHomeItemUserDataMap(ids);
+          idxList.forEach((i, k) => {
+            const detail = detailed?.[k] || null;
+            const base = selectedById.get(detail?.Id || selectedItems[i]?.Id) || selectedItems[i] || null;
+            const id = detail?.Id || base?.Id || selectedItems[i]?.Id;
+            const merged = mergeHomeSliderItem(base, detail, userDataById.get(id) || null);
+            if (merged) items[i] = merged;
+          });
+        };
+        items = selectedItems.map((base) => mergeHomeSliderItem(base, null, null) || base);
+        await mergeRange(Array.from(headIdx).sort((a, b) => a - b));
+        const tailIdx = items.map((_, i) => i).filter((i) => !headIdx.has(i));
+        let tailPromise = null;
+        headItemIdx = headIdx;
+        ensureTailDetails = () => {
+          if (!tailIdx.length) return Promise.resolve();
+          if (!tailPromise) {
+            tailPromise = mergeRange(tailIdx)
+              .then(() => {
+                try { setHomeSliderRuntimeItems(items); } catch {}
+                try { primeQualityFromItems(items); } catch {}
+              })
+              .catch((e) => { console.debug("[JMS] tail details skipped:", e); });
+          }
+          return tailPromise;
+        };
       }
     } catch (err) {
       console.error("Slide verisi hazırlanırken hata:", err);
@@ -5494,6 +5528,10 @@ export async function slidesInit() {
     };
     const createItemAt = async (itemIndex, options = {}) => {
       if (!isBootActive()) return null;
+      if (headItemIdx && !headItemIdx.has(itemIndex)) {
+        await ensureTailDetails();
+        if (!isBootActive()) return null;
+      }
       const item = items[itemIndex];
       if (!item) return null;
       const slideEl = await createSlide(item, { insertAt: itemIndex, ...options });

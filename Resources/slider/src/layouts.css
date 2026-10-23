@@ -1,0 +1,80 @@
+/* ParticularFlix slider layouts: cinema, split, mosaic (on the Normal engine) and coverflow (on the Peak engine).
+   Loaded on top of normalslider.css / peakslider.css. Scoped by html[data-slider-layout]. */
+
+/* ---------- shared helpers ---------- */
+html[data-slider-layout=cinema] .monwui-info-container,html[data-slider-layout=split] .monwui-info-container,html[data-slider-layout=mosaic] .monwui-info-container{display:flex!important;flex-wrap:wrap;gap:6px 16px;overflow:visible;grid-template-columns:none}
+html[data-slider-layout] .monwui-logo{max-height:18vh;max-width:36vw;object-fit:contain}
+
+/* ======================= CINEMA ======================= */
+html[data-slider-layout=cinema] .monwui-bckdrp-cntnr{-webkit-mask-image:none;mask-image:none}
+html[data-slider-layout=cinema] .monwui-backdrop{-webkit-mask-image:none;mask-image:none;filter:brightness(86%) contrast(108%) saturate(108%);object-position:center 22%}
+html[data-slider-layout=cinema] .monwui-bckdrp-cntnr::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.5) 0,transparent 20%),linear-gradient(0deg,#000 0,rgba(0,0,0,.88) 16%,rgba(0,0,0,.4) 46%,transparent 74%),linear-gradient(90deg,rgba(0,0,0,.7) 0,rgba(0,0,0,.25) 45%,transparent 70%)}
+html[data-slider-layout=cinema] .monwui-format-container{top:3%;left:4%}
+html[data-slider-layout=cinema] .monwui-logo-container{top:auto;bottom:49%;left:4%;right:auto;padding:0;justify-items:start;width:auto}
+html[data-slider-layout=cinema] .monwui-title-container{top:auto;bottom:40%;left:4%;width:56%;font-size:clamp(1.6rem,3.4vw,3.6rem)}
+html[data-slider-layout=cinema] .monwui-meta-container{top:auto;bottom:32%;left:4%;flex-direction:row;align-items:center;gap:12px}
+html[data-slider-layout=cinema] .monwui-status-container,html[data-slider-layout=cinema] .monwui-rating-container{left:auto;width:auto}
+html[data-slider-layout=cinema] .monwui-plot-container{top:auto;bottom:19%;left:4%;width:46%;font-size:clamp(.85rem,1.05vw,1rem);line-height:1.45}
+html[data-slider-layout=cinema] .monwui-plot-container .plot{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+html[data-slider-layout=cinema] .monwui-director-container{bottom:16%;left:4%;width:46%}
+html[data-slider-layout=cinema] .monwui-provider-container{top:3%;right:3%}
+html[data-slider-layout=cinema] .monwui-main-button-container{bottom:9%;left:4%;width:auto;transform:none;flex-direction:row;gap:14px}
+html[data-slider-layout=cinema] .monwui-main-button-container .monwui-btn-container{transform:scale(1.18);transform-origin:left center}
+html[data-slider-layout=cinema] .monwui-info-container{left:4%;width:auto;bottom:2%;justify-content:flex-start}
+html[data-slider-layout=cinema] .monwui-dot-navigation-container:not(.dot-poster-mode){left:auto;right:3%;bottom:4%;width:auto;justify-content:flex-end}
+
+/* ======================= SPLIT ======================= */
+html[data-slider-layout=split] .monwui-bckdrp-cntnr{-webkit-mask-image:none;mask-image:none}
+html[data-slider-layout=split] .monwui-backdrop{left:36%;width:64%;right:0;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 38%);mask-image:linear-gradient(90deg,transparent 0,#000 38%);filter:brightness(92%) contrast(108%) saturate(108%)}
+html[data-slider-layout=split] .monwui-slide::before{content:"";position:absolute;z-index:3;left:1.6%;top:3%;bottom:3%;width:41%;border-radius:22px;pointer-events:none;
+  background:linear-gradient(160deg,rgba(18,24,38,.82),rgba(8,11,20,.9));border:1px solid rgba(255,255,255,.1);box-shadow:0 30px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08);-webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%)}
+html[data-slider-layout=split] .monwui-format-container{top:8%;left:4%;z-index:60}
+html[data-slider-layout=split] .monwui-logo-container{top:15%;left:4%;right:auto;padding:0;justify-items:start;width:auto;z-index:60}
+html[data-slider-layout=split] .monwui-title-container{top:27%;left:4%;width:36%;z-index:60}
+html[data-slider-layout=split] .monwui-meta-container{bottom:auto;top:41%;left:4%;flex-direction:row;gap:10px;z-index:60}
+html[data-slider-layout=split] .monwui-status-container,html[data-slider-layout=split] .monwui-rating-container{left:auto;width:auto}
+html[data-slider-layout=split] .monwui-plot-container{top:auto;bottom:27%;left:4%;width:36%;font-size:clamp(.8rem,.95vw,.95rem);z-index:60}
+html[data-slider-layout=split] .monwui-plot-container .plot{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+html[data-slider-layout=split] .monwui-director-container{bottom:23%;left:4%;width:36%;z-index:60}
+html[data-slider-layout=split] .monwui-provider-container{top:8%;right:3%}
+html[data-slider-layout=split] .monwui-main-button-container{bottom:15%;left:4%;width:auto;transform:none;flex-direction:row;gap:12px;z-index:60}
+html[data-slider-layout=split] .monwui-info-container{left:4%;width:36%;bottom:10.5%;justify-content:flex-start;z-index:60}
+html[data-slider-layout=split] .monwui-dot-navigation-container:not(.dot-poster-mode){left:4%;bottom:4.5%;width:36%;justify-content:flex-start;z-index:60}
+
+/* ======================= MOSAIC ======================= */
+/* big highlight on the left, the next titles as tiles on the right (tiles are built by layouts.js) */
+html[data-slider-layout=mosaic] .monwui-bckdrp-cntnr{-webkit-mask-image:none;mask-image:none;width:70%}
+html[data-slider-layout=mosaic] .monwui-backdrop{-webkit-mask-image:none;mask-image:none;border-radius:18px;filter:brightness(84%) contrast(108%) saturate(108%)}
+html[data-slider-layout=mosaic] .monwui-bckdrp-cntnr::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:18px;
+  background:linear-gradient(0deg,rgba(0,0,0,.95) 0,rgba(0,0,0,.55) 34%,transparent 66%),linear-gradient(90deg,rgba(0,0,0,.55),transparent 55%)}
+html[data-slider-layout=mosaic] .monwui-format-container{top:4%;left:2.5%}
+html[data-slider-layout=mosaic] .monwui-logo-container{top:auto;bottom:47%;left:2.5%;right:auto;padding:0;justify-items:start;width:auto}
+html[data-slider-layout=mosaic] .monwui-title-container{top:auto;bottom:39%;left:2.5%;width:42%}
+html[data-slider-layout=mosaic] .monwui-meta-container{top:auto;bottom:31%;left:2.5%;flex-direction:row;gap:10px}
+html[data-slider-layout=mosaic] .monwui-status-container,html[data-slider-layout=mosaic] .monwui-rating-container{left:auto;width:auto}
+html[data-slider-layout=mosaic] .monwui-plot-container{top:auto;bottom:19%;left:2.5%;width:42%;font-size:clamp(.8rem,.95vw,.95rem)}
+html[data-slider-layout=mosaic] .monwui-plot-container .plot{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+html[data-slider-layout=mosaic] .monwui-director-container{bottom:16%;left:2.5%;width:42%}
+html[data-slider-layout=mosaic] .monwui-provider-container{top:4%;right:32%}
+html[data-slider-layout=mosaic] .monwui-main-button-container{bottom:8%;left:2.5%;width:auto;transform:none;flex-direction:row;gap:12px}
+html[data-slider-layout=mosaic] .monwui-info-container{left:2.5%;width:auto;bottom:1.5%;justify-content:flex-start}
+html[data-slider-layout=mosaic] .monwui-dot-navigation-container:not(.dot-poster-mode){left:auto;right:2%;bottom:1.5%;width:28%;justify-content:center}
+html[data-slider-layout=mosaic] .jms-mosaic-rail{position:absolute;z-index:70;right:1.5%;top:3%;bottom:8%;width:26.5%;display:grid;grid-template-rows:repeat(3,1fr);gap:12px}
+html[data-slider-layout=mosaic] .jms-mosaic-tile{position:relative;border-radius:16px;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,.12);background:#0c111c center/cover no-repeat;box-shadow:0 14px 34px rgba(0,0,0,.4);transition:transform .25s ease,border-color .25s ease,filter .25s ease;filter:brightness(.82)}
+html[data-slider-layout=mosaic] .jms-mosaic-tile:hover{transform:translateY(-3px) scale(1.015);border-color:rgba(255,255,255,.4);filter:brightness(1)}
+html[data-slider-layout=mosaic] .jms-mosaic-tile::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.85),transparent 60%)}
+html[data-slider-layout=mosaic] .jms-mosaic-tile span{position:absolute;z-index:1;left:12px;right:12px;bottom:10px;font:600 clamp(.8rem,1vw,1rem)/1.2 var(--mwui-font-head,sans-serif);color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.7)}
+
+/* ======================= COVERFLOW 3D (Peak engine, non-diagonal) ======================= */
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode{perspective:1700px;perspective-origin:50% 42%;overflow:visible}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode:not(.peak-diagonal) .monwui-slide{transform-style:preserve-3d;box-shadow:0 34px 80px rgba(0,0,0,.6)}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode:not(.peak-diagonal) .monwui-slide[data-side=left]{
+  transform:translate(calc(-50% - (13% * var(--k, 1) + 25%)),-50%) rotateY(36deg) scale(calc(1 - .08 * var(--k, 1)))!important;filter:brightness(calc(1 - .16 * var(--k, 1))) saturate(.92)!important;opacity:1!important;cursor:pointer}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode:not(.peak-diagonal) .monwui-slide[data-side=right]{
+  transform:translate(calc(-50% + (13% * var(--k, 1) + 25%)),-50%) rotateY(-36deg) scale(calc(1 - .08 * var(--k, 1)))!important;filter:brightness(calc(1 - .16 * var(--k, 1))) saturate(.92)!important;opacity:1!important;cursor:pointer}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode:not(.peak-diagonal) .monwui-slide.active{z-index:calc(var(--peak-z-top, 50) + 1)!important}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-format-container,
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-plot-container,
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-main-button-container,
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-info-container{opacity:0!important}
