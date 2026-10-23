@@ -320,7 +320,26 @@ export function createSliderPanel(config, labels) {
   peakGapYLabel.htmlFor = 'peakGapYInput';
   peakGapYInput.id = 'peakGapYInput';
 
-  cssDiv.append(enableSliderCheckbox, onlyShowSliderOnHomeTabCheckbox, cssLabel, cssSelect, peakDiagonalCheckbox, peakSpanLeftLabel, peakSpanLeftInput, peakSpanRightLabel, peakSpanRightInput, peakGapRightLabel, peakGapRightInput, peakGapLeftLabel, peakGapLeftInput, peakGapYLabel, peakGapYInput, cssDesc);
+  const badgeLabel = document.createElement('h3');
+  badgeLabel.textContent = labels.badgeStyle || 'Badge style:';
+  const badgeSelect = document.createElement('select');
+  badgeSelect.name = 'badgeStyle';
+  badgeSelect.id = 'badgeStyleSelect';
+  badgeLabel.htmlFor = 'badgeStyleSelect';
+  [
+    { value: 'minimal', label: labels.badgeMinimal || 'Minimal (frosted glass)' },
+    { value: 'tinted', label: labels.badgeTinted || 'Soft color' },
+    { value: 'outline', label: labels.badgeOutline || 'Outline' },
+    { value: 'classic', label: labels.badgeClassic || 'Original' }
+  ].forEach((o) => {
+    const opt = document.createElement('option');
+    opt.value = o.value;
+    opt.textContent = o.label;
+    if (o.value === (config.badgeStyle || 'minimal')) opt.selected = true;
+    badgeSelect.appendChild(opt);
+  });
+
+  cssDiv.append(enableSliderCheckbox, onlyShowSliderOnHomeTabCheckbox, cssLabel, cssSelect, badgeLabel, badgeSelect, peakDiagonalCheckbox, peakSpanLeftLabel, peakSpanLeftInput, peakSpanRightLabel, peakSpanRightInput, peakGapRightLabel, peakGapRightInput, peakGapLeftLabel, peakGapLeftInput, peakGapYLabel, peakGapYInput, cssDesc);
 
   cssSelect.addEventListener('change', updatePeakDiagonalVisibility);
   peakDiagonalCheckbox.querySelector('input').addEventListener('change', updatePeakDiagonalVisibility);

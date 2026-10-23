@@ -3104,6 +3104,7 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     syncCSS(vmap[variant] || vmap.normalslider, 'jms-css-variant', sliderCssEnabled);
     const sliderLayout = sliderCssEnabled ? readSliderLayout(cfg) : '';
     syncCSS('/slider/src/layouts.css', 'jms-css-layout', !!sliderLayout);
+    syncCSS('/slider/src/badges.css', 'jms-css-badges', sliderCssEnabled);
 
     if (!notificationsCssEnabled) {
       removeCssByHref([
@@ -3143,7 +3144,8 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
         'slider/src/normalslider.css',
         'slider/src/slider.css',
         'slider/src/auroraSlider.css',
-        'slider/src/layouts.css'
+        'slider/src/layouts.css',
+        'slider/src/badges.css'
       ]);
     }
 
@@ -3152,6 +3154,7 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     window.__cssVariant = document.documentElement.dataset.cssVariant;
     if (sliderLayout) document.documentElement.dataset.sliderLayout = sliderLayout;
     else delete document.documentElement.dataset.sliderLayout;
+    document.documentElement.dataset.badgeStyle = sliderCssEnabled ? (cfg.badgeStyle || 'minimal') : 'classic';
     try { installSliderLayouts(); } catch {}
     document.documentElement.setAttribute('data-jms-notif', cfg.enableNotifications ? '1' : '0');
   }

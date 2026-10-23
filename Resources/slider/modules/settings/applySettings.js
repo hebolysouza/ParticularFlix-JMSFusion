@@ -397,6 +397,7 @@ const USER_ONLY_KEYS = [
             gecikmeSure: parseInt(formData.get('gecikmeSure'), 10),
             sliderAutoTrailerPlayback: formData.get('sliderAutoTrailerPlayback') === 'on',
             cssVariant: formData.get('cssVariant'),
+            badgeStyle: formData.get('badgeStyle') || 'minimal',
             useAlbumArtAsBackground: formData.get('useAlbumArtAsBackground') === 'on',
             albumArtBackgroundBlur: parseInt(formData.get('albumArtBackgroundBlur')),
             albumArtBackgroundOpacity: parseFloat(formData.get('albumArtBackgroundOpacity')),

@@ -5,10 +5,11 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.2.31 (fork build)
+## 3.8.2.32 (fork build)
 
-Includes the internal builds 3.8.2.27 to 3.8.2.30, which were never published as releases.
+Includes the internal builds 3.8.2.27 to 3.8.2.31, which were never published as releases.
 
+- Badges: the audio badge (languages, dual audio, channels, codec) now shows on every slider layout, including Peak, Coverflow 3D and Compact, which used to hide it. New badge looks selectable in the slider settings: Minimal (frosted glass, default), Soft color, Outline, and Original.
 - New slider layouts: Cinema, Mosaic and Coverflow 3D, selectable in the slider settings. Softer rounded corners, and the text follows the slider style.
 - In Cinema, Mosaic and Coverflow the text title is hidden when the film has a logo image (no more logo plus the same name in text).
 - Cinema shows an "Up next" card (thumbnail, title and position counter) that jumps to the next film. Mosaic keeps its tile rail.

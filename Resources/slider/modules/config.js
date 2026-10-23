@@ -853,7 +853,7 @@ function computeConfig() {
     useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
     fullscreenMode: localStorage.getItem('fullscreenMode') === 'true' ? true : false,
     listLimit: 20,
-    version: "v3.8.2.31",
+    version: "v3.8.2.32",
     historySize: 20,
     updateInterval: 300000,
     nextTracksSource: localStorage.getItem('nextTracksSource') || 'playlist',
@@ -1406,6 +1406,7 @@ function computeConfig() {
     smartAutoPause: readSmartAutoPause(),
 
     slideTransitionType: localStorage.getItem('slideTransitionType') || 'flip',
+    badgeStyle: (() => { const v = localStorage.getItem('badgeStyle'); return ['classic', 'minimal', 'tinted', 'outline'].includes(v) ? v : 'minimal'; })(),
     slideTransitionTypeLayout: localStorage.getItem('slideTransitionTypeLayout') || '',
     dotPosterTransitionType: localStorage.getItem('dotPosterTransitionType') || 'scale',
     enableSlideAnimations: localStorage.getItem('enableSlideAnimations') === 'true' ? true : false,
