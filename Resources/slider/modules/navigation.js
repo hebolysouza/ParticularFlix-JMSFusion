@@ -1374,25 +1374,8 @@ export function createDotNavigation() {
 
     applyDotStateClasses(dotElements, currentIndex, config, lowPower);
 
-    const leftArrow = document.createElement("button");
-    leftArrow.className = "monwui-dot-arrow monwui-dot-arrow-left";
-    leftArrow.type = "button";
-    leftArrow.setAttribute("aria-label", "Previous dots");
-    leftArrow.innerHTML = "&#10094;";
-    leftArrow.addEventListener("click", () => {
-        scrollWrapper.scrollBy({ left: -scrollWrapper.clientWidth, behavior: lowPower ? "auto" : "smooth" });
-    });
-
-    const rightArrow = document.createElement("button");
-    rightArrow.className = "monwui-dot-arrow monwui-dot-arrow-right";
-    rightArrow.type = "button";
-    rightArrow.setAttribute("aria-label", "Next dots");
-    rightArrow.innerHTML = "&#10095;";
-    rightArrow.addEventListener("click", () => {
-        scrollWrapper.scrollBy({ left: scrollWrapper.clientWidth, behavior: lowPower ? "auto" : "smooth" });
-    });
-
-    dotContainer.append(leftArrow, scrollWrapper, rightArrow);
+    // Fork: as setas que apenas rolavam a faixa de pontos foram removidas; a navegacao usa as setas laterais (sliderLayouts.js).
+    dotContainer.append(scrollWrapper);
     if (scrollWrapper.__dotRO) scrollWrapper.__dotRO.disconnect();
     scrollWrapper.__dotRO = new ResizeObserver(() => { centerActiveDot(); });
     scrollWrapper.__dotRO.observe(scrollWrapper);

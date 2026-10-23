@@ -79,11 +79,28 @@ html[data-slider-layout=mosaic] .jms-mosaic-tile span{position:absolute;z-index:
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode{perspective:1700px;perspective-origin:50% 42%;overflow:visible}
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode:not(.peak-diagonal) .monwui-slide{transform-style:preserve-3d;box-shadow:0 34px 80px rgba(0,0,0,.6)}
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode:not(.peak-diagonal) .monwui-slide[data-side=left]{
-  transform:translate(calc(-50% - (13% * var(--k, 1) + 25%)),-50%) rotateY(36deg) scale(calc(1 - .08 * var(--k, 1)))!important;filter:brightness(calc(1 - .16 * var(--k, 1))) saturate(.92)!important;opacity:1!important;cursor:pointer}
+  transform:translate(calc(-50% - (13% * var(--k, 1) + 30%)),-50%) rotateY(36deg) scale(calc(1 - .08 * var(--k, 1)))!important;filter:brightness(calc(1 - .16 * var(--k, 1))) saturate(.92)!important;opacity:1!important;cursor:pointer}
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode:not(.peak-diagonal) .monwui-slide[data-side=right]{
-  transform:translate(calc(-50% + (13% * var(--k, 1) + 25%)),-50%) rotateY(-36deg) scale(calc(1 - .08 * var(--k, 1)))!important;filter:brightness(calc(1 - .16 * var(--k, 1))) saturate(.92)!important;opacity:1!important;cursor:pointer}
+  transform:translate(calc(-50% + (13% * var(--k, 1) + 30%)),-50%) rotateY(-36deg) scale(calc(1 - .08 * var(--k, 1)))!important;filter:brightness(calc(1 - .16 * var(--k, 1))) saturate(.92)!important;opacity:1!important;cursor:pointer}
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode:not(.peak-diagonal) .monwui-slide.active{z-index:calc(var(--peak-z-top, 50) + 1)!important}
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-format-container,
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-plot-container,
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-main-button-container,
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-info-container{opacity:0!important}
+
+/* neighbors keep their logo (or title) visible on the slice that peeks out, so you know what comes next */
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-logo-container{
+  opacity:1!important;visibility:visible!important;top:38%!important;bottom:auto!important;padding:0 12px!important;width:auto;max-width:21%;box-sizing:border-box}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side=left]:not(.active) .monwui-logo-container{left:20%!important;right:auto!important;justify-items:start!important}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side=right]:not(.active) .monwui-logo-container{left:0!important;right:auto!important;justify-items:start!important}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-logo{max-width:100%;max-height:18vh}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-no-logo-container{font-size:clamp(1rem,1.8vw,1.8rem)}
+
+/* neighbors show the film logo (like the Peak showcase) on the strip of the card that peeks out from behind the center card */
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-logo-container{opacity:1!important;display:grid;top:5%!important;right:auto!important;width:18%!important;padding:0!important;box-sizing:border-box;justify-items:center;z-index:20}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side=right]:not(.active) .monwui-logo-container{left:58%!important}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side=left]:not(.active) .monwui-logo-container{left:25%!important}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active)[style*="--k: 2"] .monwui-logo-container,
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active)[style*="--k: 3"] .monwui-logo-container{opacity:0!important}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-logo{width:auto!important;max-width:100%!important;max-height:14vh!important;height:auto;object-fit:contain}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-no-logo-container{font-size:clamp(.9rem,1.3vw,1.3rem);text-align:center}

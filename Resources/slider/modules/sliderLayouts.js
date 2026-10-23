@@ -30,7 +30,6 @@ let installed = false;
 
 const NAV_CSS = `
 #${ARROWS_ID}{position:absolute;inset:0;pointer-events:none;z-index:120}
-html .monwui-dot-navigation-container .monwui-dot-arrow{display:none!important}
 #${ARROWS_ID} .jms-nav-arrow{position:absolute;top:50%;margin-top:-20px;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.22);
   background:rgba(10,14,22,.55);color:#fff;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;
   pointer-events:auto;opacity:0;transform:scale(.92);transition:opacity .25s ease,transform .25s ease,background .2s ease;
@@ -38,7 +37,7 @@ html .monwui-dot-navigation-container .monwui-dot-arrow{display:none!important}
 #${ARROWS_ID} .jms-nav-arrow.prev{left:10px}
 #${ARROWS_ID} .jms-nav-arrow.next{right:10px}
 #monwui-slides-container:hover #${ARROWS_ID} .jms-nav-arrow,#${ARROWS_ID} .jms-nav-arrow:focus-visible{opacity:.9;transform:scale(1)}
-#${ARROWS_ID} .jms-nav-arrow:hover{background:rgba(233,30,99,.85);opacity:1}
+#${ARROWS_ID} .jms-nav-arrow:hover,#${ARROWS_ID} .jms-nav-arrow:focus-visible{background:#cc0000;border-color:#ff4d4d;opacity:1;outline:0}
 @media (hover:none){#${ARROWS_ID}{display:none}}
 html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-nav-arrow.next{right:calc(var(--jms-rail-w, 27%) + 14px)}
 html[data-slider-layout=coverflow] #${ARROWS_ID} .jms-nav-arrow{width:46px;height:46px;margin-top:-23px}
