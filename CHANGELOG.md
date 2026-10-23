@@ -7,15 +7,15 @@ original authors (G-grbz and contributors) are kept.
 
 ## 3.8.2.45 (fork build)
 
-Rolls up the test-only builds 3.8.2.41 to 3.8.2.44.
+Much faster first load of the slider on a cold start. Rolls up the test-only builds 3.8.2.41 to 3.8.2.44.
 
-- Slider, cold start: with the "current releases" source, the list no longer fetches the full details of about 80 candidates before choosing the slides. When the slider requires images (logo and backdrop), one light request now returns only the image tags of all candidates; the selection and its order are identical. The full details of the first slides are loaded right after and the rest in the background, as before. In our cold-start measurements the full-details step took 4.5 to 8.5 s. Measured on a cold start: the bulk details of 60 items took about 4.5 s while the two list queries took about 0.3 s each. The order and the choice of items are unchanged.
+- Slider, cold start: with the "current releases" source, the plugin used to fetch the full details of about 80 candidates before choosing the slides (4.5 to 8.5 s in our measurements). When the slider requires images (logo and backdrop), one light request now returns only the image tags of all candidates; the selection and its order are identical. The full details of the first slides are loaded right after and the rest in the background, as before. If the light request fails, the previous path is used.
 - Home rows (Studio Hubs, TMDb, recent, director, personal recommendations) now wait for the first slide (6 s at most) before they start loading. On a cold start they were competing with the slider list queries (one took 6.4 s instead of about 0.3 s measured alone).
-- New performance marks: `jms:source-queries-done`, `jms:data-done`, `jms:create-slide-start`, `jms:create-slide-done`.
+- First slide: the "match percentage" needs the user's favorite genres, cached for 24 h in `localStorage`. When that cache is empty (first load of the day, new browser profile) computing it took 4.6 s and held the whole first slide. The slide now waits at most 350 ms for it; if it is not ready, the slide appears without the percentage and the percentage is added as soon as it is computed.
 - Settings save on page hide: the managed storage snapshot was also sent with `keepalive`, which browsers refuse above 64 KB ("Failed to fetch" in the console). Large payloads now use a normal request.
-- First slide: the "match percentage" needs the user's favorite genres, cached for 24 h in `localStorage`. When that cache is empty (first load of the day, new browser profile) computing it took 4.6 s in our measurements and held the whole first slide. The slide now waits at most 350 ms for it; if it is not ready, the slide appears without the percentage and the percentage is added as soon as it is computed.
-- New performance marks inside the first slide creation: `jms:cs-start`, `jms:cs-backdrop-probe-start/done`, `jms:cs-imageurls-done`, `jms:cs-before-actors`, `jms:cs-actors-done`, `jms:cs-director-done`, `jms:cs-rating-done`.
-- `localStorage jms:fastStart = "off"` restores the previous behavior.
+- New performance marks for finding where a load spends its time: `jms:source-queries-done`, `jms:data-done`, `jms:create-slide-start/done` and `jms:cs-*` (inside the first slide creation).
+- Measured in a cold tab on a test server: first slide ready 25.7 s before, 4.7 s after. Results on other setups will vary.
+- `localStorage jms:fastStart = "off"` restores the previous behavior of the start-up changes in this and the 3.8.2.37 to 3.8.2.40 entries.
 
 ## 3.8.2.40 (fork build)
 
