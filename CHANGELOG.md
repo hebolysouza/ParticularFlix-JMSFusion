@@ -5,11 +5,14 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.2.27 (fork build)
+## 3.8.2.28 (fork build)
+
+Includes the internal build 3.8.2.27, which was never published as a release.
 
 - Slider boot: the first slide no longer waits for the details of all 55 cards. Only the cards visible at start are resolved before the first paint; the remaining details are fetched in the background and each remaining slide is created once its data is ready. The number of cards is unchanged.
 - New slider layouts, selectable under Slider settings: Cinema (full bleed backdrop, text bottom left), Split (glass info panel next to the backdrop), Mosaic (big highlight plus the next three titles as clickable tiles) and Coverflow 3D (3D tilted neighbors, runs on the Peak engine).
-- New previous/next arrows on the sides of the slider, working in every layout (Compact, Normal, Peak and the four new ones). They use the same navigation as keyboard and swipe, so the timer and progress bar stay in sync. Hidden on touch devices, where swipe is used.
+- New previous/next arrows on the sides of the slider, working in every layout (Compact, Normal, Peak and the four new ones). They use the same navigation as keyboard and swipe, so the timer and progress bar stay in sync. Hidden on touch devices, where swipe is used. The old arrows next to the dots (which only scrolled the dot strip) are hidden to avoid two sets of arrows.
+- Cinema, Split and Mosaic stack their text blocks in normal flow, so nothing overlaps at any slider size, and they ignore the manual position adjustments (those were tuned for Normal and Peak).
 
 ## 3.8.2.26 (fork release)
 

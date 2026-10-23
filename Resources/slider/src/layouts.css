@@ -1,70 +1,79 @@
-/* ParticularFlix slider layouts: cinema, split, mosaic (on the Normal engine) and coverflow (on the Peak engine).
-   Loaded on top of normalslider.css / peakslider.css. Scoped by html[data-slider-layout]. */
+/* ParticularFlix slider layouts: cinema, split, mosaic (Normal engine) and coverflow (Peak engine).
+   Loaded on top of normalslider.css / peakslider.css. Scoped by html[data-slider-layout].
+   Cinema, split and mosaic stack the text blocks in normal flow (no overlaps, scales with the slider size)
+   and ignore the manual position adjustments (those were tuned for Normal/Peak). */
 
-/* ---------- shared helpers ---------- */
-html[data-slider-layout=cinema] .monwui-info-container,html[data-slider-layout=split] .monwui-info-container,html[data-slider-layout=mosaic] .monwui-info-container{display:flex!important;flex-wrap:wrap;gap:6px 16px;overflow:visible;grid-template-columns:none}
-html[data-slider-layout] .monwui-logo{max-height:18vh;max-width:36vw;object-fit:contain}
+/* ---------- shared flow stack (cinema, split, mosaic) ---------- */
+html[data-slider-layout=cinema],html[data-slider-layout=split],html[data-slider-layout=mosaic]{
+  --lay-pad-x:max(4%,56px);--lay-pad-b:4.5%;--lay-text-w:min(46vw,640px);--lay-gap:clamp(6px,1.1vh,12px)}
+html[data-slider-layout=cinema] .monwui-slide:not([style*="display: none"]),
+html[data-slider-layout=split] .monwui-slide:not([style*="display: none"]),
+html[data-slider-layout=mosaic] .monwui-slide:not([style*="display: none"]){
+  display:flex!important;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:var(--lay-gap);
+  box-sizing:border-box;height:100%;padding:0 var(--lay-pad-x) var(--lay-pad-b)}
+html[data-slider-layout=cinema] .monwui-main-content-container,
+html[data-slider-layout=split] .monwui-main-content-container,
+html[data-slider-layout=mosaic] .monwui-main-content-container{display:contents}
+
+html[data-slider-layout=cinema] .monwui-slide>.monwui-logo-container,html[data-slider-layout=cinema] .monwui-main-content-container>*:not(.monwui-provider-container),
+html[data-slider-layout=cinema] .monwui-slide>.monwui-meta-container,html[data-slider-layout=cinema] .monwui-slide>.monwui-director-container,
+html[data-slider-layout=cinema] .monwui-slide>.monwui-main-button-container,html[data-slider-layout=cinema] .monwui-slide>.monwui-info-container,
+html[data-slider-layout=split] .monwui-main-content-container>*:not(.monwui-provider-container),
+html[data-slider-layout=split] .monwui-slide>.monwui-meta-container,html[data-slider-layout=split] .monwui-slide>.monwui-director-container,
+html[data-slider-layout=split] .monwui-slide>.monwui-main-button-container,html[data-slider-layout=split] .monwui-slide>.monwui-info-container,
+html[data-slider-layout=mosaic] .monwui-main-content-container>*:not(.monwui-provider-container),
+html[data-slider-layout=mosaic] .monwui-slide>.monwui-meta-container,html[data-slider-layout=mosaic] .monwui-slide>.monwui-director-container,
+html[data-slider-layout=mosaic] .monwui-slide>.monwui-main-button-container,html[data-slider-layout=mosaic] .monwui-slide>.monwui-info-container{
+  position:static!important;inset:auto!important;transform:none!important;margin:0!important;padding-left:0;padding-right:0;
+  width:auto;max-width:var(--lay-text-w);height:auto;z-index:8}
+
+html[data-slider-layout=cinema] .monwui-bckdrp-cntnr,html[data-slider-layout=mosaic] .monwui-bckdrp-cntnr{position:absolute!important;inset:0;width:100%;height:100%}
+/* order of the stack: logo, title, meta, plot, director, buttons, info */
+html[data-slider-layout=cinema] .monwui-logo-container,html[data-slider-layout=split] .monwui-logo-container,html[data-slider-layout=mosaic] .monwui-logo-container{order:1;justify-items:start;padding:0!important;pointer-events:none}
+html[data-slider-layout=cinema] .monwui-title-container,html[data-slider-layout=split] .monwui-title-container,html[data-slider-layout=mosaic] .monwui-title-container{order:2;font-size:clamp(1.5rem,2.8vw,2.9rem);line-height:1.05}
+html[data-slider-layout=cinema] .monwui-meta-container,html[data-slider-layout=split] .monwui-meta-container,html[data-slider-layout=mosaic] .monwui-meta-container{order:3;flex-direction:row;flex-wrap:wrap;align-items:center;align-content:flex-start;justify-content:flex-start;gap:6px 8px}
+html[data-slider-layout=cinema] .monwui-plot-container,html[data-slider-layout=split] .monwui-plot-container,html[data-slider-layout=mosaic] .monwui-plot-container{order:4;font-size:clamp(.8rem,.95vw,.98rem);line-height:1.5;justify-content:flex-start;max-height:none}
+html[data-slider-layout=cinema] .monwui-plot-container .monwui-plot,html[data-slider-layout=split] .monwui-plot-container .monwui-plot,html[data-slider-layout=mosaic] .monwui-plot-container .monwui-plot{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+html[data-slider-layout=cinema] .monwui-director-container,html[data-slider-layout=split] .monwui-director-container,html[data-slider-layout=mosaic] .monwui-director-container{order:5}
+html[data-slider-layout=cinema] .monwui-main-button-container,html[data-slider-layout=split] .monwui-main-button-container,html[data-slider-layout=mosaic] .monwui-main-button-container{order:6;flex-direction:row;gap:10px;padding-top:2px}
+html[data-slider-layout=cinema] .monwui-info-container,html[data-slider-layout=split] .monwui-info-container,html[data-slider-layout=mosaic] .monwui-info-container{order:7;display:flex!important;flex-wrap:wrap;gap:4px 16px;overflow:visible;grid-template-columns:none;justify-content:flex-start;font-size:clamp(.72rem,.85vw,.86rem);opacity:.9}
+html[data-slider-layout] .monwui-logo{max-height:clamp(54px,13vh,120px);max-width:min(32vw,420px);object-fit:contain}
+
+/* badges / cast / providers stay at the edges */
+html[data-slider-layout=cinema] .monwui-format-container,html[data-slider-layout=split] .monwui-format-container,html[data-slider-layout=mosaic] .monwui-format-container{position:absolute!important;top:5%!important;left:var(--lay-pad-x)!important;margin:0!important}
+html[data-slider-layout=cinema] .monwui-provider-container,html[data-slider-layout=split] .monwui-provider-container,html[data-slider-layout=mosaic] .monwui-provider-container{position:absolute!important;top:5%!important;right:var(--lay-pad-x)!important;left:auto!important}
+html[data-slider-layout=cinema] .monwui-slider-wrapper,html[data-slider-layout=split] .monwui-slider-wrapper,html[data-slider-layout=mosaic] .monwui-slider-wrapper{top:auto!important;bottom:var(--lay-pad-b)!important;left:auto!important;right:var(--lay-pad-x)!important}
+html[data-slider-layout=cinema] .monwui-dot-navigation-container:not(.dot-poster-mode),
+html[data-slider-layout=split] .monwui-dot-navigation-container:not(.dot-poster-mode),
+html[data-slider-layout=mosaic] .monwui-dot-navigation-container:not(.dot-poster-mode){left:var(--lay-pad-x)!important;right:auto!important;bottom:1.6%!important;top:auto!important;width:min(40vw,420px)!important;height:auto;justify-content:flex-start;padding:0}
 
 /* ======================= CINEMA ======================= */
 html[data-slider-layout=cinema] .monwui-bckdrp-cntnr{-webkit-mask-image:none;mask-image:none}
-html[data-slider-layout=cinema] .monwui-backdrop{-webkit-mask-image:none;mask-image:none;filter:brightness(86%) contrast(108%) saturate(108%);object-position:center 22%}
+html[data-slider-layout=cinema] .monwui-backdrop{-webkit-mask-image:none;mask-image:none;filter:brightness(88%) contrast(106%) saturate(106%);object-position:center 22%}
 html[data-slider-layout=cinema] .monwui-bckdrp-cntnr::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
-  background:linear-gradient(180deg,rgba(0,0,0,.5) 0,transparent 20%),linear-gradient(0deg,#000 0,rgba(0,0,0,.88) 16%,rgba(0,0,0,.4) 46%,transparent 74%),linear-gradient(90deg,rgba(0,0,0,.7) 0,rgba(0,0,0,.25) 45%,transparent 70%)}
-html[data-slider-layout=cinema] .monwui-format-container{top:3%;left:4%}
-html[data-slider-layout=cinema] .monwui-logo-container{top:auto;bottom:49%;left:4%;right:auto;padding:0;justify-items:start;width:auto}
-html[data-slider-layout=cinema] .monwui-title-container{top:auto;bottom:40%;left:4%;width:56%;font-size:clamp(1.6rem,3.4vw,3.6rem)}
-html[data-slider-layout=cinema] .monwui-meta-container{top:auto;bottom:32%;left:4%;flex-direction:row;align-items:center;gap:12px}
-html[data-slider-layout=cinema] .monwui-status-container,html[data-slider-layout=cinema] .monwui-rating-container{left:auto;width:auto}
-html[data-slider-layout=cinema] .monwui-plot-container{top:auto;bottom:19%;left:4%;width:46%;font-size:clamp(.85rem,1.05vw,1rem);line-height:1.45}
-html[data-slider-layout=cinema] .monwui-plot-container .plot{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-html[data-slider-layout=cinema] .monwui-director-container{bottom:16%;left:4%;width:46%}
-html[data-slider-layout=cinema] .monwui-provider-container{top:3%;right:3%}
-html[data-slider-layout=cinema] .monwui-main-button-container{bottom:9%;left:4%;width:auto;transform:none;flex-direction:row;gap:14px}
-html[data-slider-layout=cinema] .monwui-main-button-container .monwui-btn-container{transform:scale(1.18);transform-origin:left center}
-html[data-slider-layout=cinema] .monwui-info-container{left:4%;width:auto;bottom:2%;justify-content:flex-start}
-html[data-slider-layout=cinema] .monwui-dot-navigation-container:not(.dot-poster-mode){left:auto;right:3%;bottom:4%;width:auto;justify-content:flex-end}
+  background:linear-gradient(0deg,rgba(6,9,15,.94) 0,rgba(6,9,15,.7) 22%,rgba(6,9,15,.22) 52%,transparent 76%),linear-gradient(90deg,rgba(6,9,15,.62) 0,rgba(6,9,15,.18) 46%,transparent 70%)}
 
-/* ======================= SPLIT ======================= */
-html[data-slider-layout=split] .monwui-bckdrp-cntnr{-webkit-mask-image:none;mask-image:none}
-html[data-slider-layout=split] .monwui-backdrop{left:36%;width:64%;right:0;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 38%);mask-image:linear-gradient(90deg,transparent 0,#000 38%);filter:brightness(92%) contrast(108%) saturate(108%)}
-html[data-slider-layout=split] .monwui-slide::before{content:"";position:absolute;z-index:3;left:1.6%;top:3%;bottom:3%;width:41%;border-radius:22px;pointer-events:none;
-  background:linear-gradient(160deg,rgba(18,24,38,.82),rgba(8,11,20,.9));border:1px solid rgba(255,255,255,.1);box-shadow:0 30px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08);-webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%)}
-html[data-slider-layout=split] .monwui-format-container{top:8%;left:4%;z-index:60}
-html[data-slider-layout=split] .monwui-logo-container{top:15%;left:4%;right:auto;padding:0;justify-items:start;width:auto;z-index:60}
-html[data-slider-layout=split] .monwui-title-container{top:27%;left:4%;width:36%;z-index:60}
-html[data-slider-layout=split] .monwui-meta-container{bottom:auto;top:41%;left:4%;flex-direction:row;gap:10px;z-index:60}
-html[data-slider-layout=split] .monwui-status-container,html[data-slider-layout=split] .monwui-rating-container{left:auto;width:auto}
-html[data-slider-layout=split] .monwui-plot-container{top:auto;bottom:27%;left:4%;width:36%;font-size:clamp(.8rem,.95vw,.95rem);z-index:60}
-html[data-slider-layout=split] .monwui-plot-container .plot{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
-html[data-slider-layout=split] .monwui-director-container{bottom:23%;left:4%;width:36%;z-index:60}
-html[data-slider-layout=split] .monwui-provider-container{top:8%;right:3%}
-html[data-slider-layout=split] .monwui-main-button-container{bottom:15%;left:4%;width:auto;transform:none;flex-direction:row;gap:12px;z-index:60}
-html[data-slider-layout=split] .monwui-info-container{left:4%;width:36%;bottom:10.5%;justify-content:flex-start;z-index:60}
-html[data-slider-layout=split] .monwui-dot-navigation-container:not(.dot-poster-mode){left:4%;bottom:4.5%;width:36%;justify-content:flex-start;z-index:60}
+/* ======================= SPLIT (info panel on the left, framed image on the right) ======================= */
+html[data-slider-layout=split]{--lay-pad-x:max(3.4%,56px);--lay-text-w:min(34vw,520px)}
+html[data-slider-layout=split] .monwui-slide::before{content:"";position:absolute;z-index:1;left:0;top:0;bottom:0;width:42%;background:linear-gradient(90deg,#0a0e16 0,#0a0e16 82%,rgba(10,14,22,0) 100%);pointer-events:none}
+html[data-slider-layout=split] .monwui-bckdrp-cntnr{position:absolute!important;top:0;right:0;left:auto;width:66%!important;height:100%;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 34%);mask-image:linear-gradient(90deg,transparent 0,#000 34%)}
+html[data-slider-layout=split] .monwui-backdrop{filter:brightness(92%) contrast(106%) saturate(106%);object-position:center 25%}
+html[data-slider-layout=split] .monwui-slide>*:not(.monwui-bckdrp-cntnr){z-index:8}
+html[data-slider-layout=split] .monwui-provider-container{right:var(--lay-pad-x)!important}
 
-/* ======================= MOSAIC ======================= */
-/* big highlight on the left, the next titles as tiles on the right (tiles are built by layouts.js) */
-html[data-slider-layout=mosaic] .monwui-bckdrp-cntnr{-webkit-mask-image:none;mask-image:none;width:70%}
-html[data-slider-layout=mosaic] .monwui-backdrop{-webkit-mask-image:none;mask-image:none;border-radius:18px;filter:brightness(84%) contrast(108%) saturate(108%)}
-html[data-slider-layout=mosaic] .monwui-bckdrp-cntnr::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:18px;
-  background:linear-gradient(0deg,rgba(0,0,0,.95) 0,rgba(0,0,0,.55) 34%,transparent 66%),linear-gradient(90deg,rgba(0,0,0,.55),transparent 55%)}
-html[data-slider-layout=mosaic] .monwui-format-container{top:4%;left:2.5%}
-html[data-slider-layout=mosaic] .monwui-logo-container{top:auto;bottom:47%;left:2.5%;right:auto;padding:0;justify-items:start;width:auto}
-html[data-slider-layout=mosaic] .monwui-title-container{top:auto;bottom:39%;left:2.5%;width:42%}
-html[data-slider-layout=mosaic] .monwui-meta-container{top:auto;bottom:31%;left:2.5%;flex-direction:row;gap:10px}
-html[data-slider-layout=mosaic] .monwui-status-container,html[data-slider-layout=mosaic] .monwui-rating-container{left:auto;width:auto}
-html[data-slider-layout=mosaic] .monwui-plot-container{top:auto;bottom:19%;left:2.5%;width:42%;font-size:clamp(.8rem,.95vw,.95rem)}
-html[data-slider-layout=mosaic] .monwui-plot-container .plot{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-html[data-slider-layout=mosaic] .monwui-director-container{bottom:16%;left:2.5%;width:42%}
-html[data-slider-layout=mosaic] .monwui-provider-container{top:4%;right:32%}
-html[data-slider-layout=mosaic] .monwui-main-button-container{bottom:8%;left:2.5%;width:auto;transform:none;flex-direction:row;gap:12px}
-html[data-slider-layout=mosaic] .monwui-info-container{left:2.5%;width:auto;bottom:1.5%;justify-content:flex-start}
-html[data-slider-layout=mosaic] .monwui-dot-navigation-container:not(.dot-poster-mode){left:auto;right:2%;bottom:1.5%;width:28%;justify-content:center}
-html[data-slider-layout=mosaic] .jms-mosaic-rail{position:absolute;z-index:70;right:1.5%;top:3%;bottom:8%;width:26.5%;display:grid;grid-template-rows:repeat(3,1fr);gap:12px}
-html[data-slider-layout=mosaic] .jms-mosaic-tile{position:relative;border-radius:16px;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,.12);background:#0c111c center/cover no-repeat;box-shadow:0 14px 34px rgba(0,0,0,.4);transition:transform .25s ease,border-color .25s ease,filter .25s ease;filter:brightness(.82)}
-html[data-slider-layout=mosaic] .jms-mosaic-tile:hover{transform:translateY(-3px) scale(1.015);border-color:rgba(255,255,255,.4);filter:brightness(1)}
-html[data-slider-layout=mosaic] .jms-mosaic-tile::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.85),transparent 60%)}
-html[data-slider-layout=mosaic] .jms-mosaic-tile span{position:absolute;z-index:1;left:12px;right:12px;bottom:10px;font:600 clamp(.8rem,1vw,1rem)/1.2 var(--mwui-font-head,sans-serif);color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.7)}
+/* ======================= MOSAIC (highlight + next tiles) ======================= */
+html[data-slider-layout=mosaic]{--jms-rail-w:27%;--lay-pad-x:max(4%,56px);--lay-text-w:min(44vw,600px)}
+html[data-slider-layout=mosaic] .monwui-slide{width:calc(100% - var(--jms-rail-w) - 12px)!important;border-radius:16px;overflow:hidden}
+html[data-slider-layout=mosaic] .monwui-bckdrp-cntnr{-webkit-mask-image:none;mask-image:none}
+html[data-slider-layout=mosaic] .monwui-backdrop{-webkit-mask-image:none;mask-image:none;filter:brightness(90%) contrast(106%) saturate(106%);object-position:center 22%}
+html[data-slider-layout=mosaic] .monwui-bckdrp-cntnr::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:linear-gradient(0deg,rgba(6,9,15,.92) 0,rgba(6,9,15,.62) 26%,rgba(6,9,15,.15) 55%,transparent 78%),linear-gradient(90deg,rgba(6,9,15,.5) 0,transparent 55%)}
+html[data-slider-layout=mosaic] .monwui-dot-navigation-container:not(.dot-poster-mode){width:min(30vw,320px)!important}
+html[data-slider-layout=mosaic] .jms-mosaic-rail{position:absolute;z-index:70;right:0;top:0;bottom:0;width:var(--jms-rail-w);display:grid;grid-template-rows:repeat(3,minmax(0,1fr));gap:10px}
+html[data-slider-layout=mosaic] .jms-mosaic-tile{position:relative;border-radius:14px;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,.08);background:#0c111c center/cover no-repeat;transition:transform .3s ease,border-color .3s ease,filter .3s ease;filter:brightness(.78) saturate(.95)}
+html[data-slider-layout=mosaic] .jms-mosaic-tile:hover,html[data-slider-layout=mosaic] .jms-mosaic-tile:focus-visible{transform:scale(1.012);border-color:rgba(255,255,255,.28);filter:brightness(1) saturate(1);outline:0}
+html[data-slider-layout=mosaic] .jms-mosaic-tile::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(6,9,15,.82),rgba(6,9,15,0) 62%)}
+html[data-slider-layout=mosaic] .jms-mosaic-tile span{position:absolute;z-index:1;left:12px;right:12px;bottom:9px;font:600 clamp(.74rem,.9vw,.92rem)/1.2 var(--mwui-font-head,sans-serif);color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ======================= COVERFLOW 3D (Peak engine, non-diagonal) ======================= */
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode{perspective:1700px;perspective-origin:50% 42%;overflow:visible}
