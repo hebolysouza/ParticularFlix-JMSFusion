@@ -5061,7 +5061,7 @@ export async function slidesInit() {
         } catch (error) {
           console.debug("[JMS] background userData refresh skipped:", error);
         }
-      }, 2500);
+      }, 1200);
     };
 
     const fetchHomeItemUserDataMap = async (ids, { staleMaxMs = 0 } = {}) => {
@@ -5506,9 +5506,17 @@ export async function slidesInit() {
         } catch {}
         const mergeRange = async (idxList, { fast = false } = {}) => {
           const ids = idxList.map((i) => selectedItems[i]?.Id);
-          const detailed = await fetchItemDetailsCached.many(ids, { persistFetched: true, staleOk: fast });
-          jmsMark("jms:head-details-items");
-          const userDataById = await fetchHomeItemUserDataMap(ids, { staleMaxMs: fast ? HOME_USERDATA_STALE_MAX_MS : 0 });
+          // Fork ParticularFlix 3.8.2.39: detalhes e dados de usuario sao pedidos ao mesmo tempo.
+          const [detailed, userDataById] = await Promise.all([
+            fetchItemDetailsCached.many(ids, { persistFetched: true, staleOk: fast }).then((value) => {
+              jmsMark("jms:head-details-items");
+              return value;
+            }),
+            fetchHomeItemUserDataMap(ids, { staleMaxMs: fast ? HOME_USERDATA_STALE_MAX_MS : 0 }).then((value) => {
+              jmsMark("jms:head-userdata");
+              return value;
+            })
+          ]);
           idxList.forEach((i, k) => {
             const detail = detailed?.[k] || null;
             const base = selectedById.get(detail?.Id || selectedItems[i]?.Id) || selectedItems[i] || null;

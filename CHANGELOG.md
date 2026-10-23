@@ -5,9 +5,18 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.2.38 (fork build)
+## 3.8.2.39 (fork build)
 
-Measurement and cold-start follow-up to 3.8.2.37.
+Rolls up the test-only build 3.8.2.38.
+
+- Slider first paint: the watched/favorite/resume data of the first slides used to be fetched on every reload (the persisted cache drops it on purpose), adding 300 to 700 ms before the first slide. A small per-user copy is now kept in `localStorage`, used only when it is at most 2 h old, and confirmed from the server about 1.2 s later (the slide is patched only if something changed). The details and the watched data are now requested at the same time. `localStorage jms:fastStart = "off"` restores the previous behavior.
+- Cache save: the page-hide flush sent the slider cache with `keepalive`, which browsers refuse above 64 KB ("Failed to fetch" for a ~680 KB cache). Large payloads now use a normal request.
+- Home rows (Studio Hubs, TMDb, recent rows) start when the slider item list arrives, or after 4 s at most, instead of a fixed 500 ms after the slider begins.
+- New performance marks: `jms:home-init`, `jms:auth-wait-done`, `jms:head-details-items`, `jms:head-userdata` (plus the existing `jms:*` marks).
+
+## 3.8.2.38 (fork build, test only)
+
+Measurement and cold-start follow-up to 3.8.2.37, rolled into 3.8.2.39.
 
 - Cache save: the page-hide flush sent the slider cache with `keepalive`, which browsers refuse above 64 KB, so it failed with "Failed to fetch" for a ~680 KB cache. Large payloads now use a normal request (small ones keep `keepalive`).
 - Home rows (Studio Hubs, TMDb, recent rows) no longer start 500 ms after the slider begins; they start as soon as the slider item list arrives, or after 4 s at most, so they stop competing with the first slide on a cold server. `localStorage jms:fastStart = "off"` restores the previous timing.

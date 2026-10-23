@@ -924,6 +924,7 @@ export async function cachePatchItemUserData(itemId, userDataPatch, {
     const userDataEntry = createUserDataCacheEntry(id, mergedUserData, queryFreshTtlMs);
     store[STORE_USER_DATA][id] = userDataEntry;
     setMemEntry(mem.userData, scope, id, userDataEntry);
+    queueUdSnapshotWrite(scope, [userDataEntry]);
     changed = true;
 
     const itemRow = store[STORE_ITEM_DETAILS][id] || null;
@@ -1093,15 +1094,82 @@ function cachePutItemsMemory(items, { ttlMs = DEFAULTS.itemTtlMs } = {}) {
   return count;
 }
 
+// Fork ParticularFlix 3.8.2.39: o cache persistido zera os dados de usuario (assistido, favorito, ponto de
+// retomada) de proposito, entao a cada recarga eles iam a rede e seguravam o primeiro slide por 300 a 700 ms.
+// Esta copia pequena fica no localStorage (por servidor e usuario), so e usada no caminho "pode estar
+// velho" (allowStale + maxStaleMs) e e confirmada em segundo plano logo depois do primeiro slide.
+const UD_SNAPSHOT_PREFIX = "jms:ud-snapshot:v1:";
+const UD_SNAPSHOT_MAX = 240;
+const udSnapshotPending = new Map();
+let udSnapshotTimer = 0;
+
+function udSnapshotKey(scope) {
+  return UD_SNAPSHOT_PREFIX + fnv1a(String(scope || ""));
+}
+
+function readUdSnapshotRows(scope) {
+  try {
+    const raw = globalThis.localStorage?.getItem(udSnapshotKey(scope));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed?.rows) ? parsed.rows : null;
+  } catch {
+    return null;
+  }
+}
+
+function flushUdSnapshotNow() {
+  udSnapshotTimer = 0;
+  const pending = Array.from(udSnapshotPending.entries());
+  udSnapshotPending.clear();
+  for (const [scope, entries] of pending) {
+    try {
+      const rows = readUdSnapshotRows(scope) || {};
+      for (const entry of entries.values()) {
+        rows[entry.id] = { u: entry.userData, e: entry.expiresAt, f: entry.fetchedAt };
+      }
+      const ids = Object.keys(rows);
+      if (ids.length > UD_SNAPSHOT_MAX) {
+        ids.sort((a, b) => Number(rows[b]?.f || 0) - Number(rows[a]?.f || 0));
+        for (const id of ids.slice(UD_SNAPSHOT_MAX)) delete rows[id];
+      }
+      globalThis.localStorage?.setItem(udSnapshotKey(scope), JSON.stringify({ savedAt: now(), rows }));
+    } catch {}
+  }
+}
+
+function queueUdSnapshotWrite(scope, entries) {
+  try {
+    if (!entries?.length) return;
+    let bucket = udSnapshotPending.get(scope);
+    if (!bucket) { bucket = new Map(); udSnapshotPending.set(scope, bucket); }
+    for (const entry of entries) bucket.set(entry.id, entry);
+    if (udSnapshotTimer) return;
+    if (typeof globalThis.requestIdleCallback === "function") {
+      udSnapshotTimer = globalThis.requestIdleCallback(flushUdSnapshotNow, { timeout: 3000 });
+    } else {
+      udSnapshotTimer = setTimeout(flushUdSnapshotNow, 1500);
+    }
+  } catch {}
+}
+
 export async function cacheGetUserDataMap(ids, { allowStale = false, maxStaleMs = 0 } = {}) {
   const uniq = dedupeIds(ids);
   if (!uniq.length) return new Map();
 
   return withStore(STORE_USER_DATA, "readonly", (store, _tx, _memFallback, scope) => {
     const out = new Map();
+    let snapshotRows;
 
     for (const id of uniq) {
-      const row = getMemEntry(mem.userData, scope, id) || store[STORE_USER_DATA][id] || null;
+      let row = getMemEntry(mem.userData, scope, id) || store[STORE_USER_DATA][id] || null;
+      if (!row && allowStale && maxStaleMs > 0) {
+        if (snapshotRows === undefined) snapshotRows = readUdSnapshotRows(scope);
+        const snap = snapshotRows?.[id];
+        if (snap && isRecord(snap.u)) {
+          row = { id, userData: snap.u, fetchedAt: Number(snap.f || 0), expiresAt: Number(snap.e || 0) };
+        }
+      }
       if (!row) continue;
       setMemEntry(mem.userData, scope, id, row);
       // Fork ParticularFlix: maxStaleMs > 0 limita ate quanto tempo depois de vencido um dado ainda
@@ -1136,6 +1204,7 @@ export async function cachePutUserDataItems(items, { ttlMs = DEFAULTS.resumeTtlM
         setMemEntry(mem.userData, scope, entry.id, entry);
         store[STORE_USER_DATA][entry.id] = entry;
       }
+      queueUdSnapshotWrite(scope, entries);
       return entries.length;
     } catch (e) {
       console.warn("[JMS][cache] cachePutUserDataItems failed:", e);
