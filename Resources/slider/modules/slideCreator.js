@@ -364,6 +364,8 @@ async function createSlide(item, options = {}) {
   } = options || {};
   const indexPage = document.querySelector("#indexPage:not(.hide)") || document.querySelector("#homePage:not(.hide)");
   if (!indexPage) return;
+  const csMark = (name) => { try { if (!window.__jmsFirstSlideReady) performance.mark("jms:cs-" + name); } catch {} };
+  csMark("start");
 
   let parentId = item.Id;
   const itemIdRaw = item.Id;
@@ -493,7 +495,9 @@ async function createSlide(item, options = {}) {
   if (config.manualBackdropSelection || config.indexZeroSelection) {
     highestQualityBackdropIndex = "0";
   } else {
+    csMark("backdrop-probe-start");
     highestQualityBackdropIndex = await getHighestQualityBackdropIndex(parentId, { itemDetails: item });
+    csMark("backdrop-probe-done");
   }
 
   function storeBackdropUrl(id, url) {
@@ -628,6 +632,7 @@ async function createSlide(item, options = {}) {
     { ...item, Id: parentId },
     highestQualityBackdropIndex
   );
+  csMark("imageurls-done");
   const absBackdrop = config.manualBackdropSelection ? manualBackdropUrl : S(backdropUrl);
   const absPlaceholder = S(placeholderUrl);
   const absSrcset = withServerSrcset(srcset || "");
@@ -908,9 +913,12 @@ async function createSlide(item, options = {}) {
   const statusContainer = createStatusContainer(config, UserData, RunTimeTicks);
   const formatContainer = createFormatContainer(itemType, config, ChildCount, MediaStreams, metaColorSeed);
   if (formatContainer && itemType === "Series") applyNewSeasonBadge(formatContainer, item, config.languageLabels);
+  csMark("before-actors");
   const actorSlider = await createActorSlider(People, config, item);
+  csMark("actors-done");
   const infoContainer = createInfoContainer({ config, Genres, ProductionYear, ProductionLocations });
   const directorContainer = await createDirectorContainer({ config, People, item });
+  csMark("director-done");
   const { container: ratingContainer, ratingExists } = await createRatingContainer({
   config,
   CommunityRating,
@@ -919,6 +927,7 @@ async function createSlide(item, options = {}) {
   UserData,
   item
 });
+  csMark("rating-done");
   const providerContainer = createProviderContainer({ config, ProviderIds, RemoteTrailers, itemId, slide, item });
   const languageContainer = createLanguageContainer({ config, MediaStreams, itemType });
 
