@@ -4876,6 +4876,7 @@ export async function slidesInit() {
     isSliderBootTokenCurrent(bootToken, { requireHomeVisible, requireContainer });
   window.__slidesInitRunning = true;
   setHomeSliderRuntimeItems([]);
+  try { window.__jmsPoolReady = false; } catch {}
   if (!isBootActive({ requireHomeVisible: false })) {
     window.__slidesInitRunning = false;
     return;
@@ -5298,6 +5299,10 @@ export async function slidesInit() {
       });
         playingItems = await playingPromise;
         jmsMark("jms:pool-ready");
+        try {
+          window.__jmsPoolReady = true;
+          document.dispatchEvent(new CustomEvent("jms:pool-ready"));
+        } catch {}
         let allItems = data.Items || [];
         syncCustomSplashProgress({
           dataPoolReady: true,
@@ -5502,6 +5507,7 @@ export async function slidesInit() {
         const mergeRange = async (idxList, { fast = false } = {}) => {
           const ids = idxList.map((i) => selectedItems[i]?.Id);
           const detailed = await fetchItemDetailsCached.many(ids, { persistFetched: true, staleOk: fast });
+          jmsMark("jms:head-details-items");
           const userDataById = await fetchHomeItemUserDataMap(ids, { staleMaxMs: fast ? HOME_USERDATA_STALE_MAX_MS : 0 });
           idxList.forEach((i, k) => {
             const detail = detailed?.[k] || null;
@@ -6361,6 +6367,7 @@ function initializeSliderOnHome({ forceManagedSectionsBoot = false } = {}) {
       }
 
       try { window.__jmsHomeTabPaused = false; } catch {}
+      jmsMark("jms:home-init");
       homeSectionLog("initializeSliderOnHome:start", {
         forceManagedSectionsBoot,
       });
@@ -6438,7 +6445,17 @@ function initializeSliderOnHome({ forceManagedSectionsBoot = false } = {}) {
         try {
           const earlyRaw = Number((getConfig?.() || {}).homeRowsEarlyBootMs);
           const earlyMs = Number.isFinite(earlyRaw) ? earlyRaw : 500;
-          if (earlyMs >= 0) setTimeout(() => { if (isHomeRouteActive()) onAllReady(); }, earlyMs);
+          // Fork ParticularFlix 3.8.2.38: as fileiras so largam depois que a lista do slider chegou
+          // (ou no maximo 4 s), para nao disputar o servidor com o primeiro slide numa partida fria.
+          // localStorage jms:fastStart = "off" volta ao comportamento anterior.
+          const startRowsEarly = () => { if (isHomeRouteActive()) onAllReady(); };
+          if (earlyMs >= 0) setTimeout(() => {
+            if (!isFastStartEnabled() || window.__jmsPoolReady) { startRowsEarly(); return; }
+            let rowsStarted = false;
+            const go = () => { if (rowsStarted) return; rowsStarted = true; startRowsEarly(); };
+            document.addEventListener("jms:pool-ready", go, { once: true });
+            setTimeout(go, 4000);
+          }, earlyMs);
         } catch {}
         document.addEventListener("jms:all-slides-ready", onAllReady, { once: true });
         if (window.__totalSlidesPlanned > 0 && window.__slidesCreated >= window.__totalSlidesPlanned) {
@@ -6505,6 +6522,7 @@ function initializeSliderOnHome({ forceManagedSectionsBoot = false } = {}) {
         try {
           await waitAuthWarmupFallback(1000);
         } catch {}
+        jmsMark("jms:auth-wait-done");
         void slidesInit();
       })();
 

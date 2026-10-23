@@ -5,6 +5,14 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.8.2.38 (fork build)
+
+Measurement and cold-start follow-up to 3.8.2.37.
+
+- Cache save: the page-hide flush sent the slider cache with `keepalive`, which browsers refuse above 64 KB, so it failed with "Failed to fetch" for a ~680 KB cache. Large payloads now use a normal request (small ones keep `keepalive`).
+- Home rows (Studio Hubs, TMDb, recent rows) no longer start 500 ms after the slider begins; they start as soon as the slider item list arrives, or after 4 s at most, so they stop competing with the first slide on a cold server. `localStorage jms:fastStart = "off"` restores the previous timing.
+- New performance marks for finding where the first paint spends its time: `jms:home-init`, `jms:auth-wait-done` and `jms:head-details-items` (plus the existing `jms:*` marks). Read them with `performance.getEntriesByType("mark")`.
+
 ## 3.8.2.37 (fork build)
 
 Faster first paint of the slider and a leaner details window.

@@ -229,13 +229,18 @@ async function writeScopePayload(cacheType, scope, payload, { keepalive = false 
   const sentGen = SCOPE_GENERATIONS.get(scopeGenKey(cacheType, scope));
   if (sentGen) headers[GEN_HEADER] = String(sentGen);
 
+  const bodyText = JSON.stringify(payload || {});
+  // Fork ParticularFlix 3.8.2.38: o navegador recusa fetch com keepalive e corpo acima de 64 KB
+  // ("Failed to fetch"). Em payload grande usa o envio normal, que o proprio agendamento repete se falhar.
+  const useKeepalive = keepalive === true && bodyText.length < 60000;
+
   const response = await fetch(buildUrl(cacheType, scope), {
     method: "POST",
     cache: "no-store",
     credentials: "same-origin",
-    keepalive: keepalive === true,
+    keepalive: useKeepalive,
     headers,
-    body: JSON.stringify(payload || {})
+    body: bodyText
   });
 
   if (response.status === 409) {
