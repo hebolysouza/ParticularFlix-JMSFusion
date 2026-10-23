@@ -5,6 +5,14 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.8.2.37 (fork build)
+
+Faster first paint of the slider and a leaner details window.
+
+- Slider, cold start: the first slide no longer waits for fresh data when a recent copy exists. The items pool, the head slide details and the watched/resume state are served from the local cache right away (up to 12 h old for the pool and 2 h for watched state) and refreshed in the background a couple of seconds later; the slide is patched only if something changed. The resume list and the pool are requested in parallel. Add `localStorage jms:fastStart = "off"` to go back to the previous behavior. Browser performance marks named `jms:*` were added to measure each phase.
+- Details window: when opening takes longer than about 140 ms it now shows a skeleton that expands from the card instead of staying blank. Seasons, parent series and series details are requested in parallel, the parent series is reused for Seerr lookups, and the "missing episodes" from Seerr/Sonarr are loaded in the background and added to the list when ready. Reviews (TMDb), local comments and the side lists start loading only when they are about to be seen or during the opening animation.
+- Language: missing labels added (Parental PIN tab title in English and Spanish, Studio Hubs default library name, writers placeholder).
+
 ## 3.8.2.36 (fork build)
 
 Rolls up the unpublished internal build 3.8.2.35.

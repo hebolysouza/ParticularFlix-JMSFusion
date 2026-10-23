@@ -1923,6 +1923,8 @@ export const languageLabels = {
   gmmpSettings: "GMMP Settings",
   optionTurkish: "🇹🇷 Türkçe",
   optionEnglish: "🇬🇧 English",
+  parentalPinTab: "Parental PIN Control Settings",
+  studioHubMovieLibraryFallbackName: "Movies",
   optionGerman: "🇩🇪 Deutsch",
   optionFrench: "🇫🇷 Français",
   optionRussian: "🇷🇺 Русский",

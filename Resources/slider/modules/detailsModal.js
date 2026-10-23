@@ -3642,6 +3642,34 @@ function startRecoLoad(root, movieItem, { signal } = {}) {
   })();
 }
 
+// Fork ParticularFlix: executa fn so quando o elemento esta perto de aparecer na area rolavel
+// (ou na hora, se o navegador nao tiver IntersectionObserver). Evita pedir ao servidor e ao
+// TMDb dados de blocos que ficam abaixo da dobra e que muitas vezes nem sao vistos.
+function __whenNearViewport(el, fn, { signal = null, rootMargin = "320px" } = {}) {
+  if (!el) return;
+  let done = false;
+  const run = () => {
+    if (done) return;
+    done = true;
+    if (signal?.aborted) return;
+    try { fn(); } catch {}
+  };
+  if (typeof IntersectionObserver !== "function") { run(); return; }
+  try {
+    const scroller = el.closest?.(".jmsdm-left") || null;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        try { io.disconnect(); } catch {}
+        run();
+      }
+    }, { root: scroller, rootMargin });
+    io.observe(el);
+    signal?.addEventListener?.("abort", () => { try { io.disconnect(); } catch {} }, { once: true });
+  } catch {
+    run();
+  }
+}
+
 export async function openDetailsModal({ itemId, item: preloadedItem = null, detailsHref = "", serverId = "", preferBackdropIndex = "0", perPage = 6, originEl } = {}) {
   const resolvedItemId = safeText(itemId || preloadedItem?.Id);
   if (!resolvedItemId && !preloadedItem) return;
@@ -3672,6 +3700,28 @@ export async function openDetailsModal({ itemId, item: preloadedItem = null, det
 
   setTimeout(() => { if (_open) focusFirst(root); }, 50);
 
+  // Fork ParticularFlix: se a abertura demorar mais que ~140 ms, mostra o esqueleto expandindo a
+  // partir do card de origem em vez de deixar a tela parada. Abertura rapida (dados em cache)
+  // continua exatamente como antes. Desligue com localStorage jms:fastStart = "off".
+  const openAbort = _abort;
+  let skeletonAnim = null;
+  let skeletonTimer = null;
+  try {
+    if (localStorage.getItem("jms:fastStart") !== "off") {
+      skeletonTimer = setTimeout(() => {
+        skeletonTimer = null;
+        if (!_open || _abort !== openAbort || openAbort.signal.aborted) return;
+        try { root.style.visibility = "visible"; root.style.opacity = "1"; } catch {}
+        skeletonAnim = __animateInFromOrigin(root);
+      }, 140);
+    }
+  } catch {}
+  const settleSkeleton = async () => {
+    if (skeletonTimer) { clearTimeout(skeletonTimer); skeletonTimer = null; }
+    if (skeletonAnim) { try { await skeletonAnim; } catch {} }
+    return !!skeletonAnim;
+  };
+
   let item = preloadedItem && preloadedItem.__monwuiVirtualTrailer === true
     ? preloadedItem
     : null;
@@ -3687,6 +3737,7 @@ export async function openDetailsModal({ itemId, item: preloadedItem = null, det
   if (!_open || _abort.signal.aborted) return;
 
   if (!item) {
+    const hadSkeletonOnFail = await settleSkeleton();
     root.innerHTML = `
       <div class="jmsdm-backdrop" role="dialog" aria-modal="true">
         <div class="jmsdm-card" tabindex="-1">
@@ -3697,7 +3748,7 @@ export async function openDetailsModal({ itemId, item: preloadedItem = null, det
     `;
     wireCloseHandlers(root, closeDetailsModal);
     try { root.style.visibility = "visible"; root.style.opacity = "1"; } catch {}
-    await __animateInFromOrigin(root);
+    if (hadSkeletonOnFail) __ensureModalVisible(root); else await __animateInFromOrigin(root);
     return;
   }
 
@@ -3705,6 +3756,18 @@ export async function openDetailsModal({ itemId, item: preloadedItem = null, det
   const isVirtualTrailer = baseItem?.__monwuiVirtualTrailer === true;
   let seriesItem = null;
   const isEpisode = baseItem?.Type === "Episode";
+  // Fork ParticularFlix: temporadas e dados da serie so dependem do SeriesId, entao saem juntos
+  // com a busca da serie-pai (antes eram pedidos um depois do outro).
+  const earlySeriesId = (!isVirtualTrailer && (baseItem?.Type === "Series" || baseItem?.Type === "Season" || isEpisode))
+    ? safeText(baseItem?.Type === "Series" ? baseItem.Id : baseItem?.SeriesId, "")
+    : "";
+  const earlySeasonsPromise = earlySeriesId
+    ? fetchSeasonsForSeries(earlySeriesId, { signal: _abort.signal })
+    : null;
+  if (earlySeasonsPromise) earlySeasonsPromise.catch(() => {});
+  const earlySeriesDetailsPromise = (earlySeriesId && baseItem?.Type === "Season")
+    ? fetchItemDetailsFull(earlySeriesId, { signal: _abort.signal }).catch(() => null)
+    : null;
   if (!isVirtualTrailer && isEpisode && baseItem?.SeriesId) {
     try {
       seriesItem = await fetchItemDetailsFull(baseItem.SeriesId, { signal: _abort.signal });
@@ -3798,14 +3861,14 @@ export async function openDetailsModal({ itemId, item: preloadedItem = null, det
       : (isEpisode ? episodeSeasonId : null);
 
   if (isSeries && seriesId) {
-    seasons = await fetchSeasonsForSeries(seriesId, { signal: _abort.signal });
+    seasons = await (earlySeasonsPromise || fetchSeasonsForSeries(seriesId, { signal: _abort.signal }));
     if (!_open || _abort.signal.aborted) return;
     selectedSeasonId = seasons[0]?.Id || null;
   } else if (baseItem.Type === "Season" && seriesId) {
-    seasons = await fetchSeasonsForSeries(seriesId, { signal: _abort.signal });
+    seasons = await (earlySeasonsPromise || fetchSeasonsForSeries(seriesId, { signal: _abort.signal }));
     if (!_open || _abort.signal.aborted) return;
   } else if (isEpisode && seriesId) {
-    seasons = await fetchSeasonsForSeries(seriesId, { signal: _abort.signal });
+    seasons = await (earlySeasonsPromise || fetchSeasonsForSeries(seriesId, { signal: _abort.signal }));
     if (!_open || _abort.signal.aborted) return;
     const selectedSeasonExists = seasons.some((season) => String(season?.Id) === String(selectedSeasonId));
     if (!selectedSeasonId || !selectedSeasonExists) {
@@ -3819,7 +3882,8 @@ export async function openDetailsModal({ itemId, item: preloadedItem = null, det
     }
   }
   if (!seriesDetailsForSerr && seriesId) {
-    seriesDetailsForSerr = await fetchItemDetailsFull(seriesId, { signal: _abort.signal }).catch(() => null);
+    seriesDetailsForSerr = seriesItem ||
+      await (earlySeriesDetailsPromise || fetchItemDetailsFull(seriesId, { signal: _abort.signal }).catch(() => null));
     if (!_open || _abort.signal.aborted) return;
   }
 
@@ -3944,8 +4008,9 @@ export async function openDetailsModal({ itemId, item: preloadedItem = null, det
     { label: label("communityRating", "TMDb"), value: community ? `TMDb ${community}` : "" }
   ].filter((entry) => safeText(entry?.value));
 
-  async function loadEpisodesForSelectedSeason(seasonId) {
-    const localEpisodes = await fetchEpisodesFor(seriesId, seasonId, { signal: _abort.signal });
+  async function loadEpisodesForSelectedSeason(seasonId, { withSerr = true, localEpisodes: prefetched = null } = {}) {
+    const localEpisodes = prefetched || await fetchEpisodesFor(seriesId, seasonId, { signal: _abort.signal });
+    if (!withSerr) return localEpisodes;
     const selectedSeason = seasons.find((season) => String(season?.Id) === String(seasonId)) ||
       (baseItem.Type === "Season" ? baseItem : null) ||
       (isEpisode && Number.isFinite(Number(baseItem?.ParentIndexNumber))
@@ -3971,8 +4036,12 @@ export async function openDetailsModal({ itemId, item: preloadedItem = null, det
   }
 
   let episodes = [];
+  let localEpisodesFirst = null;
   if (seriesId) {
-    episodes = await loadEpisodesForSelectedSeason(selectedSeasonId);
+    // Fork ParticularFlix: o modal abre so com os episodios locais; os episodios "faltando" do
+    // Seerr/Sonarr (chamadas externas e lentas) entram depois, via rerenderRight().
+    localEpisodesFirst = await loadEpisodesForSelectedSeason(selectedSeasonId, { withSerr: false });
+    episodes = localEpisodesFirst;
   }
   if (!_open || _abort.signal.aborted) return;
 
@@ -4252,6 +4321,8 @@ wireMiniCardDelegation();
       </button>
     `;
 
+  const hadSkeleton = await settleSkeleton();
+  if (!_open || _abort.signal.aborted) return;
   root.innerHTML = `
     <div class="jmsdm-backdrop" role="dialog" aria-modal="true" aria-label="${name}">
       <div class="jmsdm-card" tabindex="-1">
@@ -4329,8 +4400,8 @@ wireMiniCardDelegation();
 
   wireSerrRequestButtons(root);
 
-  await __animateInFromOrigin(root);
-
+  // Fork ParticularFlix: os pedidos de rede dos blocos laterais saem junto com a animacao de
+  // entrada (antes so comecavam depois dela terminar).
   if (isMovie) {
     startRecoLoad(root, baseItem, { signal: _abort.signal });
     startCollectionLoad(root, baseItem, { signal: _abort.signal });
@@ -4340,13 +4411,20 @@ wireMiniCardDelegation();
     startMusicLoad(root, baseItem, { signal: _abort.signal });
   }
 
+  if (hadSkeleton) __ensureModalVisible(root); else await __animateInFromOrigin(root);
+  if (!_open || _abort.signal.aborted) return;
+
   wireOverviewToggle(root);
   startHeroTrailer(root, displayItem, { signal: _abort.signal }).catch(() => {});
   if (supportsLocalComments) {
-    loadLocalCommentsInto(root, baseItem, { signal: _abort.signal });
+    __whenNearViewport(root.querySelector(".jmsdm-local-comments"), () => {
+      loadLocalCommentsInto(root, baseItem, { signal: _abort.signal });
+    }, { signal: _abort.signal });
   }
   if (supportsTmdbReviews) {
-    loadTmdbReviewsInto(root, displayItem, { signal: _abort.signal });
+    __whenNearViewport(root.querySelector(".jmsdm-tmdb-reviews"), () => {
+      loadTmdbReviewsInto(root, displayItem, { signal: _abort.signal });
+    }, { signal: _abort.signal });
   }
 
   const playBtn = root.querySelector(".jmsdm-play");
@@ -4756,6 +4834,24 @@ wireMiniCardDelegation();
         rerenderRight();
       }
     });
+  }
+
+  // Fork ParticularFlix: completa a lista com os episodios "faltando" do Seerr/Sonarr em segundo plano
+  // e so redesenha o painel direito se algo realmente mudou e a temporada ainda for a mesma.
+  if (seriesId && seriesDetailsForSerr && localEpisodesFirst) {
+    const seasonAtStart = selectedSeasonId;
+    loadEpisodesForSelectedSeason(seasonAtStart, { localEpisodes: localEpisodesFirst })
+      .then((full) => {
+        if (!_open || _abort !== openAbort || openAbort.signal.aborted) return;
+        if (String(selectedSeasonId) !== String(seasonAtStart)) return;
+        if (episodes !== localEpisodesFirst) return;
+        const same = full.length === episodes.length && full.every((ep, i) => ep === episodes[i]);
+        if (same) return;
+        episodes = full;
+        if (page > totalPages()) page = totalPages();
+        rerenderRight();
+      })
+      .catch(() => {});
   }
 
   focusFirst(root);

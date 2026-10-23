@@ -1922,6 +1922,8 @@ export const languageLabels = {
   gmmpSettings: "Configurações do Player de Música (GMMP)",
   optionTurkish: "🇹🇷 Türkçe",
   optionEnglish: "🇬🇧 English",
+  studioHubMovieLibraryFallbackName: "Filmes",
+  writersListPlaceholder: "ex.: Quentin TARANTINO, Christopher NOLAN",
   optionGerman: "🇩🇪 Deutsch",
   optionFrench: "🇫🇷 Français",
   optionRussian: "🇷🇺 Русский",

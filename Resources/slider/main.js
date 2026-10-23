@@ -128,6 +128,14 @@ const HOME_RESUME_CACHE_TTL_MS = 5 * 60 * 1000;
 const HOME_LIBRARY_WATCH_INTERVAL_MS = 5 * 60 * 1000;
 const HOME_ITEMS_POOL_CACHE_TTL_MS = 30 * 60 * 1000;
 const HOME_SLIDER_SOURCE_CACHE_MINUTES = 3;
+// Fork ParticularFlix: primeira tela mais rapida. Dados guardados (mesmo vencidos ha pouco) sao usados na
+// hora e confirmados em segundo plano, em vez de segurar o primeiro slide esperando a rede.
+// Desliga com localStorage jms:fastStart = "off".
+const HOME_ITEMS_POOL_STALE_MAX_MS = 12 * 60 * 60 * 1000;
+const HOME_USERDATA_STALE_MAX_MS = 2 * 60 * 60 * 1000;
+const isFastStartEnabled = () => {
+  try { return localStorage.getItem("jms:fastStart") !== "off"; } catch { return true; }
+};
 const HOME_ITEMS_POOL_MAX_LIMIT = 500;
 const FOCUSED_USERDATA_SYNC_MIN_GAP_MS = 45_000;
 let materialIconsRepairPromise = null;
@@ -5021,13 +5029,57 @@ export async function slidesInit() {
       return data?.Items || data || [];
     };
 
-    const fetchHomeItemUserDataMap = async (ids) => {
+    const userDataDiffers = (a, b) =>
+      ["Played", "IsFavorite", "PlayCount", "PlaybackPositionTicks"].some((k) => (a?.[k] ?? null) !== (b?.[k] ?? null));
+
+    // Confirma em segundo plano os dados de usuario que foram mostrados a partir do cache vencido
+    // e corrige na tela o que tiver mudado (assistido, favorito, ponto de retomada).
+    const refreshUserDataInBackground = (refreshIds, shownMap) => {
+      window.setTimeout(async () => {
+        try {
+          for (let start = 0; start < refreshIds.length; start += bulkBatchSize) {
+            const chunk = refreshIds.slice(start, start + bulkBatchSize);
+            const qs = new URLSearchParams();
+            qs.set("Ids", chunk.join(","));
+            qs.set("EnableUserData", "true");
+            qs.set("EnableTotalRecordCount", "false");
+            qs.set("Fields", HOME_ITEM_DETAILS_USERDATA_FIELDS.join(","));
+            const data = await fetchJsonViaSafeFetch(`/Users/${userId}/Items?${qs.toString()}`, {
+              headers: getAuthHeaders()
+            });
+            const fresh = Array.isArray(data?.Items) ? data.Items : (Array.isArray(data) ? data : []);
+            await cachePutUserDataItems(fresh, { ttlMs: itemUserDataMaxAgeMs });
+            for (const item of fresh) {
+              const id = item?.Id || item?.id;
+              if (!id || !item?.UserData) continue;
+              if (userDataDiffers(shownMap.get(id)?.UserData, item.UserData)) {
+                try { tryApplyLocalSliderUserDataPatch({ itemId: id, userData: item.UserData, skipSliderRefresh: true }); } catch {}
+              }
+            }
+          }
+        } catch (error) {
+          console.debug("[JMS] background userData refresh skipped:", error);
+        }
+      }, 2500);
+    };
+
+    const fetchHomeItemUserDataMap = async (ids, { staleMaxMs = 0 } = {}) => {
       const cleanIds = dedupeItemIds(ids);
       if (!cleanIds.length) return new Map();
 
       const out = await cacheGetUserDataMap(cleanIds, { allowStale: false });
-      const missingIds = cleanIds.filter((id) => !out.has(id));
+      let missingIds = cleanIds.filter((id) => !out.has(id));
       if (!missingIds.length) return out;
+
+      if (staleMaxMs > 0) {
+        const staleMap = await cacheGetUserDataMap(missingIds, { allowStale: true, maxStaleMs: staleMaxMs }).catch(() => new Map());
+        if (staleMap.size) {
+          for (const [id, item] of staleMap.entries()) out.set(id, item);
+          refreshUserDataInBackground(Array.from(staleMap.keys()), staleMap);
+          missingIds = missingIds.filter((id) => !staleMap.has(id));
+          if (!missingIds.length) return out;
+        }
+      }
 
       for (let start = 0; start < missingIds.length; start += bulkBatchSize) {
         const chunk = missingIds.slice(start, start + bulkBatchSize);
@@ -5163,7 +5215,11 @@ export async function slidesInit() {
         "X-Emby-Token": accessToken
       };
 
-        if (playingLimit > 0) {
+        // Fork ParticularFlix: "continuar assistindo" e o pool de itens sao pedidos ao mesmo tempo
+        // (antes um esperava o outro terminar).
+        const playingPromise = (async () => {
+          if (!(playingLimit > 0)) return [];
+          let result = [];
           try {
             const data = await cachedFetchJson({
             keyParts: ["resume", userId, playingLimit * 2],
@@ -5181,14 +5237,15 @@ export async function slidesInit() {
             fetchedItems = fetchedItems.filter((item) => isPartialPlaybackUserData(item?.UserData));
 
             if (config.excludeEpisodesFromPlaying) {
-              playingItems = fetchedItems.filter((item) => item.Type !== "Episode").slice(0, playingLimit);
+              result = fetchedItems.filter((item) => item.Type !== "Episode").slice(0, playingLimit);
             } else {
-              playingItems = fetchedItems.slice(0, playingLimit);
+              result = fetchedItems.slice(0, playingLimit);
             }
           } catch (err) {
             console.error("İzlenen içerikler alınırken hata:", err);
           }
-        }
+          return result;
+        })();
 
         const configuredShufflingLimit = parseInt(config.maxShufflingLimit || "500", 10);
         const maxShufflingLimit = Math.max(50, Math.min(HOME_ITEMS_POOL_MAX_LIMIT, Number.isFinite(configuredShufflingLimit) ? configuredShufflingLimit : 500));
@@ -5214,6 +5271,7 @@ export async function slidesInit() {
                 // esta lista precisa para ordenar. Por isso usa um tipo proprio (sem compactacao).
                 fetchJson: (url) => cachedFetchJson({
                   keyParts: ["sliderSourcePoolV3", sliderSourceMode, userId, url],
+                  staleWhileRevalidateMs: isFastStartEnabled() ? HOME_ITEMS_POOL_STALE_MAX_MS / 2 : 0,
                   url,
                   opts: { headers: authHeaders },
                   fetchJson: fetchJsonViaSafeFetch,
@@ -5226,6 +5284,7 @@ export async function slidesInit() {
             }
           : await cachedFetchJson({
         keyParts: ["itemsPool", userId, queryString, maxShufflingLimit],
+        staleWhileRevalidateMs: isFastStartEnabled() ? HOME_ITEMS_POOL_STALE_MAX_MS : 0,
         url: `/Users/${userId}/Items?${queryString}&Limit=${maxShufflingLimit}&EnableTotalRecordCount=false`,
         opts: { headers: authHeaders },
         fetchJson: fetchJsonViaSafeFetch,
@@ -5237,6 +5296,8 @@ export async function slidesInit() {
         },
         allowStaleOnError: true,
       });
+        playingItems = await playingPromise;
+        jmsMark("jms:pool-ready");
         let allItems = data.Items || [];
         syncCustomSplashProgress({
           dataPoolReady: true,
@@ -5438,10 +5499,10 @@ export async function slidesInit() {
             : [0, 1];
           firstBatch.forEach((i) => { if (i >= 0 && i < selectedItems.length) headIdx.add(i); });
         } catch {}
-        const mergeRange = async (idxList) => {
+        const mergeRange = async (idxList, { fast = false } = {}) => {
           const ids = idxList.map((i) => selectedItems[i]?.Id);
-          const detailed = await fetchItemDetailsCached.many(ids, { persistFetched: true });
-          const userDataById = await fetchHomeItemUserDataMap(ids);
+          const detailed = await fetchItemDetailsCached.many(ids, { persistFetched: true, staleOk: fast });
+          const userDataById = await fetchHomeItemUserDataMap(ids, { staleMaxMs: fast ? HOME_USERDATA_STALE_MAX_MS : 0 });
           idxList.forEach((i, k) => {
             const detail = detailed?.[k] || null;
             const base = selectedById.get(detail?.Id || selectedItems[i]?.Id) || selectedItems[i] || null;
@@ -5451,7 +5512,9 @@ export async function slidesInit() {
           });
         };
         items = selectedItems.map((base) => mergeHomeSliderItem(base, null, null) || base);
-        await mergeRange(Array.from(headIdx).sort((a, b) => a - b));
+        jmsMark("jms:head-details-start");
+        await mergeRange(Array.from(headIdx).sort((a, b) => a - b), { fast: isFastStartEnabled() });
+        jmsMark("jms:head-details-ready");
         const tailIdx = items.map((_, i) => i).filter((i) => !headIdx.has(i));
         let tailPromise = null;
         headItemIdx = headIdx;

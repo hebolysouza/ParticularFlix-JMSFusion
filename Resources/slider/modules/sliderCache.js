@@ -1093,7 +1093,7 @@ function cachePutItemsMemory(items, { ttlMs = DEFAULTS.itemTtlMs } = {}) {
   return count;
 }
 
-export async function cacheGetUserDataMap(ids, { allowStale = false } = {}) {
+export async function cacheGetUserDataMap(ids, { allowStale = false, maxStaleMs = 0 } = {}) {
   const uniq = dedupeIds(ids);
   if (!uniq.length) return new Map();
 
@@ -1104,7 +1104,10 @@ export async function cacheGetUserDataMap(ids, { allowStale = false } = {}) {
       const row = getMemEntry(mem.userData, scope, id) || store[STORE_USER_DATA][id] || null;
       if (!row) continue;
       setMemEntry(mem.userData, scope, id, row);
-      if (row.expiresAt > now() || allowStale) {
+      // Fork ParticularFlix: maxStaleMs > 0 limita ate quanto tempo depois de vencido um dado ainda
+      // pode ser usado quando allowStale e verdadeiro (0 = sem limite, comportamento anterior).
+      const staleOk = allowStale && (!(maxStaleMs > 0) || (now() - Number(row.expiresAt || 0)) <= maxStaleMs);
+      if (row.expiresAt > now() || staleOk) {
         out.set(id, {
           Id: id,
           UserData: isRecord(row.userData) ? { ...row.userData } : {},
@@ -1450,6 +1453,9 @@ export async function cachedFetchText({
   }
 }
 
+// Fork ParticularFlix: revalidacoes em segundo plano em andamento (uma por chave)
+const swrInflight = new Map();
+
 export async function cachedFetchJson({
   keyParts,
   fetchJson,
@@ -1458,11 +1464,35 @@ export async function cachedFetchJson({
   ttlMs = DEFAULTS.queryTtlMs,
   entryMeta = null,
   allowStaleOnError = DEFAULTS.allowStaleOnError,
+  // > 0: se existir um dado vencido ha no maximo esse tempo, devolve na hora e atualiza em segundo plano
+  staleWhileRevalidateMs = 0,
+  swrDelayMs = 2500,
 }){
   const key = makeKey(["json", ...keyParts]);
-  const cached = await cacheGetQuery(key, { allowStale: allowStaleOnError });
+  const cached = await cacheGetQuery(key, { allowStale: allowStaleOnError || staleWhileRevalidateMs > 0 });
   if (cached && cached.__type === "json") {
     if (cached.expiresAt > now()) return cached.data;
+    if (staleWhileRevalidateMs > 0 && (now() - Number(cached.expiresAt || 0)) <= staleWhileRevalidateMs) {
+      if (!swrInflight.has(key)) {
+        const run = async () => {
+          try {
+            const fresh = await fetchJson(url, opts);
+            await cachePutQuery(
+              key,
+              { __type: "json", data: fresh, expiresAt: now() + ttlMs },
+              { ttlMs, entryMeta }
+            );
+          } catch (e) {
+            console.debug("[JMS][cache] background revalidate skipped:", e);
+          } finally {
+            swrInflight.delete(key);
+          }
+        };
+        swrInflight.set(key, true);
+        setTimeout(run, Math.max(0, Number(swrDelayMs) || 0));
+      }
+      return cached.data;
+    }
   }
 
   try {
@@ -1555,13 +1585,14 @@ export function createCachedItemDetailsFetcher({
     return true;
   }
 
-  getOne.many = async function(ids, { prefetchOnly = false, persistFetched = true } = {}) {
+  getOne.many = async function(ids, { prefetchOnly = false, persistFetched = true, staleOk = false, staleDelayMs = 2500 } = {}) {
     const list = Array.isArray(ids) ? ids : [];
     if (!list.length) return prefetchOnly ? { total: 0, missing: 0 } : [];
 
     const freshEntriesMap = await cacheGetItemEntriesMap(list, { allowStale: false });
     const out = prefetchOnly ? null : new Array(list.length).fill(null);
     const missing = [];
+    const revalidateLater = [];
 
     for (let i = 0; i < list.length; i++) {
       const id = list[i];
@@ -1571,7 +1602,20 @@ export function createCachedItemDetailsFetcher({
         if (out) out[i] = hitEntry.data;
         continue;
       }
+      // Fork ParticularFlix: com staleOk, um detalhe guardado (ainda dentro do prazo de validade do cache)
+      // e usado na hora e so reconfirmado em segundo plano, em vez de segurar a tela esperando a rede.
+      if (staleOk && hitEntry && !prefetchOnly && out) {
+        out[i] = hitEntry.data;
+        revalidateLater.push(id);
+        continue;
+      }
       missing.push(id);
+    }
+
+    if (revalidateLater.length && typeof fetchMany === "function") {
+      setTimeout(() => {
+        hydrateMissingWithBulk(revalidateLater, { persistFetched }).catch(() => {});
+      }, Math.max(0, Number(staleDelayMs) || 0));
     }
 
     if (missing.length && typeof fetchMany === "function") {
