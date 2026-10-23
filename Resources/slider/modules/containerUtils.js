@@ -854,12 +854,12 @@ export async function createRatingContainer({
 
   if (config.showRatingInfo) {
     if (config.showMatchPercentage && UserData && item) {
-      const matchPercentage = await calculateMatchPercentage(UserData, item);
-      const matchSpan = document.createElement("span");
-      matchSpan.className = "monwui-match-percentage";
-      const matchTone = toneFromPercent(matchPercentage);
-      if (matchTone) matchSpan.dataset.tone = matchTone;
-      matchSpan.innerHTML = `
+      const buildMatchSpan = (matchPercentage) => {
+        const matchSpan = document.createElement("span");
+        matchSpan.className = "monwui-match-percentage";
+        const matchTone = toneFromPercent(matchPercentage);
+        if (matchTone) matchSpan.dataset.tone = matchTone;
+        matchSpan.innerHTML = `
   <span class="monwui-match-rating">
     <i class="fa-regular fa-heart fa-lg"></i>
       <span class="monwui-heart-filled" style="clip-path: inset(${100 - matchPercentage}% 0 0 0);">
@@ -867,8 +867,42 @@ export async function createRatingContainer({
     </span>
   </span>
   ${buildMetaTextSpan(`${matchPercentage}%`, "monwui-percentage-text")}`;
-      container.appendChild(matchSpan);
-      ratingExists = true;
+        return matchSpan;
+      };
+      // Fork ParticularFlix 3.8.2.45: o calculo precisa dos generos favoritos do usuario, que numa
+      // partida sem cache (uma vez por dia) levava segundos e segurava o primeiro slide. Agora espera
+      // no maximo 350 ms; se ainda nao chegou, o slide sai sem o percentual e ele entra assim que
+      // o calculo terminar. localStorage jms:fastStart = "off" mantem a espera completa.
+      const matchPromise = calculateMatchPercentage(UserData, item);
+      let fastMatch = true;
+      try { fastMatch = localStorage.getItem("jms:fastStart") !== "off"; } catch {}
+      let matchPercentage = null;
+      if (fastMatch) {
+        const TIMED_OUT = Symbol("match-timeout");
+        let timer = 0;
+        const raced = await Promise.race([
+          matchPromise,
+          new Promise((resolve) => { timer = setTimeout(() => resolve(TIMED_OUT), 350); })
+        ]);
+        clearTimeout(timer);
+        if (raced === TIMED_OUT) {
+          ratingExists = true; // o container entra no slide agora e recebe o percentual depois
+          matchPromise.then((late) => {
+            try {
+              if (container.querySelector(".monwui-match-percentage")) return;
+              container.insertBefore(buildMatchSpan(late), container.firstChild);
+            } catch {}
+          }).catch(() => {});
+        } else {
+          matchPercentage = raced;
+        }
+      } else {
+        matchPercentage = await matchPromise;
+      }
+      if (matchPercentage != null) {
+        container.appendChild(buildMatchSpan(matchPercentage));
+        ratingExists = true;
+      }
     }
 
     if (config.showCommunityRating && CommunityRating) {

@@ -5,14 +5,15 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.2.44 (fork build)
+## 3.8.2.45 (fork build)
 
-Rolls up the test-only builds 3.8.2.41, 3.8.2.42 and 3.8.2.43.
+Rolls up the test-only builds 3.8.2.41 to 3.8.2.44.
 
 - Slider, cold start: with the "current releases" source, the list no longer fetches the full details of about 80 candidates before choosing the slides. When the slider requires images (logo and backdrop), one light request now returns only the image tags of all candidates; the selection and its order are identical. The full details of the first slides are loaded right after and the rest in the background, as before. In our cold-start measurements the full-details step took 4.5 to 8.5 s. Measured on a cold start: the bulk details of 60 items took about 4.5 s while the two list queries took about 0.3 s each. The order and the choice of items are unchanged.
 - Home rows (Studio Hubs, TMDb, recent, director, personal recommendations) now wait for the first slide (6 s at most) before they start loading. On a cold start they were competing with the slider list queries (one took 6.4 s instead of about 0.3 s measured alone).
 - New performance marks: `jms:source-queries-done`, `jms:data-done`, `jms:create-slide-start`, `jms:create-slide-done`.
 - Settings save on page hide: the managed storage snapshot was also sent with `keepalive`, which browsers refuse above 64 KB ("Failed to fetch" in the console). Large payloads now use a normal request.
+- First slide: the "match percentage" needs the user's favorite genres, cached for 24 h in `localStorage`. When that cache is empty (first load of the day, new browser profile) computing it took 4.6 s in our measurements and held the whole first slide. The slide now waits at most 350 ms for it; if it is not ready, the slide appears without the percentage and the percentage is added as soon as it is computed.
 - New performance marks inside the first slide creation: `jms:cs-start`, `jms:cs-backdrop-probe-start/done`, `jms:cs-imageurls-done`, `jms:cs-before-actors`, `jms:cs-actors-done`, `jms:cs-director-done`, `jms:cs-rating-done`.
 - `localStorage jms:fastStart = "off"` restores the previous behavior.
 
