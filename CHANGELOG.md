@@ -5,7 +5,9 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.2.41 (fork build)
+## 3.8.2.42 (fork build)
+
+Rolls up the test-only build 3.8.2.41.
 
 - Slider, cold start: with the "current releases" source, the list no longer waits for the full details of about 80 candidates before choosing the slides. The selection only needs the item id and type, so it now uses light placeholders and the full details of the first slides are loaded right after (the rest in the background, as before). Measured on a cold start: the bulk details of 60 items took about 4.5 s while the two list queries took about 0.3 s each. The order and the choice of items are unchanged.
 - Home rows (Studio Hubs, TMDb, recent, director, personal recommendations) now wait for the first slide (6 s at most) before they start loading. On a cold start they were competing with the slider list queries (one took 6.4 s instead of about 0.3 s measured alone).
