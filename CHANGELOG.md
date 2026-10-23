@@ -5,6 +5,15 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.8.2.36 (fork build)
+
+Rolls up the unpublished internal build 3.8.2.35.
+
+- Cinema and Mosaic: the director line was still hidden while a trailer played (the native slider CSS hides it with `.trailer-active ... display:none`, and these layouts always play a trailer). It is now shown on the active slide, and the Director position fields work. On very short windows (under 780 px tall) it stays hidden by design; set "Display type" to Flex in the Director block to force it.
+- Position editor: the floating editor no longer sits on top of what you are moving. It opens on the opposite side of the item, can be dragged by its title, outlines the edited item with a yellow dashed line, and tells you when the item is hidden or outside the visible area.
+- Rating badges: the grey blob behind the match heart and the community star is gone, and every rating badge now takes the color of its value like the audio badge (match %, community rating, critic score, and Brazilian age classification colors L, 10, 12, 14, 16, 18). "Watched" is green and the runtime is blue. Works in the Minimal, Tinted and Outline looks; Classic is unchanged.
+- Position settings rewritten for clarity (descriptions, units, direction hints), editor freeze mitigations, provider box trail fix and background option, positionable provider icons and Format badges block (from 3.8.2.35).
+
 ## 3.8.2.35 (fork build)
 
 - Position settings rewritten for clarity: every block now says what it is and what it moves, every field says its unit and direction (positive moves down or right, empty means default), and a short "how to use" note sits at the top.

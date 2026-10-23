@@ -4,7 +4,8 @@ import {
   markPositionEditing,
   writeAnchorRelease,
   applyProviderBackgroundMode,
-  isFlowLayoutActive
+  isFlowLayoutActive,
+  ensurePositionHelperStyles
 } from "../positionUtils.js";
 
 /*
@@ -102,6 +103,8 @@ export function createPositionEditor(config, labels, section) {
     el.style.setProperty(cssProperty, value, priority);
   }
 
+  let refreshActiveStatus = null;
+
   function selectorFor(containerType) {
     if (!containerType) return '#monwui-slides-container';
     return containerType === 'button' ? '.monwui-main-button-container'
@@ -148,6 +151,7 @@ export function createPositionEditor(config, labels, section) {
     for (const job of jobs) {
       try { applyContainerStyleNow(job.target, job.containerType, job.cssProperty, job.value); } catch {}
     }
+    try { if (refreshActiveStatus) refreshActiveStatus(); } catch {}
   }
 
   function updateContainerStyle(target, containerType, cssProperty, newValue) {
@@ -316,6 +320,107 @@ export function createPositionEditor(config, labels, section) {
     }
   }
 
+
+  /* ---------- editor flutuante: arrastavel, longe do item editado, com o item contornado ---------- */
+
+  function targetSelector(containerType, target) {
+    if (target === 'homeSections') return '.homeSectionsContainer';
+    return selectorFor(containerType);
+  }
+
+  function describeTarget(selector) {
+    const all = Array.from(document.querySelectorAll(selector));
+    const el = all.find((n) => n.closest('.monwui-slide.active')) || all[0];
+    if (!el) return 'missing';
+    const cs = getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0 || r.width < 2 || r.height < 2) return 'hidden';
+    const inside = r.right > 0 && r.bottom > 0 && r.left < window.innerWidth && r.top < window.innerHeight;
+    return inside ? 'visible' : 'offscreen';
+  }
+
+  function setupFloatingEditor(modal, content, handle, containerType, target) {
+    ensurePositionHelperStyles();
+    const selector = targetSelector(containerType, target);
+    const imp = (el, prop, val) => el.style.setProperty(prop, val, 'important');
+
+    // a camada cheia some: a tela de trás continua visível e clicável
+    [['position', 'fixed'], ['inset', 'auto'], ['top', '0'], ['left', '0'], ['width', '0'], ['height', '0'],
+      ['padding', '0'], ['background', 'none'], ['pointer-events', 'none'], ['display', 'block']].forEach(([k, v]) => imp(modal, k, v));
+
+    [['position', 'fixed'], ['transform', 'none'], ['margin', '0'], ['pointer-events', 'auto'], ['z-index', '2147483000'],
+      ['width', 'min(340px, calc(100vw - 24px))'], ['max-width', 'calc(100vw - 24px)'], ['padding', '14px'],
+      ['gap', '10px'], ['border-radius', '16px'], ['opacity', '0.97']].forEach(([k, v]) => imp(content, k, v));
+
+    const marked = Array.from(document.querySelectorAll(selector));
+    marked.forEach((el) => el.classList.add('jms-pos-target'));
+
+    const status = document.createElement('p');
+    status.className = 'position-modal-status';
+    content.appendChild(status);
+
+    const statusText = {
+      visible: L('posStatusVisible', 'Item visible on screen (outlined in yellow).'),
+      hidden: L('posStatusHidden', 'The item exists but is hidden or has no size on this slide (for example this title has no data for it).'),
+      offscreen: L('posStatusOffscreen', 'The item is outside the visible area. Press Default to bring it back.'),
+      missing: L('posStatusMissing', 'This item does not exist on the current slide.')
+    };
+    refreshActiveStatus = () => {
+      const state = describeTarget(selector);
+      status.textContent = statusText[state];
+      status.dataset.state = state;
+    };
+    refreshActiveStatus();
+    const timer = setInterval(() => { if (refreshActiveStatus) refreshActiveStatus(); }, 700);
+
+    // posição inicial: do lado oposto ao do item, para nunca ficar por cima dele
+    const place = () => {
+      const w = content.offsetWidth || 340;
+      const h = content.offsetHeight || 190;
+      const first = Array.from(document.querySelectorAll(selector)).find((n) => n.closest('.monwui-slide.active')) || document.querySelector(selector);
+      const r = first ? first.getBoundingClientRect() : null;
+      const cx = r && r.width ? r.left + r.width / 2 : window.innerWidth / 2;
+      const cy = r && r.height ? r.top + r.height / 2 : window.innerHeight / 2;
+      const left = cx > window.innerWidth / 2 ? 16 : window.innerWidth - w - 16;
+      const top = cy > window.innerHeight / 2 ? 72 : window.innerHeight - h - 16;
+      imp(content, 'left', `${Math.max(8, left)}px`);
+      imp(content, 'top', `${Math.max(8, top)}px`);
+    };
+    place();
+
+    // arrastar pelo título
+    handle.style.cursor = 'move';
+    handle.style.userSelect = 'none';
+    handle.style.touchAction = 'none';
+    let drag = null;
+    const onMove = (e) => {
+      if (!drag) return;
+      const w = content.offsetWidth;
+      const h = content.offsetHeight;
+      const x = Math.min(Math.max(4, e.clientX - drag.dx), window.innerWidth - w - 4);
+      const y = Math.min(Math.max(4, e.clientY - drag.dy), window.innerHeight - h - 4);
+      imp(content, 'left', `${x}px`);
+      imp(content, 'top', `${y}px`);
+    };
+    const onUp = () => { drag = null; window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+    handle.addEventListener('pointerdown', (e) => {
+      const rect = content.getBoundingClientRect();
+      drag = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      e.preventDefault();
+    });
+
+    return {
+      dispose() {
+        clearInterval(timer);
+        refreshActiveStatus = null;
+        onUp();
+        document.querySelectorAll('.jms-pos-target').forEach((el) => el.classList.remove('jms-pos-target'));
+      }
+    };
+  }
+
   function openPositionModal(inputElement, configKey, cssProperty, placeholder, target, containerType, blockLabel, fieldLabelText) {
     if (document.querySelector('.position-modal')) return null;
     const mainModal = hideMainModal();
@@ -327,8 +432,10 @@ export function createPositionEditor(config, labels, section) {
     const modalContent = document.createElement('div');
     modalContent.className = 'position-modal-content';
 
+    let floating = null;
     const closeModal = () => {
       document.removeEventListener('keydown', onKey, true);
+      if (floating) floating.dispose();
       modal.remove();
       showMainModal(mainModal);
     };
@@ -443,6 +550,7 @@ export function createPositionEditor(config, labels, section) {
     modalContent.append(closeBtn, title, hint, inputContainer);
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
+    floating = setupFloatingEditor(modal, modalContent, title, containerType, target);
 
     modal.addEventListener('click', (e) => {
       if (e.target === modal) closeModal();
@@ -522,7 +630,9 @@ export function createPositionEditor(config, labels, section) {
     const modalContent = document.createElement('div');
     modalContent.className = 'position-modal-content';
 
+    let floating = null;
     const closeModal = () => {
+      if (floating) floating.dispose();
       modal.remove();
       showMainModal(mainModal);
     };
@@ -569,6 +679,7 @@ export function createPositionEditor(config, labels, section) {
     modalContent.appendChild(optionsContainer);
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
+    floating = setupFloatingEditor(modal, modalContent, title, containerType, 'slides');
 
     modal.addEventListener('click', (e) => {
       if (e.target === modal) closeModal();

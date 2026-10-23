@@ -37,9 +37,9 @@ html[data-badge-style=outline] .monwui-format-container .video-quality .monwui-q
 html[data-badge-style=minimal] .monwui-format-container .video-quality i,html[data-badge-style=tinted] .monwui-format-container .video-quality i,html[data-badge-style=outline] .monwui-format-container .video-quality i{transform:none!important;font-size:1em}
 
 /* inner text spans of a badge never get their own box (icons keep their original colors) */
-html[data-badge-style=minimal] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* :is(.monwui-meta-text,.end-time,.monwui-audio-langs,.monwui-audio-lang),
-html[data-badge-style=tinted] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* :is(.monwui-meta-text,.end-time,.monwui-audio-langs,.monwui-audio-lang),
-html[data-badge-style=outline] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* :is(.monwui-meta-text,.end-time,.monwui-audio-langs,.monwui-audio-lang){
+html[data-badge-style=minimal] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* :is(.monwui-meta-text,.end-time,.monwui-audio-langs,.monwui-audio-lang,.monwui-match-rating,.monwui-star-rating,.monwui-heart-filled,.monwui-star-filled),
+html[data-badge-style=tinted] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* :is(.monwui-meta-text,.end-time,.monwui-audio-langs,.monwui-audio-lang,.monwui-match-rating,.monwui-star-rating,.monwui-heart-filled,.monwui-star-filled),
+html[data-badge-style=outline] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* :is(.monwui-meta-text,.end-time,.monwui-audio-langs,.monwui-audio-lang,.monwui-match-rating,.monwui-star-rating,.monwui-heart-filled,.monwui-star-filled){
   background:none!important;padding:0!important;border:0!important;box-shadow:none!important;border-radius:0!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;margin:0!important}
 html[data-badge-style=minimal] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container) .monwui-meta-text,
 html[data-badge-style=tinted] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container) .monwui-meta-text,
@@ -117,3 +117,29 @@ html[data-badge-style=outline] .monwui-format-container .video-quality .monwui-q
 html[data-badge-style=outline] .monwui-format-container .video-quality .monwui-quality-segment--bitdepth{border-color:#a5b4fc!important;color:#e0e7ff!important}
 html[data-badge-style=outline] .monwui-format-container .video-quality .monwui-quality-segment--audio{border-color:#34d399!important;color:#a7f3d0!important}
 html[data-badge-style=outline] .monwui-format-container .video-quality .monwui-quality-segment--audio-layout{border-color:#22d3ee!important;color:#a5f3fc!important}
+
+/* ---- COLOR BY VALUE (new looks): each rating badge gets the tone of its value, like the audio badge ---- */
+html[data-badge-style] .monwui-meta-container [data-tone=great]{--tone-rgb:52,211,153}
+html[data-badge-style] .monwui-meta-container [data-tone=good]{--tone-rgb:163,230,53}
+html[data-badge-style] .monwui-meta-container [data-tone=average]{--tone-rgb:251,191,36}
+html[data-badge-style] .monwui-meta-container [data-tone=poor]{--tone-rgb:251,146,60}
+html[data-badge-style] .monwui-meta-container [data-tone=bad]{--tone-rgb:248,113,113}
+html[data-badge-style] .monwui-meta-container [data-tone=info]{--tone-rgb:96,165,250}
+/* age rating: Brazilian classification colors (L green, 10 blue, 12 yellow, 14 orange, 16 red, 18 light) */
+html[data-badge-style] .monwui-meta-container [data-age="0"]{--tone-rgb:34,197,94}
+html[data-badge-style] .monwui-meta-container [data-age="10"]{--tone-rgb:59,130,246}
+html[data-badge-style] .monwui-meta-container [data-age="12"]{--tone-rgb:234,179,8}
+html[data-badge-style] .monwui-meta-container [data-age="14"]{--tone-rgb:249,115,22}
+html[data-badge-style] .monwui-meta-container [data-age="16"]{--tone-rgb:239,68,68}
+html[data-badge-style] .monwui-meta-container [data-age="18"]{--tone-rgb:226,232,240}
+
+html[data-badge-style=minimal] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container)>:is([data-tone],[data-age]){
+  background:var(--bd-base),rgba(var(--tone-rgb),.34)!important;border-color:rgba(var(--tone-rgb),.65)!important;color:rgb(var(--tone-rgb))!important;color:color-mix(in srgb,rgb(var(--tone-rgb)) 55%,#fff)!important}
+html[data-badge-style=tinted] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container)>:is([data-tone],[data-age]){
+  background:var(--bd-base),rgba(var(--tone-rgb),.22)!important;border-color:rgba(var(--tone-rgb),.55)!important;color:rgb(var(--tone-rgb))!important;color:color-mix(in srgb,rgb(var(--tone-rgb)) 55%,#fff)!important}
+html[data-badge-style=outline] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container)>:is([data-tone],[data-age]){
+  border-color:rgb(var(--tone-rgb))!important;color:rgb(var(--tone-rgb))!important;color:color-mix(in srgb,rgb(var(--tone-rgb)) 55%,#fff)!important}
+html[data-badge-style] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container)>:is([data-tone],[data-age]) i:not(.fa-heart):not(.fa-star){color:inherit!important}
+/* heart and star: outline layer in a soft tone, filled layer in the full tone */
+html[data-badge-style] .monwui-meta-container .monwui-rating-container>[data-tone] :is(.monwui-match-rating,.monwui-star-rating)>i{color:rgba(var(--tone-rgb),.7)!important}
+html[data-badge-style] .monwui-meta-container .monwui-rating-container>[data-tone] :is(.monwui-heart-filled,.monwui-star-filled) i{color:rgb(var(--tone-rgb))!important}

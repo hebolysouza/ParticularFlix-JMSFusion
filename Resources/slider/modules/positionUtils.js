@@ -524,6 +524,8 @@ const HELPER_STYLE_CSS = [
   // fundo da caixa de provedores (engrenagem, IMDb, TMDb...) pode ser removido sem tirar os icones
   'html[data-jms-provider-bg="none"] .monwui-provider-container{background:none!important;box-shadow:none!important;',
   '-webkit-backdrop-filter:none!important;backdrop-filter:none!important;border:0!important;padding:0!important}',
+  // item em edicao na tela de Posicoes: contorno amarelo para saber onde ele esta
+  '.jms-pos-target{outline:2px dashed #ffd24a!important;outline-offset:3px!important;box-shadow:0 0 0 6px rgba(255,210,74,.2)!important}',
 ].join('');
 
 export function ensurePositionHelperStyles() {

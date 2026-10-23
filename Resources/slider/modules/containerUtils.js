@@ -398,6 +398,7 @@ export function createStatusContainer(config, UserData, RunTimeTicks) {
   if (UserData && config.showWatchedInfo) {
     const watchedSpan = document.createElement("span");
     watchedSpan.className = "watched-status";
+    if (UserData.Played) watchedSpan.dataset.tone = "great";
     const watchedIcon = UserData.Played
       ? `<i class="fa-regular fa-circle-check"></i>`
       : `<i class="fa-regular fa-circle-xmark"></i>`;
@@ -414,6 +415,7 @@ export function createStatusContainer(config, UserData, RunTimeTicks) {
     if (RunTimeTicks && config.showRuntimeInfo) {
     const runtimeSpan = document.createElement("span");
     runtimeSpan.className = "sure";
+    runtimeSpan.dataset.tone = "info";
 
     const calcRuntime = (ticks) => {
       const totalMinutes = Math.floor(ticks / 600000000);
@@ -789,6 +791,53 @@ export async function createDirectorContainer({ config, People, item }) {
   return container;
 }
 
+
+// Fork ParticularFlix: tom de cor de cada selo de nota (usado por badges.css via data-tone / data-age)
+function toneFromPercent(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "";
+  if (n >= 85) return "great";
+  if (n >= 70) return "good";
+  if (n >= 50) return "average";
+  if (n >= 30) return "poor";
+  return "bad";
+}
+
+function toneFromCritic(value) {
+  const first = Array.isArray(value) ? value[0] : value;
+  const n = parseFloat(String(first ?? "").replace(",", "."));
+  if (!Number.isFinite(n)) return "";
+  const pct = n <= 10 ? n * 10 : n;
+  if (pct >= 75) return "great";
+  if (pct >= 60) return "good";
+  if (pct >= 40) return "average";
+  if (pct >= 25) return "poor";
+  return "bad";
+}
+
+function ageFromOfficialRating(value) {
+  const raw = String(Array.isArray(value) ? value[0] : value ?? "").trim().toUpperCase();
+  if (!raw) return "";
+  const named = {
+    L: "0", LIVRE: "0", G: "0", "TV-Y": "0", "TV-G": "0", ALL: "0", "0": "0",
+    PG: "10", "TV-PG": "10", "TV-Y7": "10",
+    "PG-13": "12", "TV-14": "14",
+    R: "16", "NC-17": "18", "TV-MA": "18", X: "18"
+  };
+  const bare = raw.replace(/^[A-Z]{2,3}[-_: ]/, "");
+  if (named[raw]) return named[raw];
+  if (named[bare]) return named[bare];
+  const m = bare.match(/(\d{1,2})\s*\+?$/);
+  if (!m) return "";
+  const age = Number(m[1]);
+  if (age <= 0) return "0";
+  if (age <= 10) return "10";
+  if (age <= 12) return "12";
+  if (age <= 14) return "14";
+  if (age <= 17) return "16";
+  return "18";
+}
+
 export async function createRatingContainer({
   config,
   CommunityRating,
@@ -808,6 +857,8 @@ export async function createRatingContainer({
       const matchPercentage = await calculateMatchPercentage(UserData, item);
       const matchSpan = document.createElement("span");
       matchSpan.className = "monwui-match-percentage";
+      const matchTone = toneFromPercent(matchPercentage);
+      if (matchTone) matchSpan.dataset.tone = matchTone;
       matchSpan.innerHTML = `
   <span class="monwui-match-rating">
     <i class="fa-regular fa-heart fa-lg"></i>
@@ -835,6 +886,7 @@ export async function createRatingContainer({
   const ratingPercentage = ratingValue * 10;
   const ratingSpan = document.createElement("span");
   ratingSpan.className = `monwui-rating ${ratingClass}`;
+  ratingSpan.dataset.tone = ratingClass.replace("monwui-rating-", "").replace("excellent", "great");
   ratingSpan.innerHTML = `
     <span class="monwui-star-rating">
       <i class="fa-regular fa-star fa-lg"></i>
@@ -850,6 +902,8 @@ export async function createRatingContainer({
     if (config.showCriticRating && CriticRating) {
       const criticSpan = document.createElement("span");
       criticSpan.className = "monwui-t-rating";
+      const criticTone = toneFromCritic(CriticRating);
+      if (criticTone) criticSpan.dataset.tone = criticTone;
       criticSpan.innerHTML =
         `${getTomatoIconHtml()}` +
         buildMetaTextSpan(
@@ -863,6 +917,8 @@ export async function createRatingContainer({
     if (config.showOfficialRating && OfficialRating) {
       const officialRatingSpan = document.createElement("span");
       officialRatingSpan.className = "monwui-officialrating";
+      const ageTone = ageFromOfficialRating(OfficialRating);
+      if (ageTone) officialRatingSpan.dataset.age = ageTone;
       officialRatingSpan.innerHTML =
         `<i class="fa-solid fa-user-group"></i>` +
         buildMetaTextSpan(

@@ -31,6 +31,8 @@ html[data-slider-layout=cinema] .monwui-meta-container,html[data-slider-layout=m
 html[data-slider-layout=cinema] .monwui-plot-container,html[data-slider-layout=mosaic] .monwui-plot-container{order:4;font-size:clamp(.8rem,.95vw,.98rem);line-height:1.5;justify-content:flex-start;max-height:none}
 html[data-slider-layout=cinema] .monwui-plot-container .monwui-plot,html[data-slider-layout=mosaic] .monwui-plot-container .monwui-plot{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 html[data-slider-layout=cinema] .monwui-director-container,html[data-slider-layout=mosaic] .monwui-director-container{order:5}
+/* the native slider hides the director while a trailer plays (.trailer-active ... display:none!important), and in these layouts a trailer is always playing: keep it visible */
+html[data-slider-layout=cinema] .monwui-slide.active .monwui-director-container,html[data-slider-layout=mosaic] .monwui-slide.active .monwui-director-container{display:flex!important;opacity:1;visibility:visible;overflow:visible!important;pointer-events:none}
 html[data-slider-layout=cinema] .monwui-main-button-container,html[data-slider-layout=mosaic] .monwui-main-button-container{order:6;flex-direction:row;gap:10px;padding-top:2px}
 html[data-slider-layout=cinema] .monwui-info-container,html[data-slider-layout=mosaic] .monwui-info-container{order:7;display:flex!important;flex-wrap:wrap;gap:4px 16px;overflow:visible;grid-template-columns:none;justify-content:flex-start;font-size:clamp(.72rem,.85vw,.86rem);opacity:.9}
 html[data-slider-layout=cinema] .monwui-logo,html[data-slider-layout=mosaic] .monwui-logo{max-height:clamp(48px,10vh,96px);max-width:min(30vw,380px);object-fit:contain}
@@ -52,7 +54,7 @@ html[data-slider-layout=cinema] .monwui-main-button-container,html[data-slider-l
 /* logo present: the text title would just repeat it */
 html[data-slider-layout=cinema] .monwui-slide:has(.monwui-logo) .monwui-baslik,html[data-slider-layout=mosaic] .monwui-slide:has(.monwui-logo) .monwui-baslik{display:none!important}
 @media (max-height:780px){
-  html[data-slider-layout=cinema] .monwui-director-container,html[data-slider-layout=mosaic] .monwui-director-container,
+  html[data-slider-layout=cinema] .monwui-slide.active .monwui-director-container,html[data-slider-layout=mosaic] .monwui-slide.active .monwui-director-container,
   html[data-slider-layout=cinema] .monwui-info-container,html[data-slider-layout=mosaic] .monwui-info-container{display:none!important}
 }
 
