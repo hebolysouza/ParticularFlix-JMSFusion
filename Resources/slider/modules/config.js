@@ -1,8 +1,8 @@
 import { getLanguageLabels, getDefaultLanguage, getStoredLanguagePreference } from '../language/index.js';
-import { syncPositionProfile } from './positionProfiles.js';
+import { applyPositionOverlay, migratePositionProfiles } from './positionProfiles.js';
 
-// Troca as posicoes manuais para o perfil do layout ativo antes de montar a configuracao.
-syncPositionProfile();
+// Corrige o que as builds 3.8.2.31/32 fizeram com as chaves de posicao (so age se houver o que migrar).
+migratePositionProfiles();
 
 let __globalOverride =
   (typeof window !== "undefined" && window.__JMS_MANAGED_STORAGE__?.bootstrapOverride)
@@ -550,7 +550,7 @@ export function getConfig() {
     return { ...__configCache };
   }
 
-  const cfg = computeConfig();
+  const cfg = applyPositionOverlay(computeConfig());
 
   const keyAfter = readConfigCacheKey();
   if (keyAfter) {
@@ -853,7 +853,7 @@ function computeConfig() {
     useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
     fullscreenMode: localStorage.getItem('fullscreenMode') === 'true' ? true : false,
     listLimit: 20,
-    version: "v3.8.2.32",
+    version: "v3.8.2.33",
     historySize: 20,
     updateInterval: 300000,
     nextTracksSource: localStorage.getItem('nextTracksSource') || 'playlist',

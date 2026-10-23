@@ -5,10 +5,13 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.2.32 (fork build)
+## 3.8.2.33 (fork build)
 
-Includes the internal builds 3.8.2.27 to 3.8.2.31, which were never published as releases.
+Includes the internal builds 3.8.2.27 to 3.8.2.32, which were never published as releases.
 
+- Badges: bigger, original icon colors kept (rating star, heart, tomato), the "New season" badge stays red in every look, colored quality badges in Minimal and Outline. The audio badge now shows a sound icon and a colored flag per language.
+- Coverflow 3D: the focused card shows its logo in place of the text title; neighbor logos are larger. Cinema: smaller, discreet "Up next" card and the text stack can no longer climb over the badges.
+- Position settings: Cinema, Mosaic and Coverflow keep their own overrides in separate keys, and the Normal/Peak/Compact positions are never touched (replaces the profile swap of 3.8.2.31/32, with automatic migration).
 - Badges: the audio badge (languages, dual audio, channels, codec) now shows on every slider layout, including Peak, Coverflow 3D and Compact, which used to hide it. New badge looks selectable in the slider settings: Minimal (frosted glass, default), Soft color, Outline, and Original.
 - New slider layouts: Cinema, Mosaic and Coverflow 3D, selectable in the slider settings. Softer rounded corners, and the text follows the slider style.
 - In Cinema, Mosaic and Coverflow the text title is hidden when the film has a logo image (no more logo plus the same name in text).

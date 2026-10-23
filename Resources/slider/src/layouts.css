@@ -10,7 +10,7 @@ html[data-slider-layout=cinema],html[data-slider-layout=mosaic]{
 html[data-slider-layout=cinema] .monwui-slide:not([style*="display: none"]),
 html[data-slider-layout=mosaic] .monwui-slide:not([style*="display: none"]){
   display:flex!important;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:var(--lay-gap);
-  box-sizing:border-box;height:100%;padding:0 var(--lay-pad-x) var(--lay-pad-b)}
+  box-sizing:border-box;height:100%;padding:clamp(64px,9%,96px) var(--lay-pad-x) var(--lay-pad-b)}
 html[data-slider-layout=cinema] .monwui-main-content-container,
 html[data-slider-layout=mosaic] .monwui-main-content-container{display:contents}
 
@@ -102,30 +102,19 @@ html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-c
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-no-logo-container{font-size:clamp(1rem,1.8vw,1.8rem)}
 
 /* neighbors show the film logo (like the Peak showcase) on the strip of the card that peeks out from behind the center card */
-html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-logo-container{opacity:1!important;display:grid;top:6%!important;right:auto!important;width:13%!important;padding:0!important;box-sizing:border-box;justify-items:center;z-index:20}
-html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side=right]:not(.active) .monwui-logo-container{left:62%!important}
-html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side=left]:not(.active) .monwui-logo-container{left:26.5%!important}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-logo-container{opacity:1!important;display:grid;top:6%!important;right:auto!important;width:16%!important;padding:0!important;box-sizing:border-box;justify-items:center;z-index:20}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side=right]:not(.active) .monwui-logo-container{left:60%!important}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side=left]:not(.active) .monwui-logo-container{left:26%!important}
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active)[style*="--k: 2"] .monwui-logo-container,
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active)[style*="--k: 3"] .monwui-logo-container{opacity:0!important}
-html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-logo{width:auto!important;max-width:100%!important;max-height:11vh!important;height:auto;object-fit:contain}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-logo{width:auto!important;max-width:100%!important;max-height:16vh!important;height:auto;object-fit:contain}
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-no-logo-container{font-size:clamp(.9rem,1.3vw,1.3rem);text-align:center}
-/* the focused card in coverflow does not keep the blurred background logo while its trailer plays */
-html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide.active.trailer-active .monwui-logo-container{visibility:hidden}
-
-/* when the film has a logo image, the text title with the same name is redundant */
-html[data-slider-layout=cinema] .monwui-slide:has(.monwui-logo) .monwui-baslik,
-html[data-slider-layout=mosaic] .monwui-slide:has(.monwui-logo) .monwui-baslik,
-html[data-slider-layout=coverflow] .monwui-slide:has(.monwui-logo) .monwui-baslik{display:none!important}
-
-/* ======================= CINEMA: "up next" card (replaces the lone dots) ======================= */
-html[data-slider-layout=cinema] .jms-nextup{position:absolute;z-index:70;right:calc(var(--lay-inset) + max(2.4%,24px));bottom:calc(var(--lay-pad-b) + 4px);width:clamp(210px,18vw,320px);aspect-ratio:16/9;
-  border-radius:var(--lay-radius-sm);overflow:hidden;cursor:pointer;background:#0c111c center/cover no-repeat;border:1px solid rgba(255,255,255,.1);
-  box-shadow:0 14px 36px rgba(0,0,0,.5);transition:transform .3s ease,border-color .3s ease,box-shadow .3s ease}
-html[data-slider-layout=cinema] .jms-nextup:hover,html[data-slider-layout=cinema] .jms-nextup:focus-visible{transform:translateY(-3px) scale(1.02);border-color:rgba(255,255,255,.32);outline:0}
-html[data-slider-layout=cinema] .jms-nextup::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(6,9,15,.88) 0,rgba(6,9,15,.15) 62%,rgba(6,9,15,.35) 100%)}
-html[data-slider-layout=cinema] .jms-nextup-tag{position:absolute;z-index:1;top:9px;left:10px;display:flex;gap:8px;align-items:center;font:700 .66rem/1 var(--mwui-font-head,sans-serif);letter-spacing:.08em;text-transform:uppercase;color:#fff}
-html[data-slider-layout=cinema] .jms-nextup-tag b{background:#cc0000;border-radius:999px;padding:4px 8px}
-html[data-slider-layout=cinema] .jms-nextup-tag i{font-style:normal;opacity:.75;letter-spacing:.04em}
-html[data-slider-layout=cinema] .jms-nextup-title{position:absolute;z-index:1;left:12px;right:12px;bottom:10px;font:600 clamp(.8rem,.95vw,.98rem)/1.2 var(--mwui-font-head,sans-serif);color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-html[data-slider-layout=cinema] .monwui-slider-wrapper{bottom:calc(var(--lay-pad-b) + clamp(130px,11.5vw,190px))!important}
-@media (max-width:900px){html[data-slider-layout=cinema] .jms-nextup{display:none}}
+/* coverflow: the focused card shows its logo (sharp, no ghost) where the title text used to be */
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide.active .monwui-logo-container{
+  position:absolute!important;left:2%!important;right:auto!important;top:11%!important;bottom:auto!important;width:auto!important;max-width:40%;height:auto;padding:0!important;
+  opacity:1!important;visibility:visible!important;filter:none!important;transform:none!important;display:grid;justify-items:start;z-index:42}
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide.active .monwui-logo,
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide.active .monwui-no-logo-container{
+  filter:none!important;opacity:1!important;transform:none!important;width:auto!important;max-width:100%!important;max-height:clamp(64px,14vh,140px)!important;object-fit:contain}
+/* tidy the text just under the logo */
+html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide.active:has(.monwui-logo) .monwui-title-container{top:calc(11% + clamp(70px,15vh,150px))!important}

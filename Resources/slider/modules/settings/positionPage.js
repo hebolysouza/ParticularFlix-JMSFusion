@@ -392,6 +392,7 @@ export function createPositionEditor(config, labels, section) {
         : `.monwui-${containerType}-container`)
       : "#monwui-slides-container";
 
+    const flowLayout = ['cinema', 'mosaic'].includes(document.documentElement?.dataset?.sliderLayout || '');
     const isMainSlideTop = !containerType && target === 'slides' && cssProperty === 'top';
     const unit = isMainSlideTop ? 'vh' : '%';
 
@@ -400,19 +401,11 @@ export function createPositionEditor(config, labels, section) {
         el,
         cssProperty,
         newValue === '' ? '' : `${newValue}${unit}`,
-        isMainSlideTop
+        isMainSlideTop || flowLayout
       );
     });
-    refreshLayoutPositions();
   }
 }
-
-  function refreshLayoutPositions() {
-    const layout = document.documentElement?.dataset?.sliderLayout || '';
-    if (layout === 'cinema' || layout === 'mosaic') {
-      try { updateSlidePosition(); } catch {}
-    }
-  }
 
   function updateFlexStyle(containerType, flexProperty, newValue) {
   const selector =
@@ -432,7 +425,6 @@ export function createPositionEditor(config, labels, section) {
       el.style[cssProp] = newValue || '';
     }
   });
-  refreshLayoutPositions();
 }
 
   function render() {

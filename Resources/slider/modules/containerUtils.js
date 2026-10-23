@@ -1,3 +1,4 @@
+import { flagHtmlFor } from "./flags.js";
 import { getConfig } from "./config.js";
 import { applyContainerStyles } from "./positionUtils.js";
 import { fetchItemDetailsFromSliderCache } from "./sliderCache.js";
@@ -966,17 +967,17 @@ export function createLanguageContainer({ config, MediaStreams, itemType }) {
         ? (labels.audioDual || "Dual Audio")
         : (labels.audioMulti || "Multi Audio");
     audioLabel =
-      `<i class="fa-solid fa-language"></i>` +
+      `<i class="fa-solid fa-volume-high"></i>` +
       buildMetaTextSpan(headText, "monwui-audio-label-text");
 
-    const detailsText = langEntries
-      .map(([name, stream]) => [name, channelText(stream)].filter(Boolean).join(" "))
-      .join(" \u00B7 ");
-    if (detailsText) {
-      audioLabel +=
-        `<i class="fa-solid fa-volume-high"></i>` +
-        buildMetaTextSpan(detailsText, "monwui-audio-details-text");
-    }
+    const detailsHtml = langEntries
+      .map(([name, stream]) => {
+        const text = [name, channelText(stream)].filter(Boolean).join(" ");
+        return `<span class="monwui-audio-lang">${flagHtmlFor(stream?.Language)}` +
+          buildMetaTextSpan(text, "monwui-audio-details-text") + `</span>`;
+      })
+      .join("");
+    if (detailsHtml) audioLabel += `<span class="monwui-audio-langs">${detailsHtml}</span>`;
 
     const codecs = [];
     for (const [, stream] of langEntries) {

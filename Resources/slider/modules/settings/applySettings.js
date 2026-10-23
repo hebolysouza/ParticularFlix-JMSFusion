@@ -1,5 +1,6 @@
 import { getAdminTargetProfile, getConfig, getDeviceProfileAuto, normalizeManagedCardTitleDisplayMode, normalizeManagedHomeSectionOrder, normalizeSettingsHotkey, publishAdminSnapshotIfForced, SETTINGS_HOTKEY_DEFAULT } from "../config.js";
 import { updateConfig } from "../configPersistence.js";
+import { getActivePositionProfile, isPositionKey, savePositionOverrides } from "../positionProfiles.js";
 import { loadCSS } from "../playerStyles.js";
 import { updateSlidePosition } from '../positionUtils.js';
 import { createCheckbox, createImageTypeSelect, bindCheckboxKontrol, bindTersCheckboxKontrol } from "./shared.js";
@@ -1092,6 +1093,14 @@ const USER_ONLY_KEYS = [
           (cfgGuard?.forceGlobalUserSettings && !isAdmin)
             ? pick(updatedConfig, USER_ONLY_KEYS)
             : updatedConfig;
+        // Cinema, Mosaico e Coverflow guardam as posicoes em chaves proprias (as do Peak/Normal ficam intactas)
+        if (getActivePositionProfile() !== 'classic') {
+          const layoutPositions = {};
+          Object.keys(toSave).forEach((k) => {
+            if (isPositionKey(k)) { layoutPositions[k] = toSave[k]; delete toSave[k]; }
+          });
+          savePositionOverrides(layoutPositions);
+        }
         const persistedConfig = { ...config, ...toSave };
         const shouldForceCinemaPreRollCacheRefresh =
           previousCinemaPreRollLocaleSignature !== getCinemaPreRollLocaleSignature(persistedConfig);
