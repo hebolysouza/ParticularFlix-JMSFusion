@@ -5,6 +5,13 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.8.2.34 (fork build)
+
+- Coverflow 3D: back to the standard Peak behavior (logos on the neighbor cards, text title on the active card).
+- Cinema: the "Up next" card is back (its styles had been lost), smaller and more discreet.
+- Cinema and Mosaic: badges, buttons and text no longer overlap (meta badges wrap in their own rows, buttons sit below, shorter plot, extras hidden on short screens).
+- Badges: neutral silver sound icon in every look, compact audio badge (no nested white boxes), rating heart and star layers aligned again, glass looks darker with readable text on any card.
+
 ## 3.8.2.33 (fork build)
 
 Includes the internal builds 3.8.2.27 to 3.8.2.32, which were never published as releases.

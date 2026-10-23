@@ -493,12 +493,6 @@ export function applyContainerStyles(container, type = '') {
   // funcionam como deslocamento a partir da posicao padrao do layout. Cada layout tem seu proprio
   // perfil de posicoes (ver positionProfiles.js), entao os valores do Peak/Normal nao vazam para ca.
 
-  // Coverflow 3D: o logo do card ativo fica no lugar do titulo (CSS do layout), sem posicao manual
-  if (type === 'logo' && (document.documentElement?.dataset?.sliderLayout || '') === 'coverflow') {
-    ['top', 'left', 'width', 'height'].forEach((prop) => setImportantStyle(container, prop, ''));
-    return;
-  }
-
   setImportantStyle(container, 'top',    resolveTopStyleValue(prefix, config[`${prefix}Top`], config));
   setImportantStyle(container, 'left',   config[`${prefix}Left`]   ? `${config[`${prefix}Left`]}%`   : '');
   setImportantStyle(container, 'width',  config[`${prefix}Width`]  ? `${config[`${prefix}Width`]}%`  : '');

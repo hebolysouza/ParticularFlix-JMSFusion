@@ -6,7 +6,7 @@
 #monwui-slides-container .monwui-slide.active .monwui-meta-container{pointer-events:none}
 
 html[data-badge-style=minimal],html[data-badge-style=tinted],html[data-badge-style=outline]{
-  --bd-fs:clamp(.8rem,1.05vw,.94rem);--bd-pad:5px 12px;--bd-gap:6px}
+  --bd-fs:clamp(.8rem,1.05vw,.94rem);--bd-pad:5px 11px;--bd-gap:6px;--bd-base:linear-gradient(rgba(10,14,22,.5),rgba(10,14,22,.5))}
 
 /* ---- shared geometry for the new looks ---- */
 html[data-badge-style=minimal] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>*,
@@ -19,7 +19,7 @@ html[data-badge-style=outline] .monwui-format-container .video-quality .monwui-q
   box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:var(--bd-gap)!important;height:auto!important;min-height:0;width:auto!important;
   padding:var(--bd-pad)!important;font-family:var(--mwui-font-head),sans-serif;font-size:var(--bd-fs)!important;font-weight:600!important;line-height:1.1;letter-spacing:.02em;
   text-transform:none;text-shadow:none!important;box-shadow:none!important;transform:none!important;z-index:auto;
-  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  -webkit-backdrop-filter:blur(10px) saturate(140%);backdrop-filter:blur(10px) saturate(140%)}
 html[data-badge-style=minimal] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>*:hover,
 html[data-badge-style=tinted] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>*:hover,
 html[data-badge-style=outline] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>*:hover{transform:none!important;box-shadow:none!important}
@@ -37,19 +37,36 @@ html[data-badge-style=outline] .monwui-format-container .video-quality .monwui-q
 html[data-badge-style=minimal] .monwui-format-container .video-quality i,html[data-badge-style=tinted] .monwui-format-container .video-quality i,html[data-badge-style=outline] .monwui-format-container .video-quality i{transform:none!important;font-size:1em}
 
 /* inner text spans of a badge never get their own box (icons keep their original colors) */
-html[data-badge-style=minimal] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* :is(.monwui-meta-text,.end-time,.monwui-audio-langs,.monwui-audio-lang,.monwui-star-rating,.monwui-match-rating),
-html[data-badge-style=tinted] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* :is(.monwui-meta-text,.end-time,.monwui-audio-langs,.monwui-audio-lang,.monwui-star-rating,.monwui-match-rating),
-html[data-badge-style=outline] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* :is(.monwui-meta-text,.end-time,.monwui-audio-langs,.monwui-audio-lang,.monwui-star-rating,.monwui-match-rating){
+html[data-badge-style=minimal] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* :is(.monwui-meta-text,.end-time,.monwui-audio-langs,.monwui-audio-lang),
+html[data-badge-style=tinted] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* :is(.monwui-meta-text,.end-time,.monwui-audio-langs,.monwui-audio-lang),
+html[data-badge-style=outline] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* :is(.monwui-meta-text,.end-time,.monwui-audio-langs,.monwui-audio-lang){
   background:none!important;padding:0!important;border:0!important;box-shadow:none!important;border-radius:0!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;margin:0!important}
 html[data-badge-style=minimal] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container) .monwui-meta-text,
 html[data-badge-style=tinted] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container) .monwui-meta-text,
 html[data-badge-style=outline] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container) .monwui-meta-text{color:inherit!important}
 
+/* every text span inside a badge takes the badge color (the original span rules paint them dark, unreadable on glass) */
+html[data-badge-style=minimal] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* span:not(.monwui-heart-filled):not(.monwui-star-filled),
+html[data-badge-style=tinted] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* span:not(.monwui-heart-filled):not(.monwui-star-filled),
+html[data-badge-style=outline] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>* span:not(.monwui-heart-filled):not(.monwui-star-filled){color:inherit!important}
 /* audio badge: flags + sound icon */
 .monwui-audio-langs{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap}
 .monwui-audio-lang{display:inline-flex;align-items:center;gap:6px}
 .jms-flag{height:1em;width:auto;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.28);flex:none}
-.monwui-language-container .audio-label>i.fa-volume-high{color:#34d399}
+.monwui-language-container :is(.audio-label,.subtitle-label) span{background:none!important;padding:0!important;border:0!important;box-shadow:none!important;border-radius:0!important;z-index:auto!important}
+html[data-badge-style=minimal] .monwui-language-container :is(.audio-label,.subtitle-label)>i,
+html[data-badge-style=tinted] .monwui-language-container :is(.audio-label,.subtitle-label)>i,
+html[data-badge-style=outline] .monwui-language-container :is(.audio-label,.subtitle-label)>i{color:#d3d9e3!important}
+/* rating heart and star: keep the filled layer exactly over the outline layer */
+html[data-badge-style=minimal] .monwui-rating-container :is(.monwui-match-rating,.monwui-star-rating),
+html[data-badge-style=tinted] .monwui-rating-container :is(.monwui-match-rating,.monwui-star-rating),
+html[data-badge-style=outline] .monwui-rating-container :is(.monwui-match-rating,.monwui-star-rating){position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;line-height:1}
+html[data-badge-style=minimal] .monwui-rating-container :is(.monwui-heart-filled,.monwui-star-filled),
+html[data-badge-style=tinted] .monwui-rating-container :is(.monwui-heart-filled,.monwui-star-filled),
+html[data-badge-style=outline] .monwui-rating-container :is(.monwui-heart-filled,.monwui-star-filled){position:absolute;inset:0;display:inline-flex;align-items:center;justify-content:center;line-height:1;z-index:-1}
+html[data-badge-style=minimal] .monwui-rating-container :is(.monwui-match-rating,.monwui-star-rating) i,
+html[data-badge-style=tinted] .monwui-rating-container :is(.monwui-match-rating,.monwui-star-rating) i,
+html[data-badge-style=outline] .monwui-rating-container :is(.monwui-match-rating,.monwui-star-rating) i{line-height:1;margin:0}
 
 /* "Nova temporada" stays red in every look */
 html[data-badge-style] .monwui-format-container .type.monwui-type-newseason{background:#e50914!important;color:#fff!important;border-color:transparent!important}
@@ -60,16 +77,15 @@ html[data-badge-style=minimal]{--bd-radius:999px}
 html[data-badge-style=minimal] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>*,
 html[data-badge-style=minimal] .monwui-format-container .type:not(.monwui-type-newseason),
 html[data-badge-style=minimal] .monwui-format-container .video-quality .monwui-quality-segment{
-  background:rgba(255,255,255,.1)!important;color:#f4f6fb!important;border:1px solid rgba(255,255,255,.16)!important;border-radius:var(--bd-radius)!important}
+  background:rgba(14,18,28,.52)!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.5)!important;border:1px solid rgba(255,255,255,.2)!important;border-radius:var(--bd-radius)!important}
 html[data-badge-style=minimal] .monwui-format-container .type:not(.monwui-type-newseason){background:rgba(255,255,255,.9)!important;color:#0d1015!important;border-color:transparent!important}
 html[data-badge-style=minimal] .monwui-format-container .type:not(.monwui-type-newseason) :is(i,.monwui-type-text){color:#0d1015!important}
-html[data-badge-style=minimal] .monwui-format-container .video-quality .monwui-quality-segment--level{background:rgba(37,99,235,.34)!important;border-color:rgba(96,165,250,.6)!important;color:#dbeafe!important}
-html[data-badge-style=minimal] .monwui-format-container .video-quality .monwui-quality-segment--range{background:rgba(234,88,12,.34)!important;border-color:rgba(251,146,60,.6)!important;color:#ffedd5!important}
-html[data-badge-style=minimal] .monwui-format-container .video-quality .monwui-quality-segment--codec{background:rgba(148,163,184,.26)!important;border-color:rgba(203,213,225,.5)!important;color:#f1f5f9!important}
-html[data-badge-style=minimal] .monwui-format-container .video-quality .monwui-quality-segment--bitdepth{background:rgba(99,102,241,.34)!important;border-color:rgba(165,180,252,.6)!important;color:#e0e7ff!important}
-html[data-badge-style=minimal] .monwui-format-container .video-quality .monwui-quality-segment--audio{background:rgba(16,185,129,.32)!important;border-color:rgba(52,211,153,.6)!important;color:#d1fae5!important}
-html[data-badge-style=minimal] .monwui-format-container .video-quality .monwui-quality-segment--audio-layout{background:rgba(8,145,178,.34)!important;border-color:rgba(34,211,238,.6)!important;color:#cffafe!important}
-html[data-badge-style=minimal] .monwui-meta-container .audio-label,html[data-badge-style=minimal] .monwui-meta-container .subtitle-label{background:rgba(16,185,129,.2)!important;border-color:rgba(52,211,153,.55)!important;color:#ecfdf5!important}
+html[data-badge-style=minimal] .monwui-format-container .video-quality .monwui-quality-segment--level{background:var(--bd-base),rgba(37,99,235,.34)!important;border-color:rgba(96,165,250,.6)!important;color:#dbeafe!important}
+html[data-badge-style=minimal] .monwui-format-container .video-quality .monwui-quality-segment--range{background:var(--bd-base),rgba(234,88,12,.34)!important;border-color:rgba(251,146,60,.6)!important;color:#ffedd5!important}
+html[data-badge-style=minimal] .monwui-format-container .video-quality .monwui-quality-segment--codec{background:var(--bd-base),rgba(148,163,184,.26)!important;border-color:rgba(203,213,225,.5)!important;color:#f1f5f9!important}
+html[data-badge-style=minimal] .monwui-format-container .video-quality .monwui-quality-segment--bitdepth{background:var(--bd-base),rgba(99,102,241,.34)!important;border-color:rgba(165,180,252,.6)!important;color:#e0e7ff!important}
+html[data-badge-style=minimal] .monwui-format-container .video-quality .monwui-quality-segment--audio{background:var(--bd-base),rgba(16,185,129,.32)!important;border-color:rgba(52,211,153,.6)!important;color:#d1fae5!important}
+html[data-badge-style=minimal] .monwui-format-container .video-quality .monwui-quality-segment--audio-layout{background:var(--bd-base),rgba(8,145,178,.34)!important;border-color:rgba(34,211,238,.6)!important;color:#cffafe!important}
 
 /* ---- TINTED: soft color coding, rounded squares ---- */
 html[data-badge-style=tinted]{--bd-radius:10px}
@@ -80,19 +96,19 @@ html[data-badge-style=tinted] .monwui-meta-container .audio-label,html[data-badg
 html[data-badge-style=tinted] .monwui-format-container .type:not(.monwui-type-newseason){background:rgba(255,255,255,.92)!important;color:#0d1015!important;border:0!important;border-radius:var(--bd-radius)!important}
 html[data-badge-style=tinted] .monwui-format-container .type:not(.monwui-type-newseason) :is(i,.monwui-type-text){color:#0d1015!important}
 html[data-badge-style=tinted] .monwui-format-container .video-quality .monwui-quality-segment{border-radius:var(--bd-radius)!important;border:1px solid transparent!important}
-html[data-badge-style=tinted] .monwui-format-container .video-quality .monwui-quality-segment--level{background:rgba(37,99,235,.24)!important;border-color:rgba(96,165,250,.55)!important;color:#bfdbfe!important}
-html[data-badge-style=tinted] .monwui-format-container .video-quality .monwui-quality-segment--range{background:rgba(234,88,12,.24)!important;border-color:rgba(251,146,60,.55)!important;color:#fed7aa!important}
-html[data-badge-style=tinted] .monwui-format-container .video-quality .monwui-quality-segment--codec{background:rgba(148,163,184,.2)!important;border-color:rgba(148,163,184,.45)!important;color:#e2e8f0!important}
-html[data-badge-style=tinted] .monwui-format-container .video-quality .monwui-quality-segment--bitdepth{background:rgba(99,102,241,.24)!important;border-color:rgba(165,180,252,.55)!important;color:#e0e7ff!important}
-html[data-badge-style=tinted] .monwui-format-container .video-quality .monwui-quality-segment--audio{background:rgba(16,185,129,.22)!important;border-color:rgba(52,211,153,.55)!important;color:#a7f3d0!important}
-html[data-badge-style=tinted] .monwui-format-container .video-quality .monwui-quality-segment--audio-layout{background:rgba(8,145,178,.24)!important;border-color:rgba(34,211,238,.55)!important;color:#a5f3fc!important}
+html[data-badge-style=tinted] .monwui-format-container .video-quality .monwui-quality-segment--level{background:var(--bd-base),rgba(37,99,235,.24)!important;border-color:rgba(96,165,250,.55)!important;color:#bfdbfe!important}
+html[data-badge-style=tinted] .monwui-format-container .video-quality .monwui-quality-segment--range{background:var(--bd-base),rgba(234,88,12,.24)!important;border-color:rgba(251,146,60,.55)!important;color:#fed7aa!important}
+html[data-badge-style=tinted] .monwui-format-container .video-quality .monwui-quality-segment--codec{background:var(--bd-base),rgba(148,163,184,.2)!important;border-color:rgba(148,163,184,.45)!important;color:#e2e8f0!important}
+html[data-badge-style=tinted] .monwui-format-container .video-quality .monwui-quality-segment--bitdepth{background:var(--bd-base),rgba(99,102,241,.24)!important;border-color:rgba(165,180,252,.55)!important;color:#e0e7ff!important}
+html[data-badge-style=tinted] .monwui-format-container .video-quality .monwui-quality-segment--audio{background:var(--bd-base),rgba(16,185,129,.22)!important;border-color:rgba(52,211,153,.55)!important;color:#a7f3d0!important}
+html[data-badge-style=tinted] .monwui-format-container .video-quality .monwui-quality-segment--audio-layout{background:var(--bd-base),rgba(8,145,178,.24)!important;border-color:rgba(34,211,238,.55)!important;color:#a5f3fc!important}
 
 /* ---- OUTLINE: thin colored line, no fill ---- */
 html[data-badge-style=outline]{--bd-radius:8px}
 html[data-badge-style=outline] .monwui-meta-container :is(.monwui-status-container,.monwui-rating-container,.monwui-language-container)>*,
 html[data-badge-style=outline] .monwui-format-container .type:not(.monwui-type-newseason),
 html[data-badge-style=outline] .monwui-format-container .video-quality .monwui-quality-segment{
-  background:rgba(8,12,20,.28)!important;color:#f4f6fb!important;border:1px solid rgba(255,255,255,.5)!important;border-radius:var(--bd-radius)!important}
+  background:rgba(8,12,20,.5)!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.5)!important;border:1px solid rgba(255,255,255,.55)!important;border-radius:var(--bd-radius)!important}
 html[data-badge-style=outline] .monwui-format-container .type:not(.monwui-type-newseason){border-color:#fff!important}
 html[data-badge-style=outline] .monwui-format-container .type:not(.monwui-type-newseason) :is(i,.monwui-type-text){color:#fff!important}
 html[data-badge-style=outline] .monwui-format-container .video-quality .monwui-quality-segment--level{border-color:#60a5fa!important;color:#bfdbfe!important}
@@ -101,4 +117,3 @@ html[data-badge-style=outline] .monwui-format-container .video-quality .monwui-q
 html[data-badge-style=outline] .monwui-format-container .video-quality .monwui-quality-segment--bitdepth{border-color:#a5b4fc!important;color:#e0e7ff!important}
 html[data-badge-style=outline] .monwui-format-container .video-quality .monwui-quality-segment--audio{border-color:#34d399!important;color:#a7f3d0!important}
 html[data-badge-style=outline] .monwui-format-container .video-quality .monwui-quality-segment--audio-layout{border-color:#22d3ee!important;color:#a5f3fc!important}
-html[data-badge-style=outline] .monwui-meta-container .audio-label{border-color:#34d399!important}
