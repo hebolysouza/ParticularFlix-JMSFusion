@@ -5301,6 +5301,7 @@ export async function slidesInit() {
         },
         allowStaleOnError: true,
       });
+        jmsMark("jms:data-done");
         playingItems = await playingPromise;
         jmsMark("jms:pool-ready");
         try {
@@ -5621,7 +5622,9 @@ export async function slidesInit() {
       }
       const item = items[itemIndex];
       if (!item) return null;
+      if (itemIndex === 0) jmsMark("jms:create-slide-start");
       const slideEl = await createSlide(item, { insertAt: itemIndex, ...options });
+      if (itemIndex === 0) jmsMark("jms:create-slide-done");
       if (!isBootActive()) {
         const staleContainer = slideEl?.closest?.("#monwui-slides-container") || null;
         try { slideEl?.__cleanupSlide?.(); } catch {}

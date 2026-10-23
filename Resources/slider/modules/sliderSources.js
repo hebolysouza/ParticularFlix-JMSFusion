@@ -243,6 +243,7 @@ export async function loadSourceItems({
     })
   );
   const results = Object.fromEntries(responses);
+  try { performance.mark("jms:source-queries-done"); } catch {}
 
   const candidates = mergeSourceResults(mode, results).slice(0, Math.max(1, maxResolve));
   const wanted = Math.max(1, resolveLimit);

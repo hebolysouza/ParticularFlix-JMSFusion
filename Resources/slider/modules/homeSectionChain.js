@@ -1149,7 +1149,7 @@ async function runManagedRenderTask(task, generation = MANAGED_RENDER_QUEUE.gene
 
   let runnerPromise;
   try {
-    runnerPromise = Promise.resolve().then(() => task.runner());
+    runnerPromise = waitForSliderFirstPaint().then(() => task.runner());
   } catch (error) {
     runnerPromise = Promise.reject(error);
   }
@@ -1213,6 +1213,33 @@ async function drainManagedRenderQueue() {
       });
     }
   }
+}
+
+// Fork ParticularFlix 3.8.2.41: enquanto o slider esta montando o primeiro slide, as fileiras
+// gerenciadas (Studio Hubs, TMDb, recentes) esperam, no maximo 6 s, para nao disputar o servidor
+// e as conexoes do navegador com as consultas do slider. Sem slider em andamento nao espera nada.
+// localStorage jms:fastStart = "off" desliga.
+export function waitForSliderFirstPaint(maxMs = 6000) {
+  try {
+    if (window.__jmsFirstSlideReady) return Promise.resolve();
+    if (typeof window.__jmsPoolReady !== "boolean") return Promise.resolve();
+    if (localStorage.getItem("jms:fastStart") === "off") return Promise.resolve();
+  } catch {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    let done = false;
+    let timer = 0;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      document.removeEventListener("jms:first-slide-ready", finish);
+      resolve();
+    };
+    document.addEventListener("jms:first-slide-ready", finish, { once: true });
+    timer = setTimeout(finish, maxMs);
+  });
 }
 
 export function enqueueManagedSectionRender(key, runner, options = {}) {
