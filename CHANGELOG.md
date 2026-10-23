@@ -5,6 +5,11 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.8.2.41 (fork build)
+
+- Slider, cold start: with the "current releases" source, the list no longer waits for the full details of about 80 candidates before choosing the slides. The selection only needs the item id and type, so it now uses light placeholders and the full details of the first slides are loaded right after (the rest in the background, as before). Measured on a cold start: the bulk details of 60 items took about 4.5 s while the two list queries took about 0.3 s each. The order and the choice of items are unchanged.
+- `localStorage jms:fastStart = "off"` restores the previous behavior.
+
 ## 3.8.2.40 (fork build)
 
 Rolls up the test-only builds 3.8.2.38 and 3.8.2.39.

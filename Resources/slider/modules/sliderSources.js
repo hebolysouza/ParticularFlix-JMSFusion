@@ -223,7 +223,11 @@ export async function loadSourceItems({
   maxResolve = 240,
   // Fork ParticularFlix 3.8.2.40: pede os detalhes dos candidatos em lote (poucas requisicoes grandes)
   // antes de resolver um a um; resolveOne passa a achar tudo no cache.
-  prefetchDetails = null
+  prefetchDetails = null,
+  // Fork ParticularFlix 3.8.2.41: sem itemFilter de imagens, a selecao so precisa de Id e Type.
+  // Com lightweight=true devolve stubs leves e os detalhes completos entram depois pelo merge
+  // do head/tail do slider (fora do caminho critico).
+  lightweight = false
 } = {}) {
   const requests = buildSourceRequests({ mode, userId, now, windowMonths });
   if (!requests.length) return [];
@@ -265,6 +269,29 @@ export async function loadSourceItems({
       return d.kind === "Movie" ? d.item : null;
     }
   };
+
+  if (lightweight === true && typeof itemFilter !== "function") {
+    const stubs = [];
+    for (const d of candidates) {
+      if (stubs.length >= wanted) break;
+      if (!d?.id) continue;
+      const stub = d.kind === "Movie" && d.item && d.item.Id
+        ? { ...d.item }
+        : { Id: d.id, Type: d.kind === "Movie" ? "Movie" : "Series" };
+      stub.Type = stub.Type || (d.kind === "Movie" ? "Movie" : "Series");
+      stub.__jmsStub = true;
+      stub.__jmsSourceMeta = {
+        mode: safeMode,
+        effectiveDate: new Date(d.effectiveDate).toISOString(),
+        seasonNumber: d.seasonNumber ?? null,
+        episodeNumber: d.episodeNumber ?? null,
+        isNewSeason: !!d.isNewSeason
+      };
+      stubs.push(stub);
+    }
+    console.debug("[JMS] fonte do slider (leve):", safeMode, "candidatos:", candidates.length, "stubs:", stubs.length);
+    return stubs;
+  }
 
   if (typeof prefetchDetails === "function") {
     try {

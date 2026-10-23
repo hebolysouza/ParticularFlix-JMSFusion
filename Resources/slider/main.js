@@ -5281,6 +5281,7 @@ export async function slidesInit() {
                   allowStaleOnError: true,
                 }),
                 fetchItemDetails: (id) => fetchItemDetailsCached(id),
+                lightweight: isFastStartEnabled(),
                 prefetchDetails: isFastStartEnabled()
                   ? (ids) => fetchItemDetailsCached.many(ids, { prefetchOnly: true, persistFetched: true })
                   : null,
@@ -5525,7 +5526,10 @@ export async function slidesInit() {
             const base = selectedById.get(detail?.Id || selectedItems[i]?.Id) || selectedItems[i] || null;
             const id = detail?.Id || base?.Id || selectedItems[i]?.Id;
             const merged = mergeHomeSliderItem(base, detail, userDataById.get(id) || null);
-            if (merged) items[i] = merged;
+            if (merged) {
+              if (detail && merged.__jmsStub) delete merged.__jmsStub;
+              items[i] = merged;
+            }
           });
         };
         items = selectedItems.map((base) => mergeHomeSliderItem(base, null, null) || base);
