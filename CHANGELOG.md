@@ -5,11 +5,11 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## 3.8.2.42 (fork build)
+## 3.8.2.43 (fork build)
 
-Rolls up the test-only build 3.8.2.41.
+Rolls up the test-only builds 3.8.2.41 and 3.8.2.42.
 
-- Slider, cold start: with the "current releases" source, the list no longer waits for the full details of about 80 candidates before choosing the slides. The selection only needs the item id and type, so it now uses light placeholders and the full details of the first slides are loaded right after (the rest in the background, as before). Measured on a cold start: the bulk details of 60 items took about 4.5 s while the two list queries took about 0.3 s each. The order and the choice of items are unchanged.
+- Slider, cold start: with the "current releases" source, the list no longer fetches the full details of about 80 candidates before choosing the slides. When the slider requires images (logo and backdrop), one light request now returns only the image tags of all candidates; the selection and its order are identical. The full details of the first slides are loaded right after and the rest in the background, as before. In our cold-start measurements the full-details step took 4.5 to 8.5 s. Measured on a cold start: the bulk details of 60 items took about 4.5 s while the two list queries took about 0.3 s each. The order and the choice of items are unchanged.
 - Home rows (Studio Hubs, TMDb, recent, director, personal recommendations) now wait for the first slide (6 s at most) before they start loading. On a cold start they were competing with the slider list queries (one took 6.4 s instead of about 0.3 s measured alone).
 - New performance marks: `jms:source-queries-done`, `jms:data-done`, `jms:create-slide-start`, `jms:create-slide-done`.
 - Settings save on page hide: the managed storage snapshot was also sent with `keepalive`, which browsers refuse above 64 KB ("Failed to fetch" in the console). Large payloads now use a normal request.

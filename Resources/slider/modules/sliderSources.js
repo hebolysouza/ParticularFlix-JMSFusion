@@ -271,27 +271,53 @@ export async function loadSourceItems({
     }
   };
 
-  if (lightweight === true && typeof itemFilter !== "function") {
-    const stubs = [];
-    for (const d of candidates) {
-      if (stubs.length >= wanted) break;
-      if (!d?.id) continue;
-      const stub = d.kind === "Movie" && d.item && d.item.Id
-        ? { ...d.item }
-        : { Id: d.id, Type: d.kind === "Movie" ? "Movie" : "Series" };
-      stub.Type = stub.Type || (d.kind === "Movie" ? "Movie" : "Series");
-      stub.__jmsStub = true;
-      stub.__jmsSourceMeta = {
+  if (lightweight === true) {
+    try {
+      const makeMeta = (d) => ({
         mode: safeMode,
         effectiveDate: new Date(d.effectiveDate).toISOString(),
         seasonNumber: d.seasonNumber ?? null,
         episodeNumber: d.episodeNumber ?? null,
         isNewSeason: !!d.isNewSeason
-      };
-      stubs.push(stub);
+      });
+      // Com itemFilter (por exemplo, exigir logo e fundo) so as imagens importam: uma unica
+      // requisicao leve traz ImageTags e BackdropImageTags de todos os candidatos, em vez dos
+      // detalhes completos (MediaStreams, elenco etc.) de dezenas de itens.
+      let lightById = null;
+      if (typeof itemFilter === "function") {
+        const ids = Array.from(new Set(candidates.map((d) => d?.id).filter(Boolean)));
+        const chunks = [];
+        for (let i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100));
+        const fields = encodeFields(["ImageTags", "BackdropImageTags"]);
+        const parts = await Promise.all(chunks.map((chunk) => fetchJson(
+          `/Users/${userId}/Items?Ids=${chunk.join(",")}&Fields=${fields}&EnableTotalRecordCount=false`
+        )));
+        lightById = new Map();
+        parts.forEach((part) => itemsOf(part).forEach((it) => { if (it?.Id) lightById.set(it.Id, it); }));
+        if (!lightById.size) throw new Error("light image lookup returned no items");
+      }
+      const stubs = [];
+      for (const d of candidates) {
+        if (stubs.length >= wanted) break;
+        if (!d?.id) continue;
+        const light = lightById ? lightById.get(d.id) : null;
+        if (lightById && !light) continue;
+        const stub = {
+          ...(d.kind === "Movie" && d.item ? d.item : {}),
+          ...(light || {}),
+          Id: d.id
+        };
+        stub.Type = stub.Type || (d.kind === "Movie" ? "Movie" : "Series");
+        if (typeof itemFilter === "function" && !itemFilter(stub)) continue;
+        stub.__jmsStub = true;
+        stub.__jmsSourceMeta = makeMeta(d);
+        stubs.push(stub);
+      }
+      console.debug("[JMS] fonte do slider (leve):", safeMode, "candidatos:", candidates.length, "stubs:", stubs.length);
+      return stubs;
+    } catch (err) {
+      console.debug("[JMS] fonte leve falhou, usando o caminho completo:", err);
     }
-    console.debug("[JMS] fonte do slider (leve):", safeMode, "candidatos:", candidates.length, "stubs:", stubs.length);
-    return stubs;
   }
 
   if (typeof prefetchDetails === "function") {
