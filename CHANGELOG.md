@@ -8,6 +8,7 @@ original authors (G-grbz and contributors) are kept.
 ## 3.8.2.41 (fork build)
 
 - Slider, cold start: with the "current releases" source, the list no longer waits for the full details of about 80 candidates before choosing the slides. The selection only needs the item id and type, so it now uses light placeholders and the full details of the first slides are loaded right after (the rest in the background, as before). Measured on a cold start: the bulk details of 60 items took about 4.5 s while the two list queries took about 0.3 s each. The order and the choice of items are unchanged.
+- Settings save on page hide: the managed storage snapshot was also sent with `keepalive`, which browsers refuse above 64 KB ("Failed to fetch" in the console). Large payloads now use a normal request.
 - `localStorage jms:fastStart = "off"` restores the previous behavior.
 
 ## 3.8.2.40 (fork build)

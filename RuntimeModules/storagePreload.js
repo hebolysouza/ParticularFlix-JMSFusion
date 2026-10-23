@@ -280,8 +280,13 @@ async function persistSnapshot(snapshot, options = {}) {
     return { ok: true, skipped: true, profile, rev };
   }
 
+  // Fork ParticularFlix 3.8.2.41: navegadores recusam keepalive acima de 64 KB ("Failed to fetch").
+  const bodyText = JSON.stringify({
+    global: payload,
+    profile
+  });
   const requestInit = {
-    keepalive: options?.keepalive === true,
+    keepalive: options?.keepalive === true && bodyText.length < 60000,
     method: "POST",
     cache: "no-store",
     headers: {
@@ -289,10 +294,7 @@ async function persistSnapshot(snapshot, options = {}) {
       "Content-Type": "application/json",
       ...buildAuthHeaders()
     },
-    body: JSON.stringify({
-      global: payload,
-      profile
-    })
+    body: bodyText
   };
 
   activePersistJson = payloadJson;
