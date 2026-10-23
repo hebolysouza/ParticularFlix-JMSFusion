@@ -1,7 +1,7 @@
 import { changeSlide } from "./navigation.js";
 
 /*
- * Slider layouts (Cinema, Split, Mosaic, Coverflow) + on-screen previous/next arrows.
+ * Slider layouts (Cinema, Trailer, Mosaic, Coverflow) + on-screen previous/next arrows.
  * - The layout name lives in html[data-slider-layout] (set by main.js from the saved cssVariant).
  * - The arrows work on every layout (including Compact, Normal and Peak) and call the same
  *   changeSlide() used by keyboard, swipe and neighbor click, so timers/progress stay in sync.
@@ -18,7 +18,7 @@ export function readSliderLayout(cfg) {
   try { raw = String(localStorage.getItem("cssVariant") || "").toLowerCase(); } catch {}
   if (raw.includes("coverflow")) return "coverflow";
   if (raw.includes("cinema")) return "cinema";
-  if (raw.includes("split")) return "split";
+  if (raw.includes("trailer")) return "trailer";
   if (raw.includes("mosaic")) return "mosaic";
   return "";
 }
@@ -39,7 +39,9 @@ const NAV_CSS = `
 #monwui-slides-container:hover #${ARROWS_ID} .jms-nav-arrow,#${ARROWS_ID} .jms-nav-arrow:focus-visible{opacity:.9;transform:scale(1)}
 #${ARROWS_ID} .jms-nav-arrow:hover,#${ARROWS_ID} .jms-nav-arrow:focus-visible{background:#cc0000;border-color:#ff4d4d;opacity:1;outline:0}
 @media (hover:none){#${ARROWS_ID}{display:none}}
-html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-nav-arrow.next{right:calc(var(--jms-rail-w, 27%) + 14px)}
+/* the brand script row arrows (.pf-row-arrow) must not double the slider arrows */
+#monwui-slides-container .pf-row-arrow,.emby-scroller:has(#monwui-slides-container)>.pf-row-arrow,.pf-row-arrow:has(~ #monwui-slides-container){display:none!important}
+html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-nav-arrow.next{right:calc(var(--jms-rail-w, 27%) + var(--lay-inset, 12px) + 22px)}
 html[data-slider-layout=coverflow] #${ARROWS_ID} .jms-nav-arrow{width:46px;height:46px;margin-top:-23px}
 `;
 

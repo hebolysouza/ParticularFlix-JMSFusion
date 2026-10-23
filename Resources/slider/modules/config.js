@@ -111,7 +111,7 @@ export function getSliderLayoutFromVariant(value) {
   const v = String(value || "").trim().toLowerCase();
   if (v.includes("coverflow")) return "coverflow";
   if (v.includes("cinema")) return "cinema";
-  if (v.includes("split")) return "split";
+  if (v.includes("trailer")) return "trailer";
   if (v.includes("mosaic")) return "mosaic";
   return "";
 }
@@ -849,7 +849,7 @@ function computeConfig() {
     useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
     fullscreenMode: localStorage.getItem('fullscreenMode') === 'true' ? true : false,
     listLimit: 20,
-    version: "v3.8.2.29",
+    version: "v3.8.2.30",
     historySize: 20,
     updateInterval: 300000,
     nextTracksSource: localStorage.getItem('nextTracksSource') || 'playlist',

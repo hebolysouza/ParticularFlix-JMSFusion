@@ -5,6 +5,17 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.8.2.30 (fork build)
+
+Includes the internal builds 3.8.2.27 to 3.8.2.29, which were never published as releases.
+
+- New slider layouts: Cinema, Trailer (full screen), Mosaic and Coverflow 3D, selectable in the slider settings. They use softer rounded corners, follow the slider text style and ignore the manual position tweaks made for the Normal and Peak layouts.
+- The Trailer layout plays the trailer over the whole card and keeps a compact text bar. In Cinema, Mosaic and Trailer the trailer now fills the whole card instead of opening on half of it.
+- One set of previous/next arrows on every layout (theme red on hover). The old dot-strip arrows were removed and the brand row arrows are hidden over the slider.
+- Coverflow 3D: neighbor cards show their logo, centered on the visible strip with spacing from the borders. The blurred logo ghost no longer shows on the focused card while its trailer plays.
+- Audio tag on the cards now reflects the real file: languages found in the audio streams (commentary tracks ignored), Dual or Multi audio, and channel layout such as 5.1 or 2.0, plus the codec.
+- Slider boot: only the cards visible at start are resolved before the first paint; the rest load in the background. The number of cards is unchanged.
+
 ## 3.8.2.29 (fork build)
 
 Includes the internal builds 3.8.2.27 and 3.8.2.28, which were never published as releases.

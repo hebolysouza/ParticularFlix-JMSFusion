@@ -168,7 +168,7 @@ export function createSliderPanel(config, labels) {
     const variant = String(config.cssVariant || '').trim().toLowerCase();
     let raw = variant;
     try { raw = String(localStorage.getItem('cssVariant') || variant).trim().toLowerCase(); } catch {}
-    if (raw === 'normalcinemaslider' || raw === 'normalsplitslider' || raw === 'normalmosaicslider' || raw === 'peakcoverflowslider') return raw;
+    if (raw === 'normalcinemaslider' || raw === 'normaltrailerslider' || raw === 'normalmosaicslider' || raw === 'peakcoverflowslider') return raw;
     if (!variant) return 'normalslider';
     if (variant.includes('peak')) return 'peakslider';
     if (variant.includes('full')) return 'normalslider';
@@ -182,7 +182,7 @@ export function createSliderPanel(config, labels) {
     { value: 'normalslider' ,label: labels.normalslider || 'Normal' },
     { value: 'peakslider', label: (labels.peakslider || 'Peak') },
     { value: 'normalcinemaslider', label: labels.cinemaslider || 'Cinema' },
-    { value: 'normalsplitslider', label: labels.splitslider || 'Split' },
+    { value: 'normaltrailerslider', label: labels.trailerslider || 'Trailer' },
     { value: 'normalmosaicslider', label: labels.mosaicslider || 'Mosaic' },
     { value: 'peakcoverflowslider', label: labels.coverflowslider || 'Coverflow 3D' },
   ];

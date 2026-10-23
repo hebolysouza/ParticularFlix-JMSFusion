@@ -889,75 +889,111 @@ export function createLanguageContainer({ config, MediaStreams, itemType }) {
     return container;
   }
 
-  const audioCodecs = ["ac3", "mp3", "aac", "flac", "dts", "truehd", "eac3"];
-  const subtitleCodecs = ["srt", "ass", "vtt", "subrip"];
+  const subtitleCodecs = ["srt", "ass", "vtt", "subrip", "pgssub", "dvdsub", "dvbsub"];
 
-  const audioStreams = MediaStreams.filter(
-    stream => stream.Codec && audioCodecs.includes(stream.Codec.toLowerCase())
-  );
+  // Fork ParticularFlix: o rotulo agora reflete exatamente as faixas de audio do arquivo
+  // (antes mostrava sempre "English Audio" quando existia qualquer faixa no idioma padrao).
+  const hasTypes = MediaStreams.some((stream) => stream?.Type);
+  const audioCodecs = ["ac3", "eac3", "aac", "mp3", "flac", "dts", "truehd", "opus", "vorbis", "pcm_s16le", "pcm_s24le"];
+  const allAudio = MediaStreams.filter((stream) => hasTypes
+    ? String(stream?.Type || "").toLowerCase() === "audio"
+    : (stream?.Codec && audioCodecs.includes(String(stream.Codec).toLowerCase())));
+  const mainAudio = allAudio.filter((stream) => !/comment|descri|coment/i.test(String(stream?.Title || "")));
+  const audioStreams = mainAudio.length ? mainAudio : allAudio;
   const subtitleStreams = MediaStreams.filter(
-    stream => stream.Codec && subtitleCodecs.includes(stream.Codec.toLowerCase())
+    stream => hasTypes
+      ? String(stream?.Type || "").toLowerCase() === "subtitle"
+      : (stream.Codec && subtitleCodecs.includes(String(stream.Codec).toLowerCase()))
   );
 
-  const hasTurkishAudio = audioStreams.some(
+  const hasDefaultSubtitle = subtitleStreams.some(
     stream => stream.Language?.toLowerCase() === config.defaultLanguage
   );
-  const hasTurkishSubtitle = subtitleStreams.some(
+  const hasDefaultAudio = audioStreams.some(
     stream => stream.Language?.toLowerCase() === config.defaultLanguage
   );
+
+  const uiLang = (document.documentElement?.lang || navigator.language || "en").trim() || "en";
+  let displayNames = null;
+  try { displayNames = new Intl.DisplayNames([uiLang], { type: "language" }); } catch {}
+  const capitalize = (t) => t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+  const langName = (stream) => {
+    const code = String(stream?.Language || "").trim().toLowerCase();
+    if (!code || code === "und" || code === "unk") {
+      return config.languageLabels?.audioUnknown || "?";
+    }
+    let name = "";
+    try { name = displayNames?.of(code) || ""; } catch {}
+    if (!name || name.toLowerCase() === code || name.toLowerCase() === "root") {
+      name = String(stream?.DisplayLanguage || "").replace(/\s*\(.*\)\s*$/, "").trim() || code.toUpperCase();
+    }
+    return capitalize(name);
+  };
+  const channelText = (stream) => {
+    const layout = String(stream?.ChannelLayout || "");
+    const m = layout.match(/(\d)\.(\d)/);
+    if (m) return `${m[1]}.${m[2]}`;
+    const ch = Number(stream?.Channels) || 0;
+    if (!ch) return "";
+    if (ch === 1) return "1.0";
+    if (ch === 2) return "2.0";
+    if (ch === 3) return "2.1";
+    if (ch === 6) return "5.1";
+    if (ch === 7) return "6.1";
+    if (ch === 8) return "7.1";
+    return `${ch}ch`;
+  };
+
+  // uma entrada por idioma (mantem a ordem do arquivo); em empate vence a faixa com mais canais
+  const byLang = new Map();
+  for (const stream of audioStreams) {
+    const key = langName(stream);
+    const prev = byLang.get(key);
+    if (!prev || (Number(stream.Channels) || 0) > (Number(prev.Channels) || 0)) {
+      byLang.set(key, stream);
+    }
+  }
+  const langEntries = Array.from(byLang.entries());
+  const labels = config.languageLabels || {};
 
   let audioLabel = "";
   let subtitleLabel = "";
 
-  if (hasTurkishAudio) {
+  if (langEntries.length) {
+    const headText = langEntries.length === 1
+      ? (labels.audioSingle || "Audio")
+      : langEntries.length === 2
+        ? (labels.audioDual || "Dual Audio")
+        : (labels.audioMulti || "Multi Audio");
     audioLabel =
       `<i class="fa-solid fa-language"></i>` +
-      buildMetaTextSpan(config.languageLabels.audio, "monwui-audio-label-text");
-  } else {
-    const defaultAudioStream = audioStreams.find(stream => stream.IsDefault);
-    const fallbackLanguage = defaultAudioStream?.Language || "";
-    audioLabel =
-      `<i class="fa-solid fa-language"></i>` +
-      buildMetaTextSpan(
-        `${config.languageLabels.original}${fallbackLanguage ? ` ${fallbackLanguage}` : ""}`,
-        "monwui-audio-label-text"
-      );
-  }
+      buildMetaTextSpan(headText, "monwui-audio-label-text");
 
-  if (!hasTurkishAudio && hasTurkishSubtitle) {
-    subtitleLabel =
-      `<i class="fa-solid fa-closed-captioning"></i>` +
-      buildMetaTextSpan(config.languageLabels.subtitle, "monwui-subtitle-text");
-  }
-
-  const selectedAudioStream =
-    audioStreams.find(stream => stream.Language?.toLowerCase() === config.defaultLanguage) ||
-    audioStreams[0];
-
-  if (selectedAudioStream) {
-    const channelsText = selectedAudioStream.Channels
-      ? `${selectedAudioStream.Channels} ${config.languageLabels.channel}`
-      : "";
-    const bitRateText = selectedAudioStream.BitRate
-      ? `${Math.floor(selectedAudioStream.BitRate / 1000)} kbps`
-      : "";
-    const codecText = selectedAudioStream.Codec
-      ? selectedAudioStream.Codec.toUpperCase()
-      : "";
-
-    const detailsText = [channelsText, bitRateText].filter(Boolean).join(" - ");
-
+    const detailsText = langEntries
+      .map(([name, stream]) => [name, channelText(stream)].filter(Boolean).join(" "))
+      .join(" \u00B7 ");
     if (detailsText) {
       audioLabel +=
         `<i class="fa-solid fa-volume-high"></i>` +
         buildMetaTextSpan(detailsText, "monwui-audio-details-text");
     }
 
-    if (codecText) {
+    const codecs = [];
+    for (const [, stream] of langEntries) {
+      const c = stream.Codec ? String(stream.Codec).toUpperCase() : "";
+      if (c && !codecs.includes(c)) codecs.push(c);
+    }
+    if (codecs.length) {
       audioLabel +=
         `<i class="fa-solid fa-microchip"></i>` +
-        buildMetaTextSpan(codecText, "monwui-audio-codec-text");
+        buildMetaTextSpan(codecs.join(" \u00B7 "), "monwui-audio-codec-text");
     }
+  }
+
+  if (!hasDefaultAudio && hasDefaultSubtitle) {
+    subtitleLabel =
+      `<i class="fa-solid fa-closed-captioning"></i>` +
+      buildMetaTextSpan(labels.subtitle, "monwui-subtitle-text");
   }
 
   if (audioLabel) {

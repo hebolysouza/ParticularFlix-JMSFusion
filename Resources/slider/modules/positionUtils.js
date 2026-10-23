@@ -489,11 +489,11 @@ export function applyContainerStyles(container, type = '') {
     prefix = 'slide';
   }
 
-  // Layouts cinema, split e mosaic posicionam os blocos por conta propria (pilha em fluxo).
+  // Layouts cinema, trailer e mosaic posicionam os blocos por conta propria (pilha em fluxo).
   // Os ajustes manuais de posicao (pensados para Normal/Peak) sao ignorados e limpos nesses layouts.
   if (type && type !== 'progress' && type !== 'progressSeconds' && type !== 'slide') {
     const layoutName = document.documentElement?.dataset?.sliderLayout || '';
-    if (layoutName === 'cinema' || layoutName === 'split' || layoutName === 'mosaic') {
+    if (layoutName === 'cinema' || layoutName === 'trailer' || layoutName === 'mosaic') {
       ['top', 'left', 'width', 'height', 'display', 'flex-direction', 'justify-content', 'align-items', 'flex-wrap']
         .forEach((prop) => setImportantStyle(container, prop, ''));
       return;
