@@ -241,8 +241,24 @@ function scheduleSliderHeaderOffsetSync() {
   sliderHeaderSyncTimer = setTimeout(() => { sliderHeaderSyncTimer = 0; run(); }, wait);
 }
 
+// Fork ParticularFlix: enquanto a tela de Posicoes esta sendo editada, cada tique de valor muda o style
+// de varios elementos e dispararia medicoes do cabecalho (layout forcado). A medicao fica em pausa
+// durante a edicao e roda uma vez quando o usuario para.
+let positionEditing = false;
+let positionEditingTimer = 0;
+export function markPositionEditing() {
+  positionEditing = true;
+  if (positionEditingTimer) clearTimeout(positionEditingTimer);
+  positionEditingTimer = setTimeout(() => {
+    positionEditing = false;
+    positionEditingTimer = 0;
+    try { scheduleSliderHeaderOffsetBurst(); } catch {}
+  }, 700);
+}
+
 let sliderHeaderBurstTimers = [];
 function scheduleSliderHeaderOffsetBurst() {
+  if (positionEditing) return;
   // Fork ParticularFlix: rajadas empilhadas (cada mutacao do cabecalho abria 5 timers novos)
   // viravam dezenas de medicoes. Agora uma rajada nova substitui a pendente.
   for (const t of sliderHeaderBurstTimers) clearTimeout(t);
@@ -475,6 +491,60 @@ function setImportantStyle(element, property, value) {
   }
 }
 
+/*
+ * Fork ParticularFlix: nos layouts Cinema e Mosaico alguns blocos (caixa de provedores, wrapper do slider,
+ * pontos) sao position:absolute ancorados por right/bottom. Ao definir Esquerda (left) sem soltar o right,
+ * o bloco passa a ficar esticado entre os dois (a caixa de fundo vira um "rastro" que acompanha o movimento).
+ * Definir Topo (top) sem soltar o bottom faz o mesmo na vertical. Esta funcao solta o lado oposto.
+ */
+export function isFlowLayoutActive() {
+  const layout = document.documentElement?.dataset?.sliderLayout || '';
+  return layout === 'cinema' || layout === 'mosaic';
+}
+
+export function writeAnchorRelease(element, cssProperty, hasValue) {
+  if (!element || !isFlowLayoutActive()) return;
+  const target = cssProperty === 'left' ? 'right' : cssProperty === 'top' ? 'bottom' : '';
+  if (!target) return;
+  const current = element.style.getPropertyValue(target);
+  if (hasValue) {
+    // so escreve quando muda (escrita repetida dispara observadores de estilo sem necessidade)
+    if (current !== 'auto' || element.style.getPropertyPriority(target) !== 'important') {
+      element.style.setProperty(target, 'auto', 'important');
+    }
+  } else if (current === 'auto') {
+    element.style.removeProperty(target);
+  }
+}
+
+const HELPER_STYLE_ID = 'jms-position-helpers';
+const HELPER_STYLE_CSS = [
+  // a caixa interna de icones passa a aceitar Topo/Esquerda (antes era estatica e ignorava os valores)
+  '.monwui-providericons-container{position:relative}',
+  // fundo da caixa de provedores (engrenagem, IMDb, TMDb...) pode ser removido sem tirar os icones
+  'html[data-jms-provider-bg="none"] .monwui-provider-container{background:none!important;box-shadow:none!important;',
+  '-webkit-backdrop-filter:none!important;backdrop-filter:none!important;border:0!important;padding:0!important}',
+].join('');
+
+export function ensurePositionHelperStyles() {
+  if (document.getElementById(HELPER_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = HELPER_STYLE_ID;
+  style.textContent = HELPER_STYLE_CSS;
+  (document.head || document.documentElement).appendChild(style);
+}
+
+export function applyProviderBackgroundMode(mode) {
+  ensurePositionHelperStyles();
+  const root = document.documentElement;
+  if (!root) return;
+  if (mode === 'none') {
+    if (root.dataset.jmsProviderBg !== 'none') root.dataset.jmsProviderBg = 'none';
+  } else if (root.dataset.jmsProviderBg) {
+    delete root.dataset.jmsProviderBg;
+  }
+}
+
 export function applyContainerStyles(container, type = '') {
   const config = getConfig();
   let prefix;
@@ -495,6 +565,10 @@ export function applyContainerStyles(container, type = '') {
 
   setImportantStyle(container, 'top',    resolveTopStyleValue(prefix, config[`${prefix}Top`], config));
   setImportantStyle(container, 'left',   config[`${prefix}Left`]   ? `${config[`${prefix}Left`]}%`   : '');
+  if (prefix !== 'slide' && isFlowLayoutActive()) {
+    writeAnchorRelease(container, 'top', !!Number(config[`${prefix}Top`]));
+    writeAnchorRelease(container, 'left', !!Number(config[`${prefix}Left`]));
+  }
   setImportantStyle(container, 'width',  config[`${prefix}Width`]  ? `${config[`${prefix}Width`]}%`  : '');
   setImportantStyle(container, 'height', config[`${prefix}Height`] ? `${config[`${prefix}Height`]}%` : '');
 
@@ -509,6 +583,7 @@ export function applyContainerStyles(container, type = '') {
 
 export function updateSlidePosition() {
   const config = getConfig();
+  try { applyProviderBackgroundMode(config.providerBoxBackground); } catch {}
 
   const slidesContainer = document.querySelector("#monwui-slides-container");
   if (slidesContainer) {

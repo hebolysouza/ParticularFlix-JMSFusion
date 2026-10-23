@@ -5,6 +5,14 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 3.8.2.35 (fork build)
+
+- Position settings rewritten for clarity: every block now says what it is and what it moves, every field says its unit and direction (positive moves down or right, empty means default), and a short "how to use" note sits at the top.
+- Position editor performance: live preview is batched into one frame, header measurements pause while you edit, and the quick editor no longer hides the whole settings window with display:none, which caused the multi-second freeze. Spinner arrows no longer open the quick editor on every click.
+- Cinema and Mosaic: the director line now stays visible on the active slide (it was being faded out by the legacy hide animation) and sits right below the plot.
+- Plugin settings button (provider box): moving it horizontally or vertically no longer stretches the box, which was leaving a trailing background. The box background can now be removed with a new "Box background" option, and the icons inside the box can be positioned on their own.
+- New position block for the Format badges (type and quality). Classic layout positions and existing settings are untouched.
+
 ## 3.8.2.34 (fork build)
 
 - Coverflow 3D: back to the standard Peak behavior (logos on the neighbor cards, text title on the active card).

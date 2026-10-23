@@ -1,11 +1,28 @@
-import { getConfig } from "../config.js";
-import { updateSlidePosition } from '../positionUtils.js';
 import { applySettings } from "./applySettings.js";
 import { getActivePositionProfile } from "../positionProfiles.js";
+import {
+  markPositionEditing,
+  writeAnchorRelease,
+  applyProviderBackgroundMode,
+  isFlowLayoutActive
+} from "../positionUtils.js";
 
-const config = getConfig();
+/*
+ * Tela de Posicoes (fork ParticularFlix).
+ * - Cada bloco mostra o que ele e (descricao) e cada campo diz o que muda (cima/baixo, esquerda/direita...).
+ * - A pre-visualizacao ao vivo agrupa as alteracoes em um unico quadro de animacao (antes cada tique de
+ *   valor escrevia estilo em todos os slides na hora) e pausa as medicoes do cabecalho durante a edicao.
+ * - O editor flutuante nao usa mais display:none na janela principal (isso recalculava o layout da janela
+ *   inteira a cada abertura e fechamento); ela fica apenas invisivel.
+ * - Provider: o fundo da caixa agora e uma opcao propria, e os icones dentro da caixa tem posicao propria.
+ */
+
+const PENDING = new Map();
+let flushRaf = 0;
 
 export function createPositionEditor(config, labels, section) {
+  const L = (key, fallback) => (config.languageLabels && config.languageLabels[key]) || fallback;
+
   function withPositionUnit(labelText, unit) {
     const label = String(labelText || '').trim();
     if (!label) return '';
@@ -15,22 +32,185 @@ export function createPositionEditor(config, labels, section) {
     return `${label} (${unit})`;
   }
 
-  function createSettingItem(labelText, configKey, cssProperty, placeholder, target = 'slides', containerType = '') {
+  /* ---------- textos: o que cada campo muda ---------- */
+
+  const PROP_TEXT = {
+    top: {
+      label: () => L('posTopLabel', 'Vertical (Top, %)'),
+      hint: () => L('posTopHint', 'Positive moves down, negative moves up. Empty or 0 = default position.')
+    },
+    left: {
+      label: () => L('posLeftLabel', 'Horizontal (Left, %)'),
+      hint: () => L('posLeftHint', 'Positive moves right, negative moves left. Empty or 0 = default position.')
+    },
+    width: {
+      label: () => L('posWidthLabel', 'Width (%)'),
+      hint: () => L('posWidthHint', 'Block width relative to the slider. Empty or 0 = automatic.')
+    },
+    height: {
+      label: () => L('posHeightLabel', 'Height (%)'),
+      hint: () => L('posHeightHint', 'Block height relative to the slider. Empty or 0 = automatic.')
+    }
+  };
+
+  const BLOCK_DESC = {
+    homeSections: () => L('posDescHomeSections', 'Home rows below the slider (Continue Watching, new releases...). Moves all of that content up or down.'),
+    slide: () => L('posDescSlide', 'The whole slider (the big card with the trailer). Moves and resizes the entire panel.'),
+    logo: () => L('posDescLogo', 'The logo (title image) of the movie or series.'),
+    meta: () => L('posDescMeta', 'The middle badge row: watched, runtime, rating, match %, age rating and audio/languages. It groups the Status, Rating and Languages blocks, so moving it here moves them all together.'),
+    format: () => L('posDescFormat', 'The top badges: type (MOVIE/SERIES) and quality (FHD, SDR, AVC...).'),
+    status: () => L('posDescStatus', 'Only the "Watched, runtime and end time" part inside the badge row.'),
+    rating: () => L('posDescRating', 'Only the ratings part: match %, community rating, Rotten Tomatoes and age rating.'),
+    plot: () => L('posDescPlot', 'The plot summary text.'),
+    title: () => L('posDescTitle', 'The title as text. In the Cinema and Mosaic layouts it is hidden when the item has a logo.'),
+    director: () => L('posDescDirector', 'The "Director: ..." line (and writer, if enabled). In the Cinema and Mosaic layouts it sits right below the plot.'),
+    info: () => L('posDescInfo', 'The genre, year and country line.'),
+    button: () => L('posDescButton', 'The Play, Details, Mark as watched and Favorite buttons.'),
+    existingDot: () => L('posDescDot', 'The slider navigation (dots or thumbnails).'),
+    provider: () => L('posDescProvider', 'The icon box (settings gear, IMDb, TMDb, YouTube, Cast). Changing it moves the whole box, including its dark background.'),
+    providericons: () => L('posDescProviderIcons', 'Only the icons inside the box, without moving the background. To remove the background, use the "Box background" option in the Provider block.'),
+    sliderWrapper: () => L('posDescSliderWrapper', 'Advanced slider container. In most cases you do not need to change it.'),
+    progressSeconds: () => L('posDescProgressSeconds', 'The seconds counter of the slide progress bar.'),
+    progress: () => L('posDescProgress', 'The slide progress bar.')
+  };
+
+  function appendHeader(text, descKey) {
+    const header = document.createElement('h3');
+    header.textContent = text;
+    section.appendChild(header);
+    const descFn = BLOCK_DESC[descKey];
+    if (descFn) {
+      const p = document.createElement('p');
+      p.className = 'position-block-desc';
+      p.textContent = descFn();
+      section.appendChild(p);
+    }
+  }
+
+  /* ---------- aplicacao ao vivo (em lote, um quadro por vez) ---------- */
+
+  function writeStyleValue(el, cssProperty, value, important = false) {
+    if (!el) return;
+
+    if (value === '') {
+      if (el.style.getPropertyValue(cssProperty) !== '') el.style.removeProperty(cssProperty);
+      return;
+    }
+
+    const priority = important ? 'important' : '';
+    if (el.style.getPropertyValue(cssProperty) === value && el.style.getPropertyPriority(cssProperty) === priority) return;
+    el.style.setProperty(cssProperty, value, priority);
+  }
+
+  function selectorFor(containerType) {
+    if (!containerType) return '#monwui-slides-container';
+    return containerType === 'button' ? '.monwui-main-button-container'
+      : containerType === 'slider' ? '.monwui-slider-wrapper:not(.monwui-artist-menu)'
+      : containerType === 'existingDot' ? '.monwui-dot-navigation-container'
+      : containerType === 'progress' ? '.monwui-slide-progress-bar'
+      : containerType === 'progressSeconds' ? '.monwui-slide-progress-seconds'
+      : `.monwui-${containerType}-container`;
+  }
+
+  function applyContainerStyleNow(target, containerType, cssProperty, newValue) {
+    // 0 equivale a "padrao" depois de salvo (o salvamento converte 0 em vazio); a previa faz o mesmo
+    const numeric = Number(newValue);
+    const effective = (newValue === '' || !Number.isFinite(numeric) || numeric === 0) ? '' : newValue;
+
+    if (target === 'homeSections') {
+      const elements = [
+        document.querySelector(".homeSectionsContainer"),
+        document.querySelector("#favoritesTab")
+      ];
+      elements.forEach(el => {
+        writeStyleValue(el, cssProperty, effective === '' ? '' : `${effective}vh`);
+      });
+      return;
+    }
+
+    const flowLayout = isFlowLayoutActive();
+    const isMainSlideTop = !containerType && target === 'slides' && cssProperty === 'top';
+    const unit = isMainSlideTop ? 'vh' : '%';
+    const important = isMainSlideTop || flowLayout;
+
+    document.querySelectorAll(selectorFor(containerType)).forEach(el => {
+      writeStyleValue(el, cssProperty, effective === '' ? '' : `${effective}${unit}`, important);
+      if (containerType && (cssProperty === 'top' || cssProperty === 'left')) {
+        writeAnchorRelease(el, cssProperty, effective !== '');
+      }
+    });
+  }
+
+  function flushPending() {
+    flushRaf = 0;
+    const jobs = [...PENDING.values()];
+    PENDING.clear();
+    for (const job of jobs) {
+      try { applyContainerStyleNow(job.target, job.containerType, job.cssProperty, job.value); } catch {}
+    }
+  }
+
+  function updateContainerStyle(target, containerType, cssProperty, newValue) {
+    markPositionEditing();
+    PENDING.set(`${target}|${containerType}|${cssProperty}`, { target, containerType, cssProperty, value: newValue });
+    if (!flushRaf) flushRaf = requestAnimationFrame(flushPending);
+  }
+
+  function updateFlexStyle(containerType, flexProperty, newValue) {
+    const selector = selectorFor(containerType);
+    markPositionEditing();
+
+    document.querySelectorAll(selector).forEach(el => {
+      if (flexProperty.includes('Display')) {
+        el.style.display = newValue || '';
+      } else {
+        let camel = flexProperty.charAt(0).toLowerCase() + flexProperty.slice(1);
+        const cssProp = camel.replace(/([A-Z])/g, m => '-' + m.toLowerCase());
+        el.style[cssProp] = newValue || '';
+      }
+    });
+  }
+
+  /* ---------- janela principal escondida sem recalcular layout ---------- */
+
+  function hideMainModal() {
+    const mainModal = document.getElementById('settings-modal');
+    if (!mainModal) return null;
+    mainModal.style.visibility = 'hidden';
+    mainModal.style.pointerEvents = 'none';
+    return mainModal;
+  }
+
+  function showMainModal(mainModal) {
+    if (!mainModal) return;
+    mainModal.style.visibility = '';
+    mainModal.style.pointerEvents = '';
+  }
+
+  /* ---------- campos ---------- */
+
+  function createSettingItem(labelText, configKey, cssProperty, placeholder, target = 'slides', containerType = '', blockLabel = '') {
     const container = document.createElement('div');
     container.className = 'position-item';
 
     const inputId = `input-${configKey}`;
+    const propText = PROP_TEXT[cssProperty];
 
     const label = document.createElement('label');
     label.textContent = labelText;
     label.htmlFor = inputId;
+    if (propText) label.title = propText.hint();
 
     const input = document.createElement('input');
     input.type = 'number';
     input.name = configKey;
     input.id = inputId;
     input.value = config[configKey] || '';
-    input.placeholder = placeholder || config.languageLabels.placeholderText || 'Değer giriniz';
+    input.placeholder = placeholder || L('placeholderText', 'Digite um valor');
+    input.dataset.cssProperty = cssProperty;
+    input.dataset.target = target;
+    input.dataset.containerType = containerType;
+    if (propText) input.title = propText.hint();
 
     const allowsNegative = ['top', 'left'].includes(cssProperty);
     const isProgressHeight = configKey === 'progressBarHeight';
@@ -45,7 +225,7 @@ export function createPositionEditor(config, labels, section) {
     }
 
     const resetBtn = document.createElement('button');
-    resetBtn.textContent = config.languageLabels.resetButton || 'Sıfırla';
+    resetBtn.textContent = L('resetButton', 'Padrão');
     resetBtn.type = 'button';
     resetBtn.className = 'reset-button';
     resetBtn.addEventListener('click', () => {
@@ -56,7 +236,7 @@ export function createPositionEditor(config, labels, section) {
 
     input.addEventListener('click', function(e) {
       e.stopPropagation();
-      openPositionModal(this, configKey, cssProperty, placeholder, target, containerType);
+      openPositionModal(this, configKey, cssProperty, placeholder, target, containerType, blockLabel, labelText);
     });
 
     input.addEventListener('input', function() {
@@ -69,21 +249,21 @@ export function createPositionEditor(config, labels, section) {
         if (value > 10) value = 10;
       }
       const newValue = isNaN(value) ? '' : value;
-      this.value = newValue;
+      if (String(newValue) !== this.value) this.value = newValue;
       config[configKey] = newValue;
       updateContainerStyle(target, containerType, cssProperty, newValue);
     });
 
     container.append(label, input, resetBtn);
     return container;
-}
+  }
 
   function createGlobalResetButton() {
     const container = document.createElement('div');
     container.className = 'global-reset-container';
 
     const resetBtn = document.createElement('button');
-    resetBtn.textContent = config.languageLabels.resetAllButton || 'Tümünü Sıfırla';
+    resetBtn.textContent = L('resetAllButton', 'Restaurar todas as posições');
     resetBtn.type = 'button';
     resetBtn.className = 'global-reset-button';
     resetBtn.addEventListener('click', resetAllSettings);
@@ -104,7 +284,7 @@ export function createPositionEditor(config, labels, section) {
       updateContainerStyle(target, containerType, cssProperty, '');
     });
 
-    document.querySelectorAll('.flex-item select').forEach(select => {
+    document.querySelectorAll('.flex-item select:not([data-special])').forEach(select => {
       select.value = '';
       const configKey = select.name;
       const containerType = select.dataset.containerType || '';
@@ -112,6 +292,13 @@ export function createPositionEditor(config, labels, section) {
       config[configKey] = '';
       updateFlexStyle(containerType, configKey.replace(`${containerType}Container`, ''), '');
     });
+
+    const bgSelect = section.querySelector('select[name="providerBoxBackground"]');
+    if (bgSelect) {
+      bgSelect.value = '';
+      config.providerBoxBackground = '';
+      applyProviderBackgroundMode('');
+    }
 
     if (config.homeSectionsTop !== undefined) {
       config.homeSectionsTop = '';
@@ -129,114 +316,145 @@ export function createPositionEditor(config, labels, section) {
     }
   }
 
-  function openPositionModal(inputElement, configKey, cssProperty, placeholder, target, containerType) {
-  const mainModal = document.getElementById('settings-modal');
-  if (mainModal) mainModal.style.display = 'none';
+  function openPositionModal(inputElement, configKey, cssProperty, placeholder, target, containerType, blockLabel, fieldLabelText) {
+    if (document.querySelector('.position-modal')) return null;
+    const mainModal = hideMainModal();
 
-  const modal = document.createElement('div');
-  modal.className = 'position-modal';
-  modal.style.display = 'block';
+    const modal = document.createElement('div');
+    modal.className = 'position-modal';
+    modal.style.display = 'block';
 
-  const modalContent = document.createElement('div');
-  modalContent.className = 'position-modal-content';
+    const modalContent = document.createElement('div');
+    modalContent.className = 'position-modal-content';
 
-  const closeBtn = document.createElement('span');
-  closeBtn.className = 'position-close';
-  closeBtn.innerHTML = '&times;';
-  closeBtn.onclick = () => {
-    modal.remove();
-    if (mainModal) mainModal.style.display = 'block';
-  };
-
-  const title = document.createElement('h3');
-  let sectionLabel;
-  if (containerType === 'homeSections') {
-    sectionLabel = config.languageLabels.homeSectionsPosition;
-  } else if (containerType) {
-    sectionLabel = config.languageLabels[`${containerType}Container`];
-  } else {
-    sectionLabel = config.languageLabels.slidesPosition;
-  }
-
-  const fieldLabel = inputElement.previousElementSibling?.textContent
-    || config.languageLabels[configKey]
-    || configKey.replace(/([A-Z])/g, ' $1').trim();
-
-  title.textContent = sectionLabel
-    ? `${sectionLabel} — ${fieldLabel}`
-    : fieldLabel;
-  title.className = 'position-modal-title';
-
-  const inputContainer = document.createElement('div');
-  inputContainer.className = 'position-modal-input-container';
-
-  const modalInput = document.createElement('input');
-  modalInput.type = 'number';
-  modalInput.value = inputElement.value;
-  modalInput.placeholder = placeholder || config.languageLabels.placeholderText || 'Değer giriniz';
-  modalInput.className = 'position-modal-input';
-
-  const isProgressHeight = configKey === 'progressBarHeight';
-  if (isProgressHeight) {
-    modalInput.min = 0.1;
-    modalInput.max = 10;
-    modalInput.step = 0.1;
-  } else if (cssProperty === 'width' || cssProperty === 'height') {
-    modalInput.min = 0;
-  }
-
-  inputContainer.append(modalInput);
-
-  if (configKey === 'homeSectionsTop') {
-    const applyBtn = document.createElement('button');
-    applyBtn.className = 'position-modal-apply';
-    applyBtn.textContent = config.languageLabels.applyButton || 'Uygula';
-    applyBtn.onclick = () => {
-      if (typeof applySettings === 'function') {
-        applySettings(false);
+    const closeModal = () => {
+      document.removeEventListener('keydown', onKey, true);
+      modal.remove();
+      showMainModal(mainModal);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape' || e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        closeModal();
       }
     };
-    inputContainer.append(applyBtn);
-  }
+    document.addEventListener('keydown', onKey, true);
 
-  modalInput.addEventListener('input', () => {
-    let value = parseFloat(modalInput.value);
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'position-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.onclick = closeModal;
+
+    const title = document.createElement('h3');
+    let sectionLabel = blockLabel;
+    if (!sectionLabel) {
+      sectionLabel = containerType === 'homeSections'
+        ? L('homeSectionsPosition', '')
+        : containerType
+          ? config.languageLabels[`${containerType}Container`]
+          : L('slidesPosition', '');
+    }
+
+    const fieldLabel = fieldLabelText
+      || inputElement.previousElementSibling?.textContent
+      || config.languageLabels[configKey]
+      || configKey.replace(/([A-Z])/g, ' $1').trim();
+
+    title.textContent = sectionLabel ? `${sectionLabel} — ${fieldLabel}` : fieldLabel;
+    title.className = 'position-modal-title';
+
+    const hint = document.createElement('p');
+    hint.className = 'position-modal-desc';
+    hint.textContent = PROP_TEXT[cssProperty]?.hint() || '';
+
+    const inputContainer = document.createElement('div');
+    inputContainer.className = 'position-modal-input-container';
+
+    const modalInput = document.createElement('input');
+    modalInput.type = 'number';
+    modalInput.value = inputElement.value;
+    modalInput.placeholder = placeholder || L('placeholderText', 'Digite um valor');
+    modalInput.className = 'position-modal-input';
+
+    const isProgressHeight = configKey === 'progressBarHeight';
+    const allowsNegative = ['top', 'left'].includes(cssProperty);
     if (isProgressHeight) {
-      if (isNaN(value)) {
-        value = '';
-      } else {
-        if (value < 0.1) value = 0.1;
-        if (value > 10) value = 10;
-        modalInput.value = value.toFixed(1);
+      modalInput.min = 0.1;
+      modalInput.max = 10;
+      modalInput.step = 0.1;
+    } else if (!allowsNegative) {
+      modalInput.min = 0;
+    }
+
+    inputContainer.append(modalInput);
+
+    const doneBtn = document.createElement('button');
+    doneBtn.type = 'button';
+    doneBtn.className = 'position-modal-apply';
+    doneBtn.textContent = L('posDoneButton', 'Done');
+    doneBtn.onclick = closeModal;
+
+    const defaultBtn = document.createElement('button');
+    defaultBtn.type = 'button';
+    defaultBtn.className = 'reset-button';
+    defaultBtn.textContent = L('resetButton', 'Padrão');
+    defaultBtn.onclick = () => {
+      modalInput.value = '';
+      inputElement.value = '';
+      config[configKey] = '';
+      updateContainerStyle(target, containerType, cssProperty, '');
+      modalInput.focus();
+    };
+    inputContainer.append(defaultBtn, doneBtn);
+
+    if (configKey === 'homeSectionsTop') {
+      const applyBtn = document.createElement('button');
+      applyBtn.type = 'button';
+      applyBtn.className = 'position-modal-apply';
+      applyBtn.textContent = L('applyButton', 'Aplicar');
+      applyBtn.onclick = () => {
+        if (typeof applySettings === 'function') {
+          applySettings(false);
+        }
+      };
+      inputContainer.append(applyBtn);
+    }
+
+    modalInput.addEventListener('input', () => {
+      let value = parseFloat(modalInput.value);
+      if (isProgressHeight) {
+        if (!isNaN(value)) {
+          if (value < 0.1) value = 0.1;
+          if (value > 10) value = 10;
+          if (String(value) !== modalInput.value) modalInput.value = value;
+        }
+      } else if (!allowsNegative && value < 0) {
+        value = 0;
+        modalInput.value = value;
       }
-    } else if ((cssProperty === 'width' || cssProperty === 'height') && value < 0) {
-      value = 0;
-      modalInput.value = value;
-    }
 
-    inputElement.value = isNaN(value) ? '' : value;
-    config[configKey] = isNaN(value) ? '' : value;
-    updateContainerStyle(target, containerType, cssProperty, isNaN(value) ? '' : value);
-  });
+      const next = isNaN(value) ? '' : value;
+      inputElement.value = next;
+      config[configKey] = next;
+      updateContainerStyle(target, containerType, cssProperty, next);
+    });
 
-  modalContent.append(closeBtn, title, inputContainer);
-  modal.appendChild(modalContent);
-  document.body.appendChild(modal);
+    modalContent.append(closeBtn, title, hint, inputContainer);
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
 
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      modal.remove();
-      if (mainModal) mainModal.style.display = 'block';
-    }
-  });
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
 
-  setTimeout(() => {
-    modalInput.focus();
-  }, 100);
+    setTimeout(() => {
+      modalInput.focus();
+      modalInput.select?.();
+    }, 60);
 
-  return modal;
-}
-
+    return modal;
+  }
 
   function createFlexSettingItem(labelText, configKey, options, containerType) {
     const container = document.createElement('div');
@@ -251,10 +469,11 @@ export function createPositionEditor(config, labels, section) {
     const select = document.createElement('select');
     select.name = configKey;
     select.id = selectId;
+    select.dataset.containerType = containerType;
 
     const emptyOption = document.createElement('option');
     emptyOption.value = '';
-    emptyOption.textContent = config.languageLabels.selectDefault || 'Varsayılan';
+    emptyOption.textContent = L('selectDefault', 'Padrão');
     select.appendChild(emptyOption);
 
     options.forEach(option => {
@@ -268,7 +487,7 @@ export function createPositionEditor(config, labels, section) {
     });
 
     const resetBtn = document.createElement('button');
-    resetBtn.textContent = config.languageLabels.resetButton || 'Sıfırla';
+    resetBtn.textContent = L('resetButton', 'Padrão');
     resetBtn.type = 'button';
     resetBtn.className = 'reset-button';
     resetBtn.addEventListener('click', () => {
@@ -290,142 +509,194 @@ export function createPositionEditor(config, labels, section) {
 
     container.append(label, select, resetBtn);
     return container;
-}
+  }
 
   function openSelectModal(selectElement, configKey, options, containerType) {
-  const mainModal = document.getElementById('settings-modal');
-  if (mainModal) mainModal.style.display = 'none';
+    if (document.querySelector('.position-modal')) return null;
+    const mainModal = hideMainModal();
 
-  const modal = document.createElement('div');
-  modal.className = 'position-modal';
-  modal.style.display = 'block';
+    const modal = document.createElement('div');
+    modal.className = 'position-modal';
+    modal.style.display = 'block';
 
-  const modalContent = document.createElement('div');
-  modalContent.className = 'position-modal-content';
+    const modalContent = document.createElement('div');
+    modalContent.className = 'position-modal-content';
 
-  const title = document.createElement('h3');
-  const sectionLabel = containerType
-    ? config.languageLabels[`${containerType}Container`]
-    : config.languageLabels.slidesPosition;
-  const fieldLabel = selectElement.previousElementSibling?.textContent
-    || config.languageLabels[configKey]
-    || configKey.replace(/([A-Z])/g, ' $1').trim();
-  title.textContent = sectionLabel
-    ? `${sectionLabel} — ${fieldLabel}`
-    : fieldLabel;
-  title.className = 'position-modal-title';
-  modalContent.appendChild(title);
-
-  const closeBtn = document.createElement('span');
-  closeBtn.className = 'position-close';
-  closeBtn.innerHTML = '&times;';
-  closeBtn.onclick = () => {
-    modal.remove();
-    if (mainModal) mainModal.style.display = 'block';
-  };
-  modalContent.appendChild(closeBtn);
-
-  const optionsContainer = document.createElement('div');
-  optionsContainer.className = 'position-modal-options';
-
-  options.forEach(option => {
-    const optionBtn = document.createElement('button');
-    optionBtn.className = 'position-modal-option';
-    if (selectElement.value === option.value) {
-      optionBtn.classList.add('active');
-    }
-    optionBtn.textContent = option.label;
-    optionBtn.onclick = () => {
-      selectElement.value = option.value;
-      config[configKey] = option.value;
-      updateFlexStyle(containerType, configKey.replace(`${containerType}Container`, ''), option.value);
-      optionsContainer.querySelectorAll('.position-modal-option').forEach(btn => btn.classList.remove('active'));
-      optionBtn.classList.add('active');
-    };
-    optionsContainer.appendChild(optionBtn);
-  });
-
-  modalContent.appendChild(optionsContainer);
-  modal.appendChild(modalContent);
-  document.body.appendChild(modal);
-
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
+    const closeModal = () => {
       modal.remove();
-      if (mainModal) mainModal.style.display = 'block';
-    }
-  });
-}
+      showMainModal(mainModal);
+    };
 
-  function writeStyleValue(el, cssProperty, value, important = false) {
-    if (!el) return;
+    const title = document.createElement('h3');
+    const sectionLabel = containerType
+      ? config.languageLabels[`${containerType}Container`]
+      : L('slidesPosition', '');
+    const fieldLabel = selectElement.previousElementSibling?.textContent
+      || config.languageLabels[configKey]
+      || configKey.replace(/([A-Z])/g, ' $1').trim();
+    title.textContent = sectionLabel
+      ? `${sectionLabel} — ${fieldLabel}`
+      : fieldLabel;
+    title.className = 'position-modal-title';
+    modalContent.appendChild(title);
 
-    if (value === '') {
-      el.style.removeProperty(cssProperty);
-      return;
-    }
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'position-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.onclick = closeModal;
+    modalContent.appendChild(closeBtn);
 
-    if (important) {
-      el.style.setProperty(cssProperty, value, 'important');
-    } else {
-      el.style.setProperty(cssProperty, value);
-    }
-  }
+    const optionsContainer = document.createElement('div');
+    optionsContainer.className = 'position-modal-options';
 
-  function updateContainerStyle(target, containerType, cssProperty, newValue) {
-  if (target === 'homeSections') {
-    const elements = [
-      document.querySelector(".homeSectionsContainer"),
-      document.querySelector("#favoritesTab")
-    ];
-
-    elements.forEach(el => {
-      writeStyleValue(el, cssProperty, newValue === '' ? '' : `${newValue}vh`);
+    options.forEach(option => {
+      const optionBtn = document.createElement('button');
+      optionBtn.className = 'position-modal-option';
+      if (selectElement.value === option.value) {
+        optionBtn.classList.add('active');
+      }
+      optionBtn.textContent = option.label;
+      optionBtn.onclick = () => {
+        selectElement.value = option.value;
+        config[configKey] = option.value;
+        updateFlexStyle(containerType, configKey.replace(`${containerType}Container`, ''), option.value);
+        optionsContainer.querySelectorAll('.position-modal-option').forEach(btn => btn.classList.remove('active'));
+        optionBtn.classList.add('active');
+      };
+      optionsContainer.appendChild(optionBtn);
     });
-   } else {
-    const selector = containerType
-      ? (containerType === 'button' ? '.monwui-main-button-container'
-        : containerType === 'slider' ? '.monwui-slider-wrapper:not(.monwui-artist-menu)'
-        : containerType === 'existingDot' ? '.monwui-dot-navigation-container'
-        : containerType === 'progress' ? '.monwui-slide-progress-bar'
-        : containerType === 'progressSeconds' ? '.monwui-slide-progress-seconds'
-        : `.monwui-${containerType}-container`)
-      : "#monwui-slides-container";
 
-    const flowLayout = ['cinema', 'mosaic'].includes(document.documentElement?.dataset?.sliderLayout || '');
-    const isMainSlideTop = !containerType && target === 'slides' && cssProperty === 'top';
-    const unit = isMainSlideTop ? 'vh' : '%';
+    modalContent.appendChild(optionsContainer);
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
 
-    document.querySelectorAll(selector).forEach(el => {
-      writeStyleValue(
-        el,
-        cssProperty,
-        newValue === '' ? '' : `${newValue}${unit}`,
-        isMainSlideTop || flowLayout
-      );
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
     });
   }
-}
 
-  function updateFlexStyle(containerType, flexProperty, newValue) {
-  const selector =
-    containerType === 'button' ? '.monwui-main-button-container' :
-    containerType === 'slider' ? '.monwui-slider-wrapper:not(.monwui-artist-menu)' :
-    containerType === 'existingDot' ? '.monwui-dot-navigation-container' :
-    containerType === 'progress' ? '.monwui-slide-progress-bar' :
-    containerType === 'progressSeconds' ? '.monwui-slide-progress-seconds' :
-    `.monwui-${containerType}-container`;
+  /* Seletor simples (sem o editor flutuante) para opcoes especiais, como o fundo da caixa de provedores. */
+  function createChoiceItem(labelText, configKey, options, onChange, hintText) {
+    const container = document.createElement('div');
+    container.className = 'flex-item position-choice';
 
-  document.querySelectorAll(selector).forEach(el => {
-    if (flexProperty.includes('Display')) {
-      el.style.display = newValue || '';
-    } else {
-      let camel = flexProperty.charAt(0).toLowerCase() + flexProperty.slice(1);
-      const cssProp = camel.replace(/([A-Z])/g, m => '-' + m.toLowerCase());
-      el.style[cssProp] = newValue || '';
-    }
-  });
-}
+    const selectId = `select-${configKey}`;
+    const label = document.createElement('label');
+    label.textContent = labelText;
+    label.htmlFor = selectId;
+    if (hintText) label.title = hintText;
+
+    const select = document.createElement('select');
+    select.name = configKey;
+    select.id = selectId;
+    select.dataset.special = '1';
+    options.forEach(option => {
+      const optElement = document.createElement('option');
+      optElement.value = option.value;
+      optElement.textContent = option.label;
+      if ((config[configKey] || '') === option.value) optElement.selected = true;
+      select.appendChild(optElement);
+    });
+    select.addEventListener('change', function() {
+      config[configKey] = this.value;
+      onChange(this.value);
+    });
+
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = L('resetButton', 'Padrão');
+    resetBtn.type = 'button';
+    resetBtn.className = 'reset-button';
+    resetBtn.addEventListener('click', () => {
+      select.value = '';
+      config[configKey] = '';
+      onChange('');
+    });
+
+    container.append(label, select, resetBtn);
+    return container;
+  }
+
+  /* ---------- montagem da tela ---------- */
+
+  function appendFlexSettings(type) {
+    section.appendChild(
+      createFlexSettingItem(
+        L('flexDisplay', 'Tipo de exibição'),
+        `${type}ContainerDisplay`,
+        [
+          { value: 'flex', label: L('flex', 'Flex') },
+          { value: 'inline-flex', label: L('inlineFlex', 'Inline Flex') },
+        ],
+        type
+      )
+    );
+
+    section.appendChild(
+      createFlexSettingItem(
+        L('flexDirection', 'Direção dos itens'),
+        `${type}ContainerFlexDirection`,
+        [
+          { value: 'row', label: L('row', 'Linha') },
+          { value: 'column', label: L('column', 'Coluna') },
+          { value: 'row-reverse', label: L('rowreverse', 'Linha invertida') },
+          { value: 'column-reverse', label: L('columnreverse', 'Coluna invertida') }
+        ],
+        type
+      )
+    );
+
+    section.appendChild(
+      createFlexSettingItem(
+        L('justifyContent', 'Alinhamento no eixo principal'),
+        `${type}ContainerJustifyContent`,
+        [
+          { value: 'flex-start', label: L('flexstart', 'Início') },
+          { value: 'flex-end', label: L('flexend', 'Fim') },
+          { value: 'center', label: L('center', 'Centro') },
+          { value: 'space-between', label: L('spacebetween', 'Espaço entre') },
+          { value: 'space-around', label: L('spacearound', 'Espaço ao redor') },
+          { value: 'space-evenly', label: L('spaceevenly', 'Espaço uniforme') }
+        ],
+        type
+      )
+    );
+
+    section.appendChild(
+      createFlexSettingItem(
+        L('alignItems', 'Alinhamento no eixo cruzado'),
+        `${type}ContainerAlignItems`,
+        [
+          { value: 'flex-start', label: L('flexstart', 'Início') },
+          { value: 'flex-end', label: L('flexend', 'Fim') },
+          { value: 'center', label: L('center', 'Centro') },
+          { value: 'baseline', label: L('baseline', 'Linha de base') },
+          { value: 'stretch', label: L('stretch', 'Esticar') }
+        ],
+        type
+      )
+    );
+
+    section.appendChild(
+      createFlexSettingItem(
+        L('flexWrap', 'Quebra de linha'),
+        `${type}ContainerFlexWrap`,
+        [
+          { value: 'nowrap', label: L('nowrap', 'Sem quebra') },
+          { value: 'wrap', label: L('wrap', 'Quebrar') },
+          { value: 'wrap-reverse', label: L('wrapreverse', 'Quebrar invertido') }
+        ],
+        type
+      )
+    );
+  }
+
+  function appendPositionFields(prefixKey, target, type, blockLabel, topUnitLabel) {
+    const ph = L('placeholderText', 'Digite um valor');
+    section.appendChild(createSettingItem(topUnitLabel || PROP_TEXT.top.label(), `${prefixKey}Top`, 'top', ph, target, type, blockLabel));
+    section.appendChild(createSettingItem(PROP_TEXT.left.label(), `${prefixKey}Left`, 'left', ph, target, type, blockLabel));
+    section.appendChild(createSettingItem(PROP_TEXT.width.label(), `${prefixKey}Width`, 'width', ph, target, type, blockLabel));
+    section.appendChild(createSettingItem(PROP_TEXT.height.label(), `${prefixKey}Height`, 'height', ph, target, type, blockLabel));
+  }
 
   function render() {
     section.appendChild(createGlobalResetButton());
@@ -433,385 +704,86 @@ export function createPositionEditor(config, labels, section) {
     const profileNames = { classic: 'Normal / Peak / Compact', cinema: 'Cinema', mosaic: 'Mosaic', coverflow: 'Coverflow 3D' };
     const profileNote = document.createElement('h5');
     profileNote.className = 'position-profile-note';
-    const noteTpl = config.languageLabels.positionProfileNote
-      || 'Active position profile: {profile}. Each slider layout keeps its own positions. In Cinema and Mosaic, Top and Left move the block from the layout default (leave empty for the default).';
+    const noteTpl = L('positionProfileNote',
+      'Perfil de posição ativo: {profile}. Cada layout do slider guarda as próprias posições. No Cinema e no Mosaico, Topo e Esquerda deslocam o bloco a partir do lugar padrão do layout (vazio = padrão).');
     profileNote.textContent = noteTpl.replace('{profile}', profileNames[getActivePositionProfile()] || getActivePositionProfile());
     section.appendChild(profileNote);
-    const homeSectionsHeader = document.createElement('h3');
-    homeSectionsHeader.textContent = config.languageLabels.homeSectionsPosition || 'Ana Bölüm Pozisyonu';
-    section.appendChild(homeSectionsHeader);
 
-    const homeSectionsHeaderNote = document.createElement('h5');
-    homeSectionsHeaderNote.textContent = config.languageLabels.homeSectionsPositionNote || '(Eksi (-) değerler, konumlandırmayı ters yönde değiştirir.)';
-    section.appendChild(homeSectionsHeaderNote);
+    const howTo = document.createElement('p');
+    howTo.className = 'position-block-desc';
+    howTo.textContent = L('posHowTo', 'How to use: click a field to open the quick editor and see the slider change live. Values only stick after you Save. The Default button returns a field to its original value.');
+    section.appendChild(howTo);
 
+    appendHeader(L('homeSectionsPosition', 'Posição das fileiras da home'), 'homeSections');
     section.appendChild(
       createSettingItem(
-        config.languageLabels.containerTop || 'Dikey Konum (vh):',
+        L('posHomeTopLabel', 'Vertical (vh): positive moves down, negative moves up'),
         'homeSectionsTop',
         'top',
-        config.languageLabels.placeholderText,
-        'homeSections'
+        L('placeholderText', 'Digite um valor'),
+        'homeSections',
+        '',
+        L('homeSectionsPosition', 'Fileiras da home')
       )
     );
 
-    const slidesHeader = document.createElement('h3');
-    slidesHeader.textContent = config.languageLabels.slidesPosition || 'Slayt Konteyner Pozisyonu';
-    section.appendChild(slidesHeader);
-
-    section.appendChild(
-      createSettingItem(
-        withPositionUnit(config.languageLabels.containerTop, 'vh') || 'Dikey Konum (vh):',
-        'slideTop',
-        'top',
-        config.languageLabels.placeholderText
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        config.languageLabels.containerLeft ?? 'Yatay Konum (%):',
-        'slideLeft',
-        'left',
-        config.languageLabels.placeholderText
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        config.languageLabels.containerWidth ?? 'Genişlik (%):',
-        'slideWidth',
-        'width',
-        config.languageLabels.placeholderText
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        config.languageLabels.containerHeight ?? 'Yükseklik (%):',
-        'slideHeight',
-        'height',
-        config.languageLabels.placeholderText
-      )
-    );
+    appendHeader(L('slidesPosition', 'Posição do slider'), 'slide');
+    appendPositionFields('slide', 'slides', '', L('slidesPosition', 'Slider'), withPositionUnit(PROP_TEXT.top.label(), 'vh'));
 
     const containers = [
-      { type: 'logo', label: config.languageLabels.logoContainer || 'Logo Konteyneri', flexSettings: false, positionSettings: true },
-      { type: 'meta', label: config.languageLabels.metaContainer || 'Meta Konteyneri', flexSettings: true, positionSettings: true },
-      { type: 'status', label: config.languageLabels.statusContainer || 'Durum Pozisyonu', flexSettings: true, positionSettings: true },
-      { type: 'rating', label: config.languageLabels.ratingContainer || 'Oylama Pozisyonu', flexSettings: true, positionSettings: true },
-      { type: 'plot', label: config.languageLabels.plotContainer || 'Plot Konteyneri', flexSettings: true, positionSettings: true },
-      { type: 'title', label: config.languageLabels.titleContainer || 'Başlık Konteyneri', flexSettings: true, positionSettings: true },
-      { type: 'director', label: config.languageLabels.directorContainer || 'Yönetmen Konteyneri', flexSettings: true, positionSettings: true },
-      { type: 'info', label: config.languageLabels.infoContainer || 'Bilgi Konteyneri', flexSettings: true, positionSettings: true },
-      { type: 'button', label: config.languageLabels.buttonContainer || 'Buton Konteyneri', flexSettings: true, positionSettings: true },
-      { type: 'existingDot', label: config.languageLabels.dotContainer || 'Dot Konteyneri', flexSettings: true, positionSettings: true },
-      { type: 'provider', label: config.languageLabels.providerContainer || 'Sağlayıcı Konteyneri', flexSettings: true, positionSettings: true },
-      { type: 'providericons', label: config.languageLabels.providericonsContainer || 'Sağlayıcı ikon Pozisyonu', flexSettings: true, positionSettings: false }
+      { type: 'logo', label: L('logoContainer', 'Logo'), flexSettings: false, positionSettings: true },
+      { type: 'format', label: L('formatContainer', 'Format badges (type and quality)'), flexSettings: true, positionSettings: true },
+      { type: 'meta', label: L('metaContainer', 'Linha de selos (meta)'), flexSettings: true, positionSettings: true },
+      { type: 'status', label: L('statusContainer', 'Status (assistido, duração, término)'), flexSettings: true, positionSettings: true },
+      { type: 'rating', label: L('ratingContainer', 'Avaliações e classificação'), flexSettings: true, positionSettings: true },
+      { type: 'plot', label: L('plotContainer', 'Sinopse'), flexSettings: true, positionSettings: true },
+      { type: 'title', label: L('titleContainer', 'Título em texto'), flexSettings: true, positionSettings: true },
+      { type: 'director', label: L('directorContainer', 'Diretor'), flexSettings: true, positionSettings: true },
+      { type: 'info', label: L('infoContainer', 'Gênero, ano e país'), flexSettings: true, positionSettings: true },
+      { type: 'button', label: L('buttonContainer', 'Botões (Play, Detalhes...)'), flexSettings: true, positionSettings: true },
+      { type: 'existingDot', label: L('dotContainer', 'Navegação (bolinhas)'), flexSettings: true, positionSettings: true },
+      { type: 'provider', label: L('providerContainer', 'Provider (caixa de ícones e engrenagem)'), flexSettings: true, positionSettings: true },
+      { type: 'providericons', label: L('providericonsContainer', 'Ícones dentro da caixa do Provider'), flexSettings: true, positionSettings: true }
     ];
 
     containers.forEach(({ type, label, flexSettings, positionSettings }) => {
-      const header = document.createElement('h3');
-      header.textContent = label;
-      section.appendChild(header);
+      appendHeader(label, type);
+
+      if (type === 'provider') {
+        section.appendChild(
+          createChoiceItem(
+            L('providerBgLabel', 'Box background'),
+            'providerBoxBackground',
+            [
+              { value: '', label: L('providerBgDefault', 'Default (dark box)') },
+              { value: 'none', label: L('providerBgNone', 'No background (icons only)') }
+            ],
+            (value) => applyProviderBackgroundMode(value),
+            L('providerBgHint', 'Removes or keeps the dark background behind the gear and icons. The icons stay in the same place.')
+          )
+        );
+      }
 
       if (positionSettings) {
-        section.appendChild(
-          createSettingItem(
-            config.languageLabels.containerTop || 'Dikey Konum (%):',
-            `${type}ContainerTop`,
-            'top',
-            config.languageLabels.placeholderText,
-            type,
-            type
-          )
-        );
-        section.appendChild(
-          createSettingItem(
-            config.languageLabels.containerLeft || 'Yatay Konum (%):',
-            `${type}ContainerLeft`,
-            'left',
-            config.languageLabels.placeholderText,
-            type,
-            type
-          )
-        );
-        section.appendChild(
-          createSettingItem(
-            config.languageLabels.containerWidth || 'Genişlik (%):',
-            `${type}ContainerWidth`,
-            'width',
-            config.languageLabels.placeholderText,
-            type,
-            type
-          )
-        );
-        section.appendChild(
-          createSettingItem(
-            config.languageLabels.containerHeight || 'Yükseklik (%):',
-            `${type}ContainerHeight`,
-            'height',
-            config.languageLabels.placeholderText,
-            type,
-            type
-          )
-        );
+        appendPositionFields(`${type}Container`, type, type, label);
       }
 
       if (flexSettings) {
-        section.appendChild(
-          createFlexSettingItem(
-            config.languageLabels.flexDisplay || 'Görüntüleme Tipi:',
-            `${type}ContainerDisplay`,
-            [
-              { value: 'flex', label: config.languageLabels.flex || 'Flex' },
-              { value: 'inline-flex', label: config.languageLabels.inlineFlex || 'Inline Flex' },
-            ],
-            type
-          )
-        );
-
-        section.appendChild(
-          createFlexSettingItem(
-            config.languageLabels.flexDirection || 'Flex Direction:',
-            `${type}ContainerFlexDirection`,
-            [
-              { value: 'row', label: config.languageLabels.row || 'Row' },
-              { value: 'column', label: config.languageLabels.column || 'Column' },
-              { value: 'row-reverse', label: config.languageLabels.rowreverse || 'Row Reverse' },
-              { value: 'column-reverse', label: config.languageLabels.columnreverse || 'Column Reverse' }
-            ],
-            type
-          )
-        );
-
-        section.appendChild(
-          createFlexSettingItem(
-            config.languageLabels.justifyContent || 'Ana Eksen Hizası:',
-            `${type}ContainerJustifyContent`,
-            [
-              { value: 'flex-start', label: config.languageLabels.flexstart || 'Flex Start' },
-              { value: 'flex-end', label: config.languageLabels.flexend || 'Flex End' },
-              { value: 'center', label: config.languageLabels.center || 'Center' },
-              { value: 'space-between', label: config.languageLabels.spacebetween || 'Space Between' },
-              { value: 'space-around', label: config.languageLabels.spacearound || 'Space Around' },
-              { value: 'space-evenly', label: config.languageLabels.spaceevenly || 'Space Evenly' }
-            ],
-            type
-          )
-        );
-
-        section.appendChild(
-          createFlexSettingItem(
-            config.languageLabels.alignItems || 'Çapraz Eksen Hizası:',
-            `${type}ContainerAlignItems`,
-            [
-              { value: 'flex-start', label: config.languageLabels.flexstart || 'Flex Start' },
-              { value: 'flex-end', label: config.languageLabels.flexend || 'Flex End' },
-              { value: 'center', label: config.languageLabels.center || 'Center' },
-              { value: 'baseline', label: config.languageLabels.baseline || 'Baseline' },
-              { value: 'stretch', label: config.languageLabels.stretch || 'Stretch' }
-            ],
-            type
-          )
-        );
-
-        section.appendChild(
-          createFlexSettingItem(
-            config.languageLabels.flexWrap || 'Sarma Davranışı:',
-            `${type}ContainerFlexWrap`,
-            [
-              { value: 'nowrap', label: config.languageLabels.nowrap || 'No Wrap' },
-              { value: 'wrap', label: config.languageLabels.wrap || 'Wrap' },
-              { value: 'wrap-reverse', label: config.languageLabels.wrapreverse || 'Wrap Reverse' }
-            ],
-            type
-          )
-        );
+        appendFlexSettings(type);
       }
     });
 
-    const sliderWrapperHeader = document.createElement('h3');
-    sliderWrapperHeader.textContent = config.languageLabels.sliderWrapperContainer || 'Slider Wrapper Konteyneri';
-    section.appendChild(sliderWrapperHeader);
+    appendHeader(L('posSliderWrapperTitle', 'Advanced slider container'), 'sliderWrapper');
+    appendPositionFields('sliderContainer', 'slider', 'slider', L('posSliderWrapperTitle', 'Advanced slider container'));
+    appendFlexSettings('slider');
 
-    section.appendChild(
-      createSettingItem(
-        config.languageLabels.containerTop || 'Dikey Konum (%):',
-        'sliderContainerTop',
-        'top',
-        config.languageLabels.placeholderText,
-        'slider',
-        'slider'
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        config.languageLabels.containerLeft || 'Yatay Konum (%):',
-        'sliderContainerLeft',
-        'left',
-        config.languageLabels.placeholderText,
-        'slider',
-        'slider'
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        config.languageLabels.containerWidth || 'Genişlik (%):',
-        'sliderContainerWidth',
-        'width',
-        config.languageLabels.placeholderText,
-        'slider',
-        'slider'
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        config.languageLabels.containerHeight || 'Yükseklik (%):',
-        'sliderContainerHeight',
-        'height',
-        config.languageLabels.placeholderText,
-        'slider',
-        'slider'
-      )
-    );
+    appendHeader(L('progressSecondsHeader', 'Contador de segundos'), 'progressSeconds');
+    const ph = L('placeholderText', 'Digite um valor');
+    section.appendChild(createSettingItem(PROP_TEXT.top.label(), 'progressSecondsTop', 'top', ph, 'progress', 'progressSeconds', L('progressSecondsHeader', 'Contador de segundos')));
+    section.appendChild(createSettingItem(PROP_TEXT.left.label(), 'progressSecondsLeft', 'left', ph, 'progress', 'progressSeconds', L('progressSecondsHeader', 'Contador de segundos')));
 
-    section.appendChild(
-      createFlexSettingItem(
-        config.languageLabels.flexDisplay || 'Görüntüleme Tipi:',
-        'sliderContainerDisplay',
-        [
-          { value: 'flex', label: config.languageLabels.flex || 'Flex' },
-          { value: 'inline-flex', label: config.languageLabels.inlineFlex || 'Inline Flex' },
-        ],
-        'slider'
-      )
-    );
-
-    section.appendChild(
-      createFlexSettingItem(
-        config.languageLabels.flexDirection || 'Esnek Yön:',
-        'sliderContainerFlexDirection',
-        [
-          { value: 'row', label: config.languageLabels.row || 'Row' },
-          { value: 'column', label: config.languageLabels.column || 'Column' },
-          { value: 'row-reverse', label: config.languageLabels.rowreverse || 'Row Reverse' },
-          { value: 'column-reverse', label: config.languageLabels.columnreverse || 'Column Reverse' }
-        ],
-        'slider'
-      )
-    );
-
-    section.appendChild(
-      createFlexSettingItem(
-        config.languageLabels.justifyContent || 'Ana Eksen Hizası:',
-        'sliderContainerJustifyContent',
-        [
-          { value: 'flex-start', label: config.languageLabels.flexstart || 'Flex Start' },
-          { value: 'flex-end', label: config.languageLabels.flexend || 'Flex End' },
-          { value: 'center', label: config.languageLabels.center || 'Center' },
-          { value: 'space-between', label: config.languageLabels.spacebetween || 'Space Between' },
-          { value: 'space-around', label: config.languageLabels.spacearound || 'Space Around' },
-          { value: 'space-evenly', label: config.languageLabels.spaceevenly || 'Space Evenly' }
-        ],
-        'slider'
-      )
-    );
-
-    section.appendChild(
-      createFlexSettingItem(
-        config.languageLabels.alignItems || 'Çapraz Eksen Hizası:',
-        'sliderContainerAlignItems',
-        [
-          { value: 'flex-start', label: config.languageLabels.flexstart || 'Flex Start' },
-          { value: 'flex-end', label: config.languageLabels.flexend || 'Flex End' },
-          { value: 'center', label: config.languageLabels.center || 'Center' },
-          { value: 'baseline', label: config.languageLabels.baseline || 'Baseline' },
-          { value: 'stretch', label: config.languageLabels.stretch || 'Stretch' }
-        ],
-        'slider'
-      )
-    );
-
-    section.appendChild(
-      createFlexSettingItem(
-        config.languageLabels.flexWrap || 'Sarma Davranışı:',
-        'sliderContainerFlexWrap',
-        [
-          { value: 'nowrap', label: config.languageLabels.nowrap || 'No Wrap' },
-          { value: 'wrap', label: config.languageLabels.wrap || 'Wrap' },
-          { value: 'wrap-reverse', label: config.languageLabels.wrapreverse || 'Wrap Reverse' }
-        ],
-        'slider'
-      )
-    );
-
-const progressSecondsHeader = document.createElement('h3');
-progressSecondsHeader.textContent = config.languageLabels.progressSecondsHeader || 'Progress (Saniye) Konteyneri';
-section.appendChild(progressSecondsHeader);
-
-section.appendChild(
-  createSettingItem(
-    config.languageLabels.containerTop || 'Dikey Konum (%):',
-    'progressSecondsTop',
-    'top',
-    config.languageLabels.placeholderText,
-    'progress',
-    'progressSeconds'
-  )
-);
-section.appendChild(
-  createSettingItem(
-    config.languageLabels.containerLeft || 'Yatay Konum (%):',
-    'progressSecondsLeft',
-    'left',
-    config.languageLabels.placeholderText,
-    'progress',
-    'progressSeconds'
-  )
-);
-
-    const progressBarHeader = document.createElement('h3');
-    progressBarHeader.textContent = config.languageLabels.progressBarHeader || 'Progress Konteyneri';
-    section.appendChild(progressBarHeader);
-
-    section.appendChild(
-      createSettingItem(
-        config.languageLabels.containerTop || 'Dikey Konum (%):',
-        'progressBarTop',
-        'top',
-        config.languageLabels.placeholderText,
-        'progress',
-        'progress'
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        config.languageLabels.containerLeft || 'Yatay Konum (%):',
-        'progressBarLeft',
-        'left',
-        config.languageLabels.placeholderText,
-        'progress',
-        'progress'
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        config.languageLabels.containerWidth || 'Genişlik (%):',
-        'progressBarWidth',
-        'width',
-        config.languageLabels.placeholderText,
-        'progress',
-        'progress'
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        config.languageLabels.containerHeight || 'Yükseklik (%):',
-        'progressBarHeight',
-        'height',
-        config.languageLabels.placeholderText,
-        'progress',
-        'progress'
-      )
-    );
+    appendHeader(L('progressBarHeader', 'Barra de progresso'), 'progress');
+    appendPositionFields('progressBar', 'progress', 'progress', L('progressBarHeader', 'Barra de progresso'));
     return section;
   }
 

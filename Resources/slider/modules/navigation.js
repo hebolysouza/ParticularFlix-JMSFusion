@@ -1705,7 +1705,18 @@ export function displaySlide(index) {
     }
 
     const directorContainer = currentSlide.querySelector(".monwui-director-container");
-    if (directorContainer && !isPeak) {
+    // Fork ParticularFlix: nos layouts novos (Cinema, Mosaico, Coverflow) o diretor faz parte da pilha de
+    // texto e fica sempre visivel. A animacao antiga (aparece e some apos aktifSure, com display:none no
+    // fim) so vale para os estilos classicos que nao sao Peak. Se uma animacao anterior deixou estilos
+    // inline de ocultacao no elemento, eles sao limpos aqui.
+    const keepDirectorVisible = !!document.documentElement?.dataset?.sliderLayout;
+    if (directorContainer && keepDirectorVisible) {
+      for (const prop of ["transition", "opacity", "transform", "display"]) {
+        // display com prioridade important vem da tela de Posicoes: preservar
+        if (prop === "display" && directorContainer.style.getPropertyPriority("display") === "important") continue;
+        directorContainer.style.removeProperty(prop);
+      }
+    } else if (directorContainer && !isPeak) {
       showAndHideElementWithAnimation(directorContainer, {
         girisSure: config.girisSure,
         aktifSure: config.aktifSure,

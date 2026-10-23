@@ -853,7 +853,7 @@ function computeConfig() {
     useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
     fullscreenMode: localStorage.getItem('fullscreenMode') === 'true' ? true : false,
     listLimit: 20,
-    version: "v3.8.2.34",
+    version: "v3.8.2.35",
     historySize: 20,
     updateInterval: 300000,
     nextTracksSource: localStorage.getItem('nextTracksSource') || 'playlist',
@@ -1381,6 +1381,18 @@ function computeConfig() {
     providericonsContainerJustifyContent: localStorage.getItem('providericonsContainerJustifyContent') || '',
     providericonsContainerAlignItems: localStorage.getItem('providericonsContainerAlignItems') || '',
     providericonsContainerFlexWrap: localStorage.getItem('providericonsContainerFlexWrap') || '',
+
+    formatContainerTop: parseInt(localStorage.getItem('formatContainerTop'), 10) || 0,
+    formatContainerLeft: parseInt(localStorage.getItem('formatContainerLeft'), 10) || 0,
+    formatContainerWidth: parseInt(localStorage.getItem('formatContainerWidth'), 10) || 0,
+    formatContainerHeight: parseInt(localStorage.getItem('formatContainerHeight'), 10) || 0,
+    formatContainerDisplay: localStorage.getItem('formatContainerDisplay') || '',
+    formatContainerFlexDirection: localStorage.getItem('formatContainerFlexDirection') || '',
+    formatContainerJustifyContent: localStorage.getItem('formatContainerJustifyContent') || '',
+    formatContainerAlignItems: localStorage.getItem('formatContainerAlignItems') || '',
+    formatContainerFlexWrap: localStorage.getItem('formatContainerFlexWrap') || '',
+
+    providerBoxBackground: localStorage.getItem('providerBoxBackground') || '',
 
     statusContainerTop: parseInt(localStorage.getItem('statusContainerTop'), 10) || 0,
     statusContainerLeft: parseInt(localStorage.getItem('statusContainerLeft'), 10) || 0,

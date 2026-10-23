@@ -9,7 +9,7 @@
  */
 const PREFIXES = ['slide', 'progressBar', 'progressSeconds', 'logoContainer', 'buttonContainer', 'metaContainer',
   'plotContainer', 'titleContainer', 'directorContainer', 'infoContainer', 'mainContainer', 'sliderContainer',
-  'existingDotContainer', 'dotContainer', 'providerContainer', 'providericonsContainer', 'statusContainer', 'ratingContainer'];
+  'existingDotContainer', 'dotContainer', 'providerContainer', 'providericonsContainer', 'statusContainer', 'ratingContainer', 'formatContainer'];
 const SUFFIXES = ['Top', 'Left', 'Width', 'Height', 'Display', 'FlexDirection', 'JustifyContent', 'AlignItems', 'FlexWrap'];
 export const POSITION_KEYS = PREFIXES.flatMap((p) => SUFFIXES.map((s) => p + s));
 const KEYSET = new Set(POSITION_KEYS);

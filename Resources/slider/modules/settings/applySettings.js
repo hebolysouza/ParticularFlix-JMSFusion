@@ -980,6 +980,17 @@ const USER_ONLY_KEYS = [
             providericonsContainerAlignItems: formData.get('providericonsContainerAlignItems'),
             providericonsContainerFlexWrap: formData.get('providericonsContainerFlexWrap'),
 
+            formatContainerTop: parseInt(formData.get('formatContainerTop'), 10) || 0,
+            formatContainerLeft: parseInt(formData.get('formatContainerLeft'), 10) || 0,
+            formatContainerWidth: parseInt(formData.get('formatContainerWidth'), 10) || 0,
+            formatContainerHeight: parseInt(formData.get('formatContainerHeight'), 10) || 0,
+            formatContainerDisplay: formData.get('formatContainerDisplay'),
+            formatContainerFlexDirection: formData.get('formatContainerFlexDirection'),
+            formatContainerJustifyContent: formData.get('formatContainerJustifyContent'),
+            formatContainerAlignItems: formData.get('formatContainerAlignItems'),
+            formatContainerFlexWrap: formData.get('formatContainerFlexWrap'),
+            providerBoxBackground: formData.get('providerBoxBackground') || '',
+
             statusContainerTop: parseInt(formData.get('statusContainerTop'), 10) || 0,
             statusContainerLeft: parseInt(formData.get('statusContainerLeft'), 10) || 0,
             statusContainerWidth: parseInt(formData.get('statusContainerWidth'), 10) || 0,
