@@ -59,6 +59,23 @@ export function createAnimationPanel(config, labels) {
     slideTypeSelect.id = 'slideTypeSelect';
     slideTypeDiv.append(slideTypeLabel, slideTypeSelect);
 
+    const layoutTypeDiv = document.createElement('div');
+    layoutTypeDiv.className = 'fsetting-item slide-anim-container';
+    const layoutTypeLabel = document.createElement('label');
+    layoutTypeLabel.textContent = labels.slideTransitionTypeLayout || 'Transition for the new layouts (Cinema, Mosaic, Coverflow)';
+    const layoutTypeSelect = document.createElement('select');
+    layoutTypeSelect.name = 'slideTransitionTypeLayout';
+    layoutTypeSelect.id = 'slideTypeLayoutSelect';
+    layoutTypeLabel.htmlFor = 'slideTypeLayoutSelect';
+    [{ value: '', label: labels.fadeAnimation || 'Crossfade (smooth)' }, ...slideTypes].forEach((type) => {
+        const option = document.createElement('option');
+        option.value = type.value;
+        option.textContent = type.label;
+        if (type.value === (config.slideTransitionTypeLayout || '')) option.selected = true;
+        layoutTypeSelect.appendChild(option);
+    });
+    layoutTypeDiv.append(layoutTypeLabel, layoutTypeSelect);
+
     const slideDurationDiv = document.createElement('div');
     slideDurationDiv.className = 'fsetting-item slide-anim-container';
     const slideDurationLabel = document.createElement('label');
@@ -141,13 +158,14 @@ export function createAnimationPanel(config, labels) {
     panel.append(
         slideAnimDiv,
         slideTypeDiv,
+        layoutTypeDiv,
         slideDurationDiv,
         dotAnimDiv,
         dotTypeDiv,
        dotDurationDiv
     );
 
-    bindCheckboxKontrol('#enableSlideAnimations', '.slide-anim-container', 0.6, [slideTypeSelect, slideDurationInput]);
+    bindCheckboxKontrol('#enableSlideAnimations', '.slide-anim-container', 0.6, [slideTypeSelect, layoutTypeSelect, slideDurationInput]);
     bindCheckboxKontrol('#enableDotPosterAnimations', '.dot-anim-container', 0.6, [dotTypeSelect, dotDurationInput]);
     return panel;
 }

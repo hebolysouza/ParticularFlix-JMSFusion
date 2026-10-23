@@ -1,4 +1,8 @@
 import { getLanguageLabels, getDefaultLanguage, getStoredLanguagePreference } from '../language/index.js';
+import { syncPositionProfile } from './positionProfiles.js';
+
+// Troca as posicoes manuais para o perfil do layout ativo antes de montar a configuracao.
+syncPositionProfile();
 
 let __globalOverride =
   (typeof window !== "undefined" && window.__JMS_MANAGED_STORAGE__?.bootstrapOverride)
@@ -111,7 +115,7 @@ export function getSliderLayoutFromVariant(value) {
   const v = String(value || "").trim().toLowerCase();
   if (v.includes("coverflow")) return "coverflow";
   if (v.includes("cinema")) return "cinema";
-  if (v.includes("trailer")) return "trailer";
+  if (v.includes("trailer")) return "cinema";
   if (v.includes("mosaic")) return "mosaic";
   return "";
 }
@@ -849,7 +853,7 @@ function computeConfig() {
     useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
     fullscreenMode: localStorage.getItem('fullscreenMode') === 'true' ? true : false,
     listLimit: 20,
-    version: "v3.8.2.30",
+    version: "v3.8.2.31",
     historySize: 20,
     updateInterval: 300000,
     nextTracksSource: localStorage.getItem('nextTracksSource') || 'playlist',
@@ -1402,6 +1406,7 @@ function computeConfig() {
     smartAutoPause: readSmartAutoPause(),
 
     slideTransitionType: localStorage.getItem('slideTransitionType') || 'flip',
+    slideTransitionTypeLayout: localStorage.getItem('slideTransitionTypeLayout') || '',
     dotPosterTransitionType: localStorage.getItem('dotPosterTransitionType') || 'scale',
     enableSlideAnimations: localStorage.getItem('enableSlideAnimations') === 'true' ? true : false,
     enableDotPosterAnimations: localStorage.getItem('enableDotPosterAnimations') === 'true' ? true : false,

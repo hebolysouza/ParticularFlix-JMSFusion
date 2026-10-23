@@ -1,7 +1,8 @@
 import { changeSlide } from "./navigation.js";
+import { getConfig } from "./config.js";
 
 /*
- * Slider layouts (Cinema, Trailer, Mosaic, Coverflow) + on-screen previous/next arrows.
+ * Slider layouts (Cinema, Mosaic, Coverflow) + on-screen previous/next arrows.
  * - The layout name lives in html[data-slider-layout] (set by main.js from the saved cssVariant).
  * - The arrows work on every layout (including Compact, Normal and Peak) and call the same
  *   changeSlide() used by keyboard, swipe and neighbor click, so timers/progress stay in sync.
@@ -10,6 +11,7 @@ import { changeSlide } from "./navigation.js";
 
 const ARROWS_ID = "jms-nav-arrows";
 const RAIL_CLASS = "jms-mosaic-rail";
+const NEXT_CLASS = "jms-nextup";
 const STYLE_ID = "jms-nav-arrows-css";
 
 export function readSliderLayout(cfg) {
@@ -18,7 +20,7 @@ export function readSliderLayout(cfg) {
   try { raw = String(localStorage.getItem("cssVariant") || "").toLowerCase(); } catch {}
   if (raw.includes("coverflow")) return "coverflow";
   if (raw.includes("cinema")) return "cinema";
-  if (raw.includes("trailer")) return "trailer";
+  if (raw.includes("trailer")) return "cinema";
   if (raw.includes("mosaic")) return "mosaic";
   return "";
 }
@@ -40,7 +42,7 @@ const NAV_CSS = `
 #${ARROWS_ID} .jms-nav-arrow:hover,#${ARROWS_ID} .jms-nav-arrow:focus-visible{background:#cc0000;border-color:#ff4d4d;opacity:1;outline:0}
 @media (hover:none){#${ARROWS_ID}{display:none}}
 /* the brand script row arrows (.pf-row-arrow) must not double the slider arrows */
-#monwui-slides-container .pf-row-arrow,.emby-scroller:has(#monwui-slides-container)>.pf-row-arrow,.pf-row-arrow:has(~ #monwui-slides-container){display:none!important}
+#monwui-slides-container .pf-row-arrow,.pf-slider-arrow,.emby-scroller:has(#monwui-slides-container)>.pf-row-arrow,.pf-row-arrow:has(~ #monwui-slides-container){display:none!important}
 html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-nav-arrow.next{right:calc(var(--jms-rail-w, 27%) + var(--lay-inset, 12px) + 22px)}
 html[data-slider-layout=coverflow] #${ARROWS_ID} .jms-nav-arrow{width:46px;height:46px;margin-top:-23px}
 `;
@@ -132,6 +134,48 @@ function renderRail(container) {
   }
 }
 
+function removeNext(container) {
+  container?.querySelectorAll?.(`:scope > .${NEXT_CLASS}`).forEach((n) => n.remove());
+}
+
+function renderNext(container) {
+  const slides = Array.from(container.querySelectorAll(":scope > .monwui-slide"));
+  if (slides.length < 2) { removeNext(container); return; }
+  let active = slides.findIndex((s) => s.classList.contains("active"));
+  if (active < 0) active = 0;
+  const key = [active, slides.length].join(":");
+  let card = container.querySelector(`:scope > .${NEXT_CLASS}`);
+  if (card && card.dataset.key === key) return;
+  if (!card) {
+    card = document.createElement("div");
+    card.className = NEXT_CLASS;
+    card.setAttribute("role", "button");
+    card.tabIndex = 0;
+    const go = (e) => { e.preventDefault(); e.stopPropagation(); try { changeSlide(1); } catch {} };
+    card.addEventListener("click", go);
+    card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") go(e); });
+    container.appendChild(card);
+  }
+  card.dataset.key = key;
+  const next = slides[(active + 1) % slides.length];
+  const img = tileImage(next);
+  card.style.backgroundImage = img ? `url("${img.replace(/"/g, "%22")}")` : "";
+  let word = "Up next";
+  try { word = getConfig()?.languageLabels?.nextUp || word; } catch {}
+  card.textContent = "";
+  const tag = document.createElement("div");
+  tag.className = "jms-nextup-tag";
+  const b = document.createElement("b");
+  b.textContent = word;
+  const i = document.createElement("i");
+  i.textContent = `${active + 1} / ${slides.length}`;
+  tag.append(b, i);
+  const title = document.createElement("div");
+  title.className = "jms-nextup-title";
+  title.textContent = tileTitle(next);
+  card.append(tag, title);
+}
+
 function currentLayout() {
   return document.documentElement.dataset.sliderLayout || "";
 }
@@ -156,8 +200,11 @@ export function refreshSliderLayouts() {
   ensureStyle();
   ensureArrows(container);
 
-  if (currentLayout() === "mosaic") {
-    renderRail(container);
+  const layout = currentLayout();
+  if (layout !== "cinema") removeNext(container);
+  if (layout === "cinema") renderNext(container);
+  if (layout === "mosaic" || layout === "cinema") {
+    if (layout === "mosaic") renderRail(container); else removeRail(container);
     if (observedContainer !== container) {
       disconnect();
       observedContainer = container;

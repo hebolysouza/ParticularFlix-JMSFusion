@@ -489,16 +489,9 @@ export function applyContainerStyles(container, type = '') {
     prefix = 'slide';
   }
 
-  // Layouts cinema, trailer e mosaic posicionam os blocos por conta propria (pilha em fluxo).
-  // Os ajustes manuais de posicao (pensados para Normal/Peak) sao ignorados e limpos nesses layouts.
-  if (type && type !== 'progress' && type !== 'progressSeconds' && type !== 'slide') {
-    const layoutName = document.documentElement?.dataset?.sliderLayout || '';
-    if (layoutName === 'cinema' || layoutName === 'trailer' || layoutName === 'mosaic') {
-      ['top', 'left', 'width', 'height', 'display', 'flex-direction', 'justify-content', 'align-items', 'flex-wrap']
-        .forEach((prop) => setImportantStyle(container, prop, ''));
-      return;
-    }
-  }
+  // Nos layouts cinema e mosaic os blocos ficam em pilha (position:relative), entao Top/Left
+  // funcionam como deslocamento a partir da posicao padrao do layout. Cada layout tem seu proprio
+  // perfil de posicoes (ver positionProfiles.js), entao os valores do Peak/Normal nao vazam para ca.
 
   setImportantStyle(container, 'top',    resolveTopStyleValue(prefix, config[`${prefix}Top`], config));
   setImportantStyle(container, 'left',   config[`${prefix}Left`]   ? `${config[`${prefix}Left`]}%`   : '');

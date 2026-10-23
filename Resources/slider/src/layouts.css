@@ -1,51 +1,45 @@
-/* ParticularFlix slider layouts: cinema, trailer (full-bleed trailer), mosaic (Normal engine) and coverflow (Peak engine).
+/* ParticularFlix slider layouts: cinema, mosaic (Normal engine) and coverflow (Peak engine).
    Loaded on top of normalslider.css / peakslider.css. Scoped by html[data-slider-layout].
-   Cinema, trailer and mosaic stack the text blocks in normal flow (no overlaps, scales with the slider size)
+   Cinema and mosaic stack the text blocks in normal flow (no overlaps, scales with the slider size)
    and ignore the manual position adjustments (those were tuned for Normal/Peak). */
 
-/* ---------- shared flow stack (cinema, trailer, mosaic) ---------- */
-html[data-slider-layout=cinema],html[data-slider-layout=trailer],html[data-slider-layout=mosaic]{
+/* ---------- shared flow stack (cinema, mosaic) ---------- */
+html[data-slider-layout=cinema],html[data-slider-layout=mosaic]{
   --lay-pad-x:max(4%,56px);--lay-pad-b:4.5%;--lay-text-w:min(46vw,640px);--lay-gap:clamp(6px,1.1vh,12px);
   --lay-inset:clamp(8px,1.1vw,20px);--lay-radius:clamp(18px,2vw,32px);--lay-radius-sm:clamp(14px,1.5vw,24px)}
 html[data-slider-layout=cinema] .monwui-slide:not([style*="display: none"]),
-html[data-slider-layout=trailer] .monwui-slide:not([style*="display: none"]),
 html[data-slider-layout=mosaic] .monwui-slide:not([style*="display: none"]){
   display:flex!important;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:var(--lay-gap);
   box-sizing:border-box;height:100%;padding:0 var(--lay-pad-x) var(--lay-pad-b)}
 html[data-slider-layout=cinema] .monwui-main-content-container,
-html[data-slider-layout=trailer] .monwui-main-content-container,
 html[data-slider-layout=mosaic] .monwui-main-content-container{display:contents}
 
 html[data-slider-layout=cinema] .monwui-slide>.monwui-logo-container,html[data-slider-layout=cinema] .monwui-main-content-container>*:not(.monwui-provider-container),
 html[data-slider-layout=cinema] .monwui-slide>.monwui-meta-container,html[data-slider-layout=cinema] .monwui-slide>.monwui-director-container,
 html[data-slider-layout=cinema] .monwui-slide>.monwui-main-button-container,html[data-slider-layout=cinema] .monwui-slide>.monwui-info-container,
-html[data-slider-layout=trailer] .monwui-main-content-container>*:not(.monwui-provider-container),
-html[data-slider-layout=trailer] .monwui-slide>.monwui-meta-container,html[data-slider-layout=trailer] .monwui-slide>.monwui-director-container,
-html[data-slider-layout=trailer] .monwui-slide>.monwui-main-button-container,html[data-slider-layout=trailer] .monwui-slide>.monwui-info-container,
 html[data-slider-layout=mosaic] .monwui-main-content-container>*:not(.monwui-provider-container),
 html[data-slider-layout=mosaic] .monwui-slide>.monwui-meta-container,html[data-slider-layout=mosaic] .monwui-slide>.monwui-director-container,
 html[data-slider-layout=mosaic] .monwui-slide>.monwui-main-button-container,html[data-slider-layout=mosaic] .monwui-slide>.monwui-info-container{
-  position:static!important;inset:auto!important;transform:none!important;margin:0!important;padding-left:0;padding-right:0;
+  position:relative!important;inset:auto!important;transform:none!important;margin:0!important;padding-left:0;padding-right:0;
   width:auto;max-width:var(--lay-text-w);height:auto;z-index:8}
 
 html[data-slider-layout=cinema] .monwui-bckdrp-cntnr,html[data-slider-layout=mosaic] .monwui-bckdrp-cntnr{position:absolute!important;inset:0;width:100%;height:100%}
 /* order of the stack: logo, title, meta, plot, director, buttons, info */
-html[data-slider-layout=cinema] .monwui-logo-container,html[data-slider-layout=trailer] .monwui-logo-container,html[data-slider-layout=mosaic] .monwui-logo-container{order:1;justify-items:start;padding:0!important;pointer-events:none}
-html[data-slider-layout=cinema] .monwui-title-container,html[data-slider-layout=trailer] .monwui-title-container,html[data-slider-layout=mosaic] .monwui-title-container{order:2;font-size:clamp(1.5rem,2.8vw,2.9rem);line-height:1.05}
-html[data-slider-layout=cinema] .monwui-meta-container,html[data-slider-layout=trailer] .monwui-meta-container,html[data-slider-layout=mosaic] .monwui-meta-container{order:3;flex-direction:row;flex-wrap:wrap;align-items:center;align-content:flex-start;justify-content:flex-start;gap:6px 8px}
-html[data-slider-layout=cinema] .monwui-plot-container,html[data-slider-layout=trailer] .monwui-plot-container,html[data-slider-layout=mosaic] .monwui-plot-container{order:4;font-size:clamp(.8rem,.95vw,.98rem);line-height:1.5;justify-content:flex-start;max-height:none}
-html[data-slider-layout=cinema] .monwui-plot-container .monwui-plot,html[data-slider-layout=trailer] .monwui-plot-container .monwui-plot,html[data-slider-layout=mosaic] .monwui-plot-container .monwui-plot{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-html[data-slider-layout=cinema] .monwui-director-container,html[data-slider-layout=trailer] .monwui-director-container,html[data-slider-layout=mosaic] .monwui-director-container{order:5}
-html[data-slider-layout=cinema] .monwui-main-button-container,html[data-slider-layout=trailer] .monwui-main-button-container,html[data-slider-layout=mosaic] .monwui-main-button-container{order:6;flex-direction:row;gap:10px;padding-top:2px}
-html[data-slider-layout=cinema] .monwui-info-container,html[data-slider-layout=trailer] .monwui-info-container,html[data-slider-layout=mosaic] .monwui-info-container{order:7;display:flex!important;flex-wrap:wrap;gap:4px 16px;overflow:visible;grid-template-columns:none;justify-content:flex-start;font-size:clamp(.72rem,.85vw,.86rem);opacity:.9}
+html[data-slider-layout=cinema] .monwui-logo-container,html[data-slider-layout=mosaic] .monwui-logo-container{order:1;justify-items:start;padding:0!important;pointer-events:none}
+html[data-slider-layout=cinema] .monwui-title-container,html[data-slider-layout=mosaic] .monwui-title-container{order:2;font-size:clamp(1.5rem,2.8vw,2.9rem);line-height:1.05}
+html[data-slider-layout=cinema] .monwui-meta-container,html[data-slider-layout=mosaic] .monwui-meta-container{order:3;flex-direction:row;flex-wrap:wrap;align-items:center;align-content:flex-start;justify-content:flex-start;gap:6px 8px}
+html[data-slider-layout=cinema] .monwui-plot-container,html[data-slider-layout=mosaic] .monwui-plot-container{order:4;font-size:clamp(.8rem,.95vw,.98rem);line-height:1.5;justify-content:flex-start;max-height:none}
+html[data-slider-layout=cinema] .monwui-plot-container .monwui-plot,html[data-slider-layout=mosaic] .monwui-plot-container .monwui-plot{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+html[data-slider-layout=cinema] .monwui-director-container,html[data-slider-layout=mosaic] .monwui-director-container{order:5}
+html[data-slider-layout=cinema] .monwui-main-button-container,html[data-slider-layout=mosaic] .monwui-main-button-container{order:6;flex-direction:row;gap:10px;padding-top:2px}
+html[data-slider-layout=cinema] .monwui-info-container,html[data-slider-layout=mosaic] .monwui-info-container{order:7;display:flex!important;flex-wrap:wrap;gap:4px 16px;overflow:visible;grid-template-columns:none;justify-content:flex-start;font-size:clamp(.72rem,.85vw,.86rem);opacity:.9}
 html[data-slider-layout] .monwui-logo{max-height:clamp(54px,13vh,120px);max-width:min(32vw,420px);object-fit:contain}
 
 /* badges / cast / providers stay at the edges */
-html[data-slider-layout=cinema] .monwui-format-container,html[data-slider-layout=trailer] .monwui-format-container,html[data-slider-layout=mosaic] .monwui-format-container{position:absolute!important;top:5%!important;left:var(--lay-pad-x)!important;margin:0!important}
-html[data-slider-layout=cinema] .monwui-provider-container,html[data-slider-layout=trailer] .monwui-provider-container,html[data-slider-layout=mosaic] .monwui-provider-container{position:absolute!important;top:5%!important;right:var(--lay-pad-x)!important;left:auto!important}
-html[data-slider-layout=cinema] .monwui-slider-wrapper,html[data-slider-layout=trailer] .monwui-slider-wrapper,html[data-slider-layout=mosaic] .monwui-slider-wrapper{top:auto!important;bottom:var(--lay-pad-b)!important;left:auto!important;right:var(--lay-pad-x)!important}
+html[data-slider-layout=cinema] .monwui-format-container,html[data-slider-layout=mosaic] .monwui-format-container{position:absolute!important;top:5%!important;left:var(--lay-pad-x)!important;margin:0!important}
+html[data-slider-layout=cinema] .monwui-provider-container,html[data-slider-layout=mosaic] .monwui-provider-container{position:absolute!important;top:5%!important;right:var(--lay-pad-x)!important;left:auto!important}
+html[data-slider-layout=cinema] .monwui-slider-wrapper,html[data-slider-layout=mosaic] .monwui-slider-wrapper{top:auto!important;bottom:var(--lay-pad-b)!important;left:auto!important;right:var(--lay-pad-x)!important}
 html[data-slider-layout=cinema] .monwui-dot-navigation-container:not(.dot-poster-mode),
-html[data-slider-layout=trailer] .monwui-dot-navigation-container:not(.dot-poster-mode),
 html[data-slider-layout=mosaic] .monwui-dot-navigation-container:not(.dot-poster-mode){left:var(--lay-pad-x)!important;right:auto!important;bottom:1.6%!important;top:auto!important;width:min(40vw,420px)!important;height:auto;justify-content:flex-start;padding:0}
 
 /* ======================= CINEMA ======================= */
@@ -55,32 +49,23 @@ html[data-slider-layout=cinema] .monwui-bckdrp-cntnr::after{content:"";position:
   background:linear-gradient(0deg,rgba(6,9,15,.94) 0,rgba(6,9,15,.7) 22%,rgba(6,9,15,.22) 52%,transparent 76%),linear-gradient(90deg,rgba(6,9,15,.62) 0,rgba(6,9,15,.18) 46%,transparent 70%)}
 
 /* ======================= SHARED: rounded frame, trailer fills the whole card ======================= */
-html[data-slider-layout=cinema] .monwui-slide,html[data-slider-layout=trailer] .monwui-slide{
+html[data-slider-layout=cinema] .monwui-slide{
   margin-left:var(--lay-inset);width:calc(100% - 2*var(--lay-inset))!important;border-radius:var(--lay-radius);overflow:hidden;
   box-shadow:0 18px 50px rgba(0,0,0,.45)}
-html[data-slider-layout=cinema] .monwui-bckdrp-cntnr,html[data-slider-layout=trailer] .monwui-bckdrp-cntnr,html[data-slider-layout=mosaic] .monwui-bckdrp-cntnr{border-radius:inherit;overflow:hidden}
+html[data-slider-layout=cinema] .monwui-bckdrp-cntnr,html[data-slider-layout=mosaic] .monwui-bckdrp-cntnr{border-radius:inherit;overflow:hidden}
 /* native rules put the trailer on the right 70% with a crop; here it covers the whole card (side cards/tiles are used to browse) */
-html[data-slider-layout=cinema] .monwui-slide .intro-video-container,html[data-slider-layout=trailer] .monwui-slide .intro-video-container,html[data-slider-layout=mosaic] .monwui-slide .intro-video-container{
+html[data-slider-layout=cinema] .monwui-slide .intro-video-container,html[data-slider-layout=mosaic] .monwui-slide .intro-video-container{
   left:0!important;right:0!important;top:0!important;width:100%!important;height:100%!important;-webkit-mask-image:none!important;mask-image:none!important;border-radius:0}
 html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-bckdrp-cntnr>iframe,html[data-slider-layout=cinema] .monwui-slide.trailer-active>iframe,
-html[data-slider-layout=trailer] .monwui-slide.trailer-active .monwui-bckdrp-cntnr>iframe,html[data-slider-layout=trailer] .monwui-slide.trailer-active>iframe,
 html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-bckdrp-cntnr>iframe,html[data-slider-layout=mosaic] .monwui-slide.trailer-active>iframe{
   position:absolute!important;left:0!important;right:0!important;top:50%!important;bottom:auto!important;width:100%!important;height:auto!important;
   min-width:0!important;min-height:100%!important;aspect-ratio:16/9;transform:translateY(-50%)!important;clip-path:none!important;-webkit-clip-path:none!important;
   -webkit-mask-image:none!important;mask-image:none!important;border-radius:0!important}
-html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-backdrop,html[data-slider-layout=trailer] .monwui-slide.trailer-active .monwui-backdrop,html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-backdrop{opacity:0!important}
+html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-backdrop,html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-backdrop{opacity:0!important}
 /* the blurred logo ghost only existed while the trailer plays; drop it */
-html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-logo,html[data-slider-layout=trailer] .monwui-slide.trailer-active .monwui-logo,html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-logo,
-html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-no-logo-container,html[data-slider-layout=trailer] .monwui-slide.trailer-active .monwui-no-logo-container,html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-no-logo-container{filter:none;opacity:1;transform:none}
+html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-logo,html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-logo,
+html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-no-logo-container,html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-no-logo-container{filter:none;opacity:1;transform:none}
 
-/* ======================= TRAILER (full-bleed trailer, compact text bar) ======================= */
-html[data-slider-layout=trailer]{--lay-pad-x:max(3.2%,48px);--lay-text-w:min(52vw,720px)}
-html[data-slider-layout=trailer] .monwui-bckdrp-cntnr{position:absolute!important;inset:0;width:100%;height:100%;-webkit-mask-image:none;mask-image:none}
-html[data-slider-layout=trailer] .monwui-backdrop{-webkit-mask-image:none;mask-image:none;filter:brightness(88%) contrast(106%) saturate(106%);object-position:center 22%}
-html[data-slider-layout=trailer] .monwui-bckdrp-cntnr::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
-  background:linear-gradient(0deg,rgba(6,9,15,.88) 0,rgba(6,9,15,.45) 20%,transparent 42%)}
-html[data-slider-layout=trailer] .monwui-plot-container,html[data-slider-layout=trailer] .monwui-director-container,html[data-slider-layout=trailer] .monwui-info-container{display:none!important}
-html[data-slider-layout=trailer] .monwui-slide>*:not(.monwui-bckdrp-cntnr){z-index:8}
 /* ======================= MOSAIC (highlight + next tiles) ======================= */
 html[data-slider-layout=mosaic]{--jms-rail-w:27%;--lay-pad-x:max(4%,56px);--lay-text-w:min(44vw,600px)}
 html[data-slider-layout=mosaic] .monwui-slide{margin-left:var(--lay-inset);width:calc(100% - var(--jms-rail-w) - 12px - 2*var(--lay-inset))!important;border-radius:var(--lay-radius);overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.45)}
@@ -126,3 +111,21 @@ html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-c
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide[data-side]:not(.active) .monwui-no-logo-container{font-size:clamp(.9rem,1.3vw,1.3rem);text-align:center}
 /* the focused card in coverflow does not keep the blurred background logo while its trailer plays */
 html[data-css-variant=peakslider][data-slider-layout=coverflow] #monwui-slides-container.peak-mode .monwui-slide.active.trailer-active .monwui-logo-container{visibility:hidden}
+
+/* when the film has a logo image, the text title with the same name is redundant */
+html[data-slider-layout=cinema] .monwui-slide:has(.monwui-logo) .monwui-baslik,
+html[data-slider-layout=mosaic] .monwui-slide:has(.monwui-logo) .monwui-baslik,
+html[data-slider-layout=coverflow] .monwui-slide:has(.monwui-logo) .monwui-baslik{display:none!important}
+
+/* ======================= CINEMA: "up next" card (replaces the lone dots) ======================= */
+html[data-slider-layout=cinema] .jms-nextup{position:absolute;z-index:70;right:calc(var(--lay-inset) + max(2.4%,24px));bottom:calc(var(--lay-pad-b) + 4px);width:clamp(210px,18vw,320px);aspect-ratio:16/9;
+  border-radius:var(--lay-radius-sm);overflow:hidden;cursor:pointer;background:#0c111c center/cover no-repeat;border:1px solid rgba(255,255,255,.1);
+  box-shadow:0 14px 36px rgba(0,0,0,.5);transition:transform .3s ease,border-color .3s ease,box-shadow .3s ease}
+html[data-slider-layout=cinema] .jms-nextup:hover,html[data-slider-layout=cinema] .jms-nextup:focus-visible{transform:translateY(-3px) scale(1.02);border-color:rgba(255,255,255,.32);outline:0}
+html[data-slider-layout=cinema] .jms-nextup::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(6,9,15,.88) 0,rgba(6,9,15,.15) 62%,rgba(6,9,15,.35) 100%)}
+html[data-slider-layout=cinema] .jms-nextup-tag{position:absolute;z-index:1;top:9px;left:10px;display:flex;gap:8px;align-items:center;font:700 .66rem/1 var(--mwui-font-head,sans-serif);letter-spacing:.08em;text-transform:uppercase;color:#fff}
+html[data-slider-layout=cinema] .jms-nextup-tag b{background:#cc0000;border-radius:999px;padding:4px 8px}
+html[data-slider-layout=cinema] .jms-nextup-tag i{font-style:normal;opacity:.75;letter-spacing:.04em}
+html[data-slider-layout=cinema] .jms-nextup-title{position:absolute;z-index:1;left:12px;right:12px;bottom:10px;font:600 clamp(.8rem,.95vw,.98rem)/1.2 var(--mwui-font-head,sans-serif);color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html[data-slider-layout=cinema] .monwui-slider-wrapper{bottom:calc(var(--lay-pad-b) + clamp(130px,11.5vw,190px))!important}
+@media (max-width:900px){html[data-slider-layout=cinema] .jms-nextup{display:none}}

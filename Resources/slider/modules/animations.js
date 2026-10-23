@@ -316,7 +316,10 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
 
   const duration = config.slideAnimationDuration || 500;
   const easing = 'cubic-bezier(0.33,1,0.68,1)';
-  const type = config.slideTransitionType || 'fade';
+  const layoutName = document.documentElement?.dataset?.sliderLayout || '';
+  const type = layoutName
+    ? (config.slideTransitionTypeLayout || 'fade')
+    : (config.slideTransitionType || 'fade');
   const same = currentSlide === newSlide;
   let cleanupMode = 'transition';
   let cleanupWaitMs = duration;

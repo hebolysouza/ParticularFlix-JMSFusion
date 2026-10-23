@@ -1,6 +1,7 @@
 import { getConfig } from "../config.js";
 import { updateSlidePosition } from '../positionUtils.js';
 import { applySettings } from "./applySettings.js";
+import { getActivePositionProfile } from "../positionProfiles.js";
 
 const config = getConfig();
 
@@ -402,8 +403,16 @@ export function createPositionEditor(config, labels, section) {
         isMainSlideTop
       );
     });
+    refreshLayoutPositions();
   }
 }
+
+  function refreshLayoutPositions() {
+    const layout = document.documentElement?.dataset?.sliderLayout || '';
+    if (layout === 'cinema' || layout === 'mosaic') {
+      try { updateSlidePosition(); } catch {}
+    }
+  }
 
   function updateFlexStyle(containerType, flexProperty, newValue) {
   const selector =
@@ -423,10 +432,19 @@ export function createPositionEditor(config, labels, section) {
       el.style[cssProp] = newValue || '';
     }
   });
+  refreshLayoutPositions();
 }
 
   function render() {
     section.appendChild(createGlobalResetButton());
+
+    const profileNames = { classic: 'Normal / Peak / Compact', cinema: 'Cinema', mosaic: 'Mosaic', coverflow: 'Coverflow 3D' };
+    const profileNote = document.createElement('h5');
+    profileNote.className = 'position-profile-note';
+    const noteTpl = config.languageLabels.positionProfileNote
+      || 'Active position profile: {profile}. Each slider layout keeps its own positions. In Cinema and Mosaic, Top and Left move the block from the layout default (leave empty for the default).';
+    profileNote.textContent = noteTpl.replace('{profile}', profileNames[getActivePositionProfile()] || getActivePositionProfile());
+    section.appendChild(profileNote);
     const homeSectionsHeader = document.createElement('h3');
     homeSectionsHeader.textContent = config.languageLabels.homeSectionsPosition || 'Ana Bölüm Pozisyonu';
     section.appendChild(homeSectionsHeader);

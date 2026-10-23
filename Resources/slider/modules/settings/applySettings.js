@@ -1056,6 +1056,7 @@ const USER_ONLY_KEYS = [
               ageBadgeDurationResumeMs: Math.max(1000, (parseInt(formData.get('ageBadgeDurationResumeMs'), 10) || 10) * 1000),
             },
             slideTransitionType: formData.get('slideTransitionType'),
+            slideTransitionTypeLayout: formData.get('slideTransitionTypeLayout') || '',
             dotPosterTransitionType: formData.get('dotPosterTransitionType'),
             enableSlideAnimations: formData.get('enableSlideAnimations') === 'on',
             enableDotPosterAnimations: formData.get('enableDotPosterAnimations') === 'on',
