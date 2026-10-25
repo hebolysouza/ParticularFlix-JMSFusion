@@ -4367,15 +4367,15 @@ function withApiKeyIfNeeded(url, token) {
     const u = /^https?:\/\//i.test(raw)
       ? new URL(raw)
       : new URL(raw, window.location.origin);
-    if (!u.searchParams.get("api_key")) {
-      u.searchParams.set("api_key", apiKey);
+    if (!u.searchParams.get("ApiKey")) {
+      u.searchParams.set("ApiKey", apiKey);
     }
     return /^https?:\/\//i.test(raw)
       ? u.toString()
       : `${u.pathname}${u.search}${u.hash}`;
   } catch {
     const sep = raw.includes("?") ? "&" : "?";
-    return raw.includes("api_key=") ? raw : `${raw}${sep}api_key=${encodeURIComponent(apiKey)}`;
+    return raw.includes("ApiKey=") ? raw : `${raw}${sep}ApiKey=${encodeURIComponent(apiKey)}`;
   }
 }
 

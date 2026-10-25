@@ -176,7 +176,7 @@ async function getTrackArtwork(track) {
     imageUrl.searchParams.set("fillHeight", "512");
     imageUrl.searchParams.set("tag", track.AlbumPrimaryImageTag || track.PrimaryImageTag);
     if (token) {
-      imageUrl.searchParams.set("api_key", token);
+      imageUrl.searchParams.set("ApiKey", token);
     }
     return [
       {

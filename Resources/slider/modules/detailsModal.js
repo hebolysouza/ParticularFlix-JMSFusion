@@ -1023,7 +1023,7 @@ async function tmdbFetchJson(path, { signal } = {}) {
 
   const base = 'https://api.themoviedb.org/3';
   const url = new URL(base + path);
-  url.searchParams.set('api_key', apiKey);
+  url.searchParams.set('ApiKey', apiKey);
 
   const res = await fetch(url.toString(), { method: 'GET', signal });
   if (!res.ok) {

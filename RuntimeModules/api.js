@@ -1089,15 +1089,15 @@ function withApiKeyIfNeeded(url, token) {
     const u = /^https?:\/\//i.test(raw)
       ? new URL(raw)
       : new URL(raw, (typeof window !== "undefined" && window.location?.origin) || "http://localhost");
-    if (!u.searchParams.get("api_key")) {
-      u.searchParams.set("api_key", apiKey);
+    if (!u.searchParams.get("ApiKey")) {
+      u.searchParams.set("ApiKey", apiKey);
     }
     return /^https?:\/\//i.test(raw)
       ? u.toString()
       : `${u.pathname}${u.search}${u.hash}`;
   } catch {
     const sep = raw.includes("?") ? "&" : "?";
-    return raw.includes("api_key=") ? raw : `${raw}${sep}api_key=${encodeURIComponent(apiKey)}`;
+    return raw.includes("ApiKey=") ? raw : `${raw}${sep}ApiKey=${encodeURIComponent(apiKey)}`;
   }
 }
 
@@ -3085,7 +3085,7 @@ export async function getVideoStreamUrl(
         Static: true,
         MediaSourceId: source.Id,
         DeviceId: deviceId,
-        api_key: accessToken,
+        ApiKey: accessToken,
         AudioCodec: audioCodec,
         AudioStreamIndex: audioStreamIndex,
         StartTimeTicks: startTimeTicks
@@ -3162,7 +3162,7 @@ export async function getVideoStreamUrl(
       Static: true,
       MediaSourceId: videoSource.Id,
       DeviceId: deviceId,
-      api_key: accessToken,
+      ApiKey: accessToken,
       VideoCodec: videoCodec,
       AudioCodec: audioCodec,
       VideoBitrate: 1000000,

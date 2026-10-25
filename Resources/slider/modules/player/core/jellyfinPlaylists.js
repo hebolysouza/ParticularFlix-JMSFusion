@@ -64,7 +64,7 @@ function getStreamUrl(itemId) {
   const authToken = getAuthToken();
   return withParams(`/Audio/${itemId}/stream.mp3`, {
     Static: "true",
-    api_key: authToken,
+    ApiKey: authToken,
   });
 }
 
@@ -209,7 +209,7 @@ export async function showJellyfinPlaylistsModal() {
       img.src = withParams(`/Items/${pl.id}/Images/Primary`, {
         maxHeight: 50,
         quality: 85,
-        api_key: getAuthToken(),
+        ApiKey: getAuthToken(),
       });
       item.appendChild(img);
     }

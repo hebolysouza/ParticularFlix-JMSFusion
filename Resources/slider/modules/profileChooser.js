@@ -799,7 +799,7 @@ function userAvatarUrl({ Id, PrimaryImageTag }, size = 220) {
   qs.set("tag", tag);
   try {
     const token = String(getSessionInfo?.()?.accessToken || "").trim();
-    if (token) qs.set("api_key", token);
+    if (token) qs.set("ApiKey", token);
   } catch {}
 
   return withServer(`/Users/${encodeURIComponent(String(id))}/Images/Primary?${qs.toString()}`);

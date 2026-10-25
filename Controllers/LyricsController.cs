@@ -317,7 +317,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             {
                 var url = $"{jfBase.TrimEnd('/')}/Users/{userId}/Items" +
                           $"?IncludeItemTypes=Audio&Recursive=true&Fields=Path,RunTimeTicks,AlbumArtist,Artists" +
-                          $"&StartIndex={start}&Limit={limit}&api_key={Uri.EscapeDataString(apiKey)}";
+                          $"&StartIndex={start}&Limit={limit}&ApiKey={Uri.EscapeDataString(apiKey)}";
 
                 using var r = await _http.GetAsync(url, ct);
                 r.EnsureSuccessStatusCode();

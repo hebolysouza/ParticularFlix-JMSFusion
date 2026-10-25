@@ -157,7 +157,7 @@ function buildModal(genres, token) {
         tag: genre.ImageTags.Primary,
         quality: 90,
         maxHeight: 80,
-        api_key: token,
+        ApiKey: token,
       });
       img.onerror = () => {
         img.src = PLACEHOLDER_IMAGE;

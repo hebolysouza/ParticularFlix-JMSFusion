@@ -2687,7 +2687,7 @@ function hideOverlay(opts = {}) {
   const tags = item?.BackdropImageTags || [];
   const base = withServer('');
   const { accessToken } = getSessionInfo();
-  const tokenQ = accessToken ? `&api_key=${encodeURIComponent(accessToken)}` : "";
+  const tokenQ = accessToken ? `&ApiKey=${encodeURIComponent(accessToken)}` : "";
   if (tags.length > 0) {
     const url = `${base}/Items/${item.Id}/Images/Backdrop/0?tag=${encodeURIComponent(tags[0])}&maxWidth=1920&quality=90${tokenQ}`;
     backdropEl.style.backgroundImage = `url('${url}')`;
@@ -2701,7 +2701,7 @@ function hideOverlay(opts = {}) {
   if (!item) return;
   const base = withServer('');
   const { accessToken } = getSessionInfo();
-  const tokenQ = accessToken ? `&api_key=${encodeURIComponent(accessToken)}` : "";
+  const tokenQ = accessToken ? `&ApiKey=${encodeURIComponent(accessToken)}` : "";
   const imagePref = config.pauseOverlay?.imagePreference || "auto";
   const hasLogoTag = item?.ImageTags?.Logo || item?.SeriesLogoImageTag || null;
   const hasDiscTag = item?.ImageTags?.Disc || null;
@@ -3632,7 +3632,7 @@ function hideOverlay(opts = {}) {
           if (tag) {
             const base = withServer('');
             const { accessToken } = getSessionInfo();
-            const tokenQ = accessToken ? `&api_key=${encodeURIComponent(accessToken)}` : "";
+            const tokenQ = accessToken ? `&ApiKey=${encodeURIComponent(accessToken)}` : "";
             return `${base}/Items/${encodeURIComponent(it.SeriesId)}/Images/Logo?tag=${encodeURIComponent(tag)}${tokenQ}`;
           }
           return null;
@@ -3641,7 +3641,7 @@ function hideOverlay(opts = {}) {
         if (tag) {
           const base = withServer('');
           const { accessToken } = getSessionInfo();
-          const tokenQ = accessToken ? `&api_key=${encodeURIComponent(accessToken)}` : "";
+          const tokenQ = accessToken ? `&ApiKey=${encodeURIComponent(accessToken)}` : "";
           const id = (it.ImageTags && it.ImageTags.Logo) ? it.Id : (it.SeriesId || it.Id);
           return `${base}/Items/${encodeURIComponent(id)}/Images/Logo?tag=${encodeURIComponent(tag)}${tokenQ}`;
         }

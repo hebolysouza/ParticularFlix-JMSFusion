@@ -1233,7 +1233,7 @@ function createAlbumHeader(album, apiKey) {
       fillHeight: 100,
       quality: 80,
       tag: imageTag,
-      api_key: apiKey,
+      ApiKey: apiKey,
     });
     const img = new Image();
     img.onload = () => { albumCover.style.backgroundImage = `url('${imageUrl}')`; };
@@ -1458,7 +1458,7 @@ async function loadArtistImage(artistId) {
     const url = withParams(`/Items/${artistId}/Images/Primary`, {
       fillHeight: 300,
       quality: 96,
-      api_key: apiKey,
+      ApiKey: apiKey,
     });
 
     const img = new Image();

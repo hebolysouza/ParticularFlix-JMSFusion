@@ -1261,7 +1261,7 @@ public sealed class TrailerAutomationService
     private static HttpRequestMessage CreateJellyfinRequest(StepContext ctx, HttpMethod method, string route)
     {
         var req = new HttpRequestMessage(method, BuildJellyfinUri(ctx.Options.JfBase, route));
-        req.Headers.TryAddWithoutValidation("X-Emby-Token", ctx.Options.JfApiKey);
+        req.Headers.TryAddWithoutValidation("Authorization", "MediaBrowser Token=\"" + ctx.Options.JfApiKey + "\"");
         return req;
     }
 

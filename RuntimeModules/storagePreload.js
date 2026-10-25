@@ -1,3 +1,78 @@
+// Compat Jellyfin 12: a autenticacao legada (X-Emby-Token, api_key) vem desligada.
+// Para chamadas ao proprio servidor, converte X-Emby-Token em "Authorization: MediaBrowser Token" e
+// api_key em ApiKey. Funciona tambem no 10.11. Desligar: localStorage jms:authCompat = "off".
+(function installAuthCompat() {
+  try {
+    if (window.__jmsAuthCompat) return;
+    let off = false;
+    try { off = localStorage.getItem("jms:authCompat") === "off"; } catch {}
+    if (off) return;
+    window.__jmsAuthCompat = true;
+
+    const sameOrigin = (u) => {
+      try { return new URL(u, location.href).origin === location.origin; } catch { return false; }
+    };
+    const fixUrl = (u) => {
+      try {
+        const s = typeof u === "string" ? u : (u && u.url) || String(u);
+        if (!/[?&]api_key=/i.test(s) || !sameOrigin(s)) return u;
+        return s.replace(/([?&])api_key=/ig, "$1ApiKey=");
+      } catch { return u; }
+    };
+    const bearer = (tok) => 'MediaBrowser Token="' + tok + '"';
+
+    const origFetch = window.fetch;
+    if (typeof origFetch === "function") {
+      window.fetch = function (input, init) {
+        try {
+          const isReq = typeof Request !== "undefined" && input instanceof Request;
+          const url = isReq ? input.url : input;
+          if (sameOrigin(url) && !isReq) {
+            input = fixUrl(input);
+            if (init && init.headers) {
+              const h = new Headers(init.headers);
+              const tok = h.get("X-Emby-Token");
+              if (tok && !h.has("Authorization")) {
+                h.set("Authorization", bearer(tok));
+                h.delete("X-Emby-Token");
+                init = Object.assign({}, init, { headers: h });
+              }
+            }
+          }
+        } catch {}
+        return origFetch.call(this, input, init);
+      };
+    }
+
+    const XHR = window.XMLHttpRequest && window.XMLHttpRequest.prototype;
+    if (XHR) {
+      const open = XHR.open;
+      const setHeader = XHR.setRequestHeader;
+      XHR.open = function (method, url) {
+        try {
+          this.__jmsSame = sameOrigin(url);
+          this.__jmsAuth = false;
+          if (this.__jmsSame) arguments[1] = fixUrl(url);
+        } catch {}
+        return open.apply(this, arguments);
+      };
+      XHR.setRequestHeader = function (name, value) {
+        try {
+          if (this.__jmsSame) {
+            const n = String(name).toLowerCase();
+            if (n === "authorization") this.__jmsAuth = true;
+            if (n === "x-emby-token" && !this.__jmsAuth && value) {
+              this.__jmsAuth = true;
+              return setHeader.call(this, "Authorization", bearer(value));
+            }
+          }
+        } catch {}
+        return setHeader.call(this, name, value);
+      };
+    }
+  } catch {}
+})();
+
 const USER_SETTINGS_URL = "/Plugins/JMSFusion/UserSettings";
 const SAVE_URL = "/Plugins/JMSFusion/UserSettings/Publish";
 const SAVE_DEBOUNCE_MS = 500;

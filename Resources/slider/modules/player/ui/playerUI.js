@@ -657,7 +657,7 @@ async function getTrackImage(track) {
       fillWidth: 100,
       quality: 70,
       tag: imageTag,
-      api_key: getAuthToken(),
+      ApiKey: getAuthToken(),
     });
   }
 
@@ -903,7 +903,7 @@ export function updatePlayerBackground() {
       fillWidth: 1000,
       quality: 96,
       tag,
-      api_key: getAuthToken(),
+      ApiKey: getAuthToken(),
     });
   }
 

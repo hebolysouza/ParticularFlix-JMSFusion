@@ -639,7 +639,7 @@ async function loadImageForItem(item, index) {
         fillWidth: 100,
         quality: 70,
         tag: imageTag,
-        api_key: getAuthToken(),
+        ApiKey: getAuthToken(),
       });
       img.style.backgroundImage = `url('${serverImageUrl}')`;
       return;

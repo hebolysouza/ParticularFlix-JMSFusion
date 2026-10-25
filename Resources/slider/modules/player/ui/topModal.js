@@ -679,7 +679,7 @@ async function loadTrackImage(track, element) {
         fillWidth: 300,
         quality: 80,
         tag: imageTag,
-        api_key: getAuthToken(),
+        ApiKey: getAuthToken(),
       });
       element.style.backgroundImage = `url('${imageUrl}')`;
       return;

@@ -745,7 +745,7 @@ function buildItemLogoUrl(item, width = 260, quality = 80) {
 
   try {
     const token = String(getSessionInfo?.()?.accessToken || "").trim();
-    if (token) qs.set("api_key", token);
+    if (token) qs.set("ApiKey", token);
   } catch {}
 
   return withServer(`/Items/${encodeURIComponent(String(candidate.itemId))}/Images/Logo?${qs.toString()}`);

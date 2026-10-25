@@ -1171,7 +1171,7 @@ function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '',
     let token = "";
     try { token = getSessionInfo()?.accessToken || ""; } catch {}
     const q = new URLSearchParams({ static: "true", MediaSourceId: String(trailerId) });
-    if (token) q.set("api_key", token);
+    if (token) q.set("ApiKey", token);
     return withServer(`/Videos/${encodeURIComponent(trailerId)}/stream?${q.toString()}`);
   };
 

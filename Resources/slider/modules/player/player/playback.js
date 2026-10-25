@@ -771,7 +771,7 @@ function buildDirectAudioUrl(track) {
     return null;
   }
 
-  return apiUrl(`/Audio/${encodeURIComponent(trackId)}/stream.mp3?Static=true&api_key=${authToken}`);
+  return apiUrl(`/Audio/${encodeURIComponent(trackId)}/stream.mp3?Static=true&ApiKey=${authToken}`);
 }
 
 async function resolveTrackAudioUrl(track) {
