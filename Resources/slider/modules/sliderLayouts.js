@@ -59,7 +59,7 @@ html.jms-bar-hot #monwui-slides-container,html.jms-bar-hot #monwui-slides-contai
 @media (hover:none){#${ARROWS_ID} .jms-bar{display:none!important}}
 /* Modern dots (Next slide indicator = dots): a glass capsule with a sliding window of dots, the active one is a wine pill. Replaces the plugin's own dots while active. */
 html[data-next-style=dots] .monwui-dot-navigation-container{display:none!important}
-#monwui-slides-container>.jms-dots{position:absolute;left:50%;bottom:clamp(14px,2.2vh,26px);transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:10px;
+#monwui-slides-container>.jms-dots{position:absolute;left:50%;bottom:clamp(14px,2.2vh,26px);transform:translateX(-50%);z-index:1100;pointer-events:auto;isolation:isolate;display:flex;align-items:center;gap:10px;
   padding:7px 14px;border-radius:999px;background:rgba(10,14,22,.5);border:1px solid rgba(255,255,255,.1);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
   box-shadow:0 8px 22px rgba(0,0,0,.35);max-width:calc(100% - 24px)}
 .jms-dots-track{display:flex;align-items:center;gap:7px}

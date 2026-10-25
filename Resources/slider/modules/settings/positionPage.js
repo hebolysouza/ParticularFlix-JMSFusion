@@ -371,6 +371,10 @@ export function createPositionEditor(config, labels, section) {
     const status = document.createElement('p');
     status.className = 'position-modal-status';
     if (!tuningMode) content.appendChild(status);
+    else if (tuneSel) {
+      const sb = content.querySelector('.position-modal-apply');
+      if (sb) content.insertBefore(status, sb); else content.appendChild(status);
+    }
 
     const statusText = {
       visible: L('posStatusVisible', 'Item visible on screen (outlined in yellow).'),
@@ -379,7 +383,7 @@ export function createPositionEditor(config, labels, section) {
       missing: L('posStatusMissing', 'This item does not exist on the current slide.')
     };
     refreshActiveStatus = () => {
-      const state = describeTarget(selector);
+      const state = describeTarget(tuneSel || selector);
       status.textContent = statusText[state];
       status.dataset.state = state;
     };
@@ -1042,6 +1046,32 @@ export function createPositionEditor(config, labels, section) {
     d.className = 'position-block-desc';
     d.textContent = L('posTuneDesc', 'Estes ajustes mexem no estilo inteiro de uma vez, sem desalinhar os blocos entre si. Cada estilo (Normal, Peak, Compact, Cinema, Mosaico e Coverflow) guarda os seus. Vazio = padrão do estilo. Só valem depois de Salvar.');
     section.append(h, d);
+    if (flow) {
+      const dragRow = document.createElement('div');
+      dragRow.className = 'position-item';
+      dragRow.style.cssText = 'display:block;margin:6px 0 4px;padding:14px;border-radius:14px;background:linear-gradient(135deg,rgba(179,21,29,.28),rgba(111,10,16,.18));border:1px solid rgba(179,21,29,.55)';
+      const dragBtn = document.createElement('button');
+      dragBtn.type = 'button';
+      dragBtn.className = 'position-modal-apply';
+      dragBtn.textContent = '\u2725  ' + L('posDragButton', 'Arrastar elementos na tela');
+      dragBtn.style.cssText = 'display:block;width:100%;padding:13px 16px;font-size:15px;font-weight:700;border-radius:11px;background:linear-gradient(150deg,#b3151d,#6f0a10);color:#fff;border:0;cursor:pointer;box-shadow:0 6px 18px rgba(179,21,29,.35)';
+      dragBtn.addEventListener('click', () => startDragEditor({
+        labels: L,
+        hideMain: hideMainModal,
+        showMain: showMainModal,
+        onSaved: () => {
+          const st = readTuning(getActivePositionProfile());
+          section.querySelectorAll('[data-jms-lay]').forEach((el) => { if (el.tagName !== 'SELECT' && st[el.dataset.jmsLay] !== undefined) el.value = st[el.dataset.jmsLay] === '' ? '' : String(st[el.dataset.jmsLay]); });
+          previewTuning();
+        }
+      }));
+      const dragHint = document.createElement('p');
+      dragHint.className = 'position-block-desc';
+      dragHint.textContent = L('posDragHint', 'Arraste selos, logo, informações, sinopse, diretor, botões e a linha de gênero direto na tela. Linhas-guia mostram o alinhamento com o centro, as margens e os outros blocos. Segure Alt para soltar sem imã.');
+      dragHint.style.margin = '10px 2px 0';
+      dragRow.append(dragBtn, dragHint);
+      section.append(dragRow);
+    }
 
     if (profile === 'cinema') {
       const lrow = document.createElement('div');
@@ -1099,27 +1129,6 @@ export function createPositionEditor(config, labels, section) {
         createTuningNumber(`${b.id}Y`, `${nm}: ${L('posMoveV', 'mover na vertical (px)')}`, L('posMoveVHint', 'Positivo move para baixo, negativo para cima.'), stored);
       });
       appendStringSelect('corners', L('posCorners', 'Cantos arredondados do slider'), L('posCornersHint', 'Padrão: os 4 cantos arredondados. Os cantos cortam o que estiver fora da moldura, então tire o arredondamento se for mover selos para as bordas.'), [['', L('posCornersDefault', 'Padrão (4 cantos)')], ['left', L('posCornersLeft', 'Sem arredondar à esquerda')], ['right', L('posCornersRight', 'Sem arredondar à direita')], ['top', L('posCornersTop', 'Sem arredondar em cima')], ['none', L('posCornersNone', 'Nenhum canto arredondado')]], stored);
-      const dragRow = document.createElement('div');
-      dragRow.className = 'position-item';
-      const dragBtn = document.createElement('button');
-      dragBtn.type = 'button';
-      dragBtn.className = 'position-modal-apply';
-      dragBtn.textContent = L('posDragButton', 'Arrastar elementos na tela');
-      dragBtn.addEventListener('click', () => startDragEditor({
-        labels: L,
-        hideMain: hideMainModal,
-        showMain: showMainModal,
-        onSaved: () => {
-          const st = readTuning(getActivePositionProfile());
-          section.querySelectorAll('[data-jms-lay]').forEach((el) => { if (el.tagName !== 'SELECT' && st[el.dataset.jmsLay] !== undefined) el.value = st[el.dataset.jmsLay] === '' ? '' : String(st[el.dataset.jmsLay]); });
-          previewTuning();
-        }
-      }));
-      const dragHint = document.createElement('p');
-      dragHint.className = 'position-block-desc';
-      dragHint.textContent = L('posDragHint', 'Arraste selos, logo, informações, sinopse, diretor, botões e a linha de gênero direto na tela. Linhas-guia mostram o alinhamento com o centro, as margens e os outros blocos. Segure Alt para soltar sem imã.');
-      dragRow.append(dragBtn);
-      section.append(dragRow, dragHint);
       if (profile === 'cinema') createTuningNumber('zoneGap', L('posTuneZoneGap', 'Espaço entre a sinopse e os selos (vh), só em Duas zonas'), L('posTuneZoneGapHint', 'Distância entre o último bloco de texto (sinopse, barra de progresso, diretor) e a linha de selos. Vazio = automático.'), stored);
     }
 
