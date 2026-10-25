@@ -30,11 +30,18 @@ public sealed class TrailerSyncTask : IScheduledTask
 
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
     {
-        yield return new TaskTriggerInfo
+        // O gatilho de intervalo do Jellyfin recomeca a contagem a cada reinicio do servidor (proxima execucao = reinicio + 6 h),
+        // entao um servidor que reinicia com frequencia nunca chega a rodar. Quatro horarios fixos por dia (a cada 6 h) nao
+        // dependem do tempo de atividade. Isto so vale quando a tarefa ainda nao tem gatilhos gravados; o que o usuario
+        // configurar em Painel > Tarefas agendadas sempre prevalece.
+        foreach (var hora in new[] { 2.5, 8.5, 14.5, 20.5 })
         {
-            Type = TaskTriggerInfoType.IntervalTrigger,
-            IntervalTicks = TimeSpan.FromHours(6).Ticks
-        };
+            yield return new TaskTriggerInfo
+            {
+                Type = TaskTriggerInfoType.DailyTrigger,
+                TimeOfDayTicks = TimeSpan.FromHours(hora).Ticks
+            };
+        }
     }
 
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
