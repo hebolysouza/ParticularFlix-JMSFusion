@@ -219,6 +219,8 @@ export function createSliderPanel(config, labels) {
     const isPeak = cssSelect.value === 'peakslider';
     const input = peakDiagonalCheckbox.querySelector('input');
     peakDiagonalCheckbox.style.display = isPeak ? '' : 'none';
+    const peakDesc = peakDiagonalCheckbox.nextElementSibling;
+    if (peakDesc && peakDesc.classList.contains('pf-sd')) peakDesc.style.display = isPeak ? '' : 'none';
 
     if (isPeak) {
       input.disabled = false;
@@ -981,6 +983,7 @@ export function createSliderPanel(config, labels) {
       host.insertAdjacentElement('afterend', d);
     });
   });
+  try { updatePeakDiagonalVisibility(); } catch {}
 
   panel.append(
     languageDiv,

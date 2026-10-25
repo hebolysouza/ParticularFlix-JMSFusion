@@ -6,7 +6,7 @@
 import { getSessionInfo, makeApiRequest } from "../../Plugins/JMSFusion/runtime/api.js";
 import { getVideoQualityText } from "./containerUtils.js";
 
-const CACHE_KEY = "pf:seriesQuality:v1";
+const CACHE_KEY = "pf:seriesQuality:v2";
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 400;
 const MAX_PARALLEL = 3;
@@ -143,11 +143,14 @@ export async function resolveSeriesStreams(seriesId, { now = Date.now() } = {}) 
   const p = schedule(async () => {
     const ep = pickReferenceEpisode(await fetchEpisodes(id));
     const s = ep ? compactStreams(ep.MediaStreams) : [];
-    const entry = { s, at: now };
-    memory.set(id, entry);
-    const all = loadStored();
-    all[id] = entry;
-    saveStored(all);
+    // Resultado vazio (falha passageira, episodios ainda sem analise) nao entra no cache: so respostas com video.
+    if (s.some((x) => x.Type === "Video")) {
+      const entry = { s, at: now };
+      memory.set(id, entry);
+      const all = loadStored();
+      all[id] = entry;
+      saveStored(all);
+    }
     return s;
   })
     .catch(() => null)
@@ -163,7 +166,8 @@ export async function applySeriesQualityBadges(formatContainer, item, config) {
     if (!formatContainer || item?.Type !== "Series" || !config?.showQualityInfo || !enabled()) return;
     if (formatContainer.querySelector(".video-quality")) return;
     const streams = await resolveSeriesStreams(item.Id);
-    if (!streams || !streams.length || !formatContainer.isConnected) return;
+    // Nao exigir isConnected: com o cache a resposta chega antes de o slide ser anexado a pagina.
+    if (!streams || !streams.length) return;
     const video = streams.find((s) => s.Type === "Video");
     if (!video) return;
     const html = getVideoQualityText(video, streams);
