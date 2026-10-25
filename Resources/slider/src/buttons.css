@@ -35,10 +35,9 @@ html[data-button-style=pills] .monwui-btn-container .monwui-btn-text,html[data-b
 html[data-button-style=pills] .monwui-btn-container:focus-visible,html[data-button-style=orbs] .monwui-btn-container:focus-visible,
 html[data-button-style=pills] .monwui-btn-container button:focus-visible,html[data-button-style=orbs] .monwui-btn-container button:focus-visible{outline:2px solid #fff;outline-offset:2px}
 
-/* ---- active states: watched keeps the white check and only gets a red outline; the favorite heart turns red ---- */
-html[data-button-style=pills] .monwui-btn-container button.favorited i,html[data-button-style=orbs] .monwui-btn-container button.favorited i{
-  color:var(--pf-btn-accent)!important;filter:drop-shadow(0 0 8px color-mix(in srgb,var(--pf-btn-accent) 55%,transparent))}
-html[data-button-style=pills] .monwui-btn-container button.played i,html[data-button-style=orbs] .monwui-btn-container button.played i{color:#fff!important;filter:none!important}
+/* ---- active states: watched and favorite keep the white icon and only get a red outline ---- */
+html[data-button-style=pills] .monwui-btn-container button.played i,html[data-button-style=orbs] .monwui-btn-container button.played i,
+html[data-button-style=pills] .monwui-btn-container button.favorited i,html[data-button-style=orbs] .monwui-btn-container button.favorited i{color:#fff!important;filter:none!important}
 html[data-button-style=pills] .monwui-btn-container button.favorited .monwui-icon-wrapper,
 html[data-button-style=orbs] .monwui-btn-container button.favorited .monwui-icon-wrapper{animation:pf-btn-pop .5s var(--pf-btn-ease)}
 html[data-button-style=pills] .monwui-btn-container button.played .monwui-icon-wrapper,
@@ -100,7 +99,7 @@ html[data-button-style=orbs] .monwui-btn-container:has(.monwui-watch-btn):hover 
 html[data-button-style=orbs] .monwui-btn-container:has(.monwui-watch-btn) .monwui-icon-wrapper{width:100%;display:flex;align-items:center;justify-content:center;margin:0;padding:0}
 html[data-button-style=orbs] .monwui-btn-container:has(.monwui-trailer-btn):hover i{animation:pf-btn-wiggle .55s ease}
 html[data-button-style=orbs] .monwui-btn-container:has(button.played),html[data-button-style=orbs] .monwui-btn-container:has(button.favorited){
-  background:linear-gradient(rgba(14,18,28,.5),rgba(14,18,28,.5)) padding-box,linear-gradient(#b3151d,#b3151d) border-box!important}
+  background:linear-gradient(#242730,#242730) padding-box,linear-gradient(#b3151d,#b3151d) border-box!important}
 
 @media (prefers-reduced-motion:reduce){
   html[data-button-style=pills] .monwui-btn-container,html[data-button-style=orbs] .monwui-btn-container,

@@ -1,6 +1,6 @@
 import { applySettings } from "./applySettings.js";
 import { getActivePositionProfile, readProfilePositions, POSITION_KEYS } from "../positionProfiles.js";
-import { TUNING_FIELDS, readTuning, saveTuning, applyLayoutTuning, isFlowProfile, revertTuningWhenSettingsCloses, setLivePreview } from "../layoutTuning.js";
+import { TUNING_FIELDS, BLOCKS, readTuning, saveTuning, applyLayoutTuning, isFlowProfile, revertTuningWhenSettingsCloses, setLivePreview } from "../layoutTuning.js";
 import { startDragEditor } from "../dragEditor.js";
 import {
   markPositionEditing,
@@ -344,7 +344,8 @@ export function createPositionEditor(config, labels, section) {
   function setupFloatingEditor(modal, content, handle, containerType, target) {
     ensurePositionHelperStyles();
     const tuningMode = containerType === '__tuning__';
-    const selector = tuningMode ? '.monwui-slide.active' : targetSelector(containerType, target);
+    const tuneSel = tuningMode && target && target !== 'slides' ? target : '';
+    const selector = tuningMode ? (tuneSel || '.monwui-slide.active') : targetSelector(containerType, target);
     const imp = (el, prop, val) => el.style.setProperty(prop, val, 'important');
 
     // a camada cheia some: a tela de trás continua visível e clicável
@@ -364,7 +365,7 @@ export function createPositionEditor(config, labels, section) {
     }
     handle.style.paddingRight = '40px';
 
-    const marked = tuningMode ? [] : Array.from(document.querySelectorAll(selector));
+    const marked = tuningMode ? (tuneSel ? Array.from(document.querySelectorAll(tuneSel)) : []) : Array.from(document.querySelectorAll(selector));
     marked.forEach((el) => el.classList.add('jms-pos-target'));
 
     const status = document.createElement('p');
@@ -842,6 +843,15 @@ export function createPositionEditor(config, labels, section) {
     applyLayoutTuning(v);
   }
 
+  /* Qual bloco da tela cada campo move (para contornar o bloco enquanto a caixinha esta aberta). */
+  function blockSelectorForField(name) {
+    const b = BLOCKS.find((x) => name.startsWith(x.id) && /^(X|Y|Top|Left)?$/.test(name.slice(x.id.length)));
+    if (b) return b.sel;
+    if (name === 'align') return '.monwui-main-button-container';
+    if (name === 'alignInfo') return '.monwui-info-container';
+    return '';
+  }
+
   /* Caixinha flutuante para os ajustes globais: a janela de configuracoes some e a tela de tras fica visivel. */
   function openTuningModal(el, labelText, hintText) {
     if (document.querySelector('.position-modal')) return null;
@@ -950,7 +960,7 @@ export function createPositionEditor(config, labels, section) {
     content.append(saveBtn, saved);
     modal.appendChild(content);
     document.body.appendChild(modal);
-    floating = setupFloatingEditor(modal, content, title, '__tuning__', 'slides');
+    floating = setupFloatingEditor(modal, content, title, '__tuning__', blockSelectorForField(name) || 'slides');
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
     return modal;
   }
@@ -1068,6 +1078,17 @@ export function createPositionEditor(config, labels, section) {
       appendStringSelect('alignInfo', L('posAlignInfo', 'Gênero, ano e país: alinhamento'), L('posAlignInfoHint', 'Alinha só a linha de gênero, ano e país. Não mexe nos botões.'), [['', L('posAlignDefault', 'Padrão do estilo')], ['left', L('posAlignLeft', 'Esquerda')], ['center', L('posAlignCenter', 'Centralizado')], ['right', L('posAlignRight', 'Direita')]], stored);
       createTuningNumber('infoX', L('posInfoX', 'Gênero, ano e país: mover na horizontal (px)'), L('posInfoXHint', 'Positivo move para a direita, negativo para a esquerda. Independente dos botões.'), stored);
       createTuningNumber('infoY', L('posInfoY', 'Gênero, ano e país: mover na vertical (px)'), L('posInfoYHint', 'Positivo move para baixo, negativo para cima. Independente dos botões.'), stored);
+      const fineH = document.createElement('h3');
+      fineH.textContent = L('posFineTitle', 'Posição fina de cada bloco');
+      const fineD = document.createElement('p');
+      fineD.className = 'position-block-desc';
+      fineD.textContent = L('posFineDesc', 'Move cada bloco de forma independente, em pixels (positivo = direita ou para baixo, negativo = esquerda ou para cima). Também dá para arrastar direto na tela.');
+      section.append(fineH, fineD);
+      BLOCKS.filter((b) => !['btn', 'info', 'fmt'].includes(b.id)).forEach((b) => {
+        const nm = L(`posBlock_${b.id}`, b.label);
+        createTuningNumber(`${b.id}X`, `${nm}: ${L('posMoveH', 'mover na horizontal (px)')}`, L('posMoveHHint', 'Positivo move para a direita, negativo para a esquerda.'), stored);
+        createTuningNumber(`${b.id}Y`, `${nm}: ${L('posMoveV', 'mover na vertical (px)')}`, L('posMoveVHint', 'Positivo move para baixo, negativo para cima.'), stored);
+      });
       appendStringSelect('corners', L('posCorners', 'Cantos arredondados do slider'), L('posCornersHint', 'Padrão: os 4 cantos arredondados. Os cantos cortam o que estiver fora da moldura, então tire o arredondamento se for mover selos para as bordas.'), [['', L('posCornersDefault', 'Padrão (4 cantos)')], ['left', L('posCornersLeft', 'Sem arredondar à esquerda')], ['right', L('posCornersRight', 'Sem arredondar à direita')], ['top', L('posCornersTop', 'Sem arredondar em cima')], ['none', L('posCornersNone', 'Nenhum canto arredondado')]], stored);
       const dragRow = document.createElement('div');
       dragRow.className = 'position-item';

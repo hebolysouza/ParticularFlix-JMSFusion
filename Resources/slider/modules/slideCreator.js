@@ -742,12 +742,20 @@ async function createSlide(item, options = {}) {
     // (ele abre pelo botao "i" da linha de botoes).
     const layoutMode = document.documentElement.dataset.sliderLayout;
     if (layoutMode === 'cinema' || layoutMode === 'mosaic') {
-      const hit = slideEl && Array.from(slideEl.querySelectorAll(
-        '.monwui-format-container,.monwui-logo-container,.monwui-title-container,.monwui-meta-container,.monwui-plot-container,.monwui-director-container,.monwui-info-container'
-      )).some((n) => {
-        const r = n.getBoundingClientRect();
-        return r.width > 0 && r.height > 0 && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
-      });
+      // area dos textos = retangulo que envolve todos os blocos de texto (com folga), inclusive os vaos entre eles
+      let hit = false;
+      if (slideEl) {
+        let L = Infinity, T = Infinity, R = -Infinity, B = -Infinity;
+        slideEl.querySelectorAll(
+          '.monwui-format-container,.monwui-logo-container,.monwui-title-container,.monwui-meta-container,.monwui-plot-container,.monwui-director-container,.monwui-info-container,.monwui-main-button-container'
+        ).forEach((n) => {
+          const r = n.getBoundingClientRect();
+          if (r.width <= 0 || r.height <= 0) return;
+          L = Math.min(L, r.left); T = Math.min(T, r.top); R = Math.max(R, r.right); B = Math.max(B, r.bottom);
+        });
+        const pad = 16;
+        hit = L !== Infinity && ev.clientX >= L - pad && ev.clientX <= R + pad && ev.clientY >= T - pad && ev.clientY <= B + pad;
+      }
       if (hit) { ev.preventDefault(); ev.stopPropagation(); return; }
     }
 
