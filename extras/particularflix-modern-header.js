@@ -2,7 +2,7 @@
    Arquivo ADICIONAL: nao altera o particularflix-logo.js (layout Legado).
    Para remover: apague este arquivo da pasta custom.
 
-   O que faz: logo ParticularFlix, botao de menu (hamburguer), navegacao em pilulas
+   O que faz: logo ParticularFlix, navegacao em pilulas
    centralizadas no padrao NetFin (item ativo em vermelho) e lista opcional de itens escondidos. */
 (function () {
     "use strict";
@@ -40,10 +40,6 @@
         ".pf-logo-modern:hover .pf-wm-f::after,.pf-logo-modern:focus-visible .pf-wm-f::after{transform:scaleX(1);}",
         ".pf-logo-modern:hover .pf-wm-f,.pf-logo-modern:focus-visible .pf-wm-f{color:#FF3B47;text-shadow:0 0 7px rgba(229,9,20,0.6);}",
         ".pf-logo-modern:focus-visible{outline:2px solid #FF3B47;outline-offset:4px;border-radius:4px;}",
-        ".pf-menu-modern{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:40px;height:40px;margin-right:2px;padding:0;border:0;border-radius:50%;background:transparent;color:#F2F2F2;cursor:pointer;transition:background-color 200ms ease,transform 200ms ease;}",
-        ".pf-menu-modern svg{width:24px;height:24px;fill:currentColor;pointer-events:none;}",
-        ".pf-menu-modern:hover{background:rgba(229,9,20,0.25);transform:scale(1.08);}",
-        ".pf-menu-modern:active{transform:scale(0.92);}"
     ].join("\n");
 
     var BADGE =
@@ -57,7 +53,6 @@
     var WORDMARK =
         '<span class="pf-wm"><span class="pf-wm-p">PARTICULAR</span><span class="pf-wm-f">FLIX</span></span>';
     var HOME_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
-    var MENU_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>';
 
     function norm(t) {
         return String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
@@ -93,12 +88,6 @@
             ev.preventDefault();
             try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
         }
-    }
-
-    function onMenuClick(ev) {
-        ev.preventDefault();
-        var b = document.querySelector(".skinHeader .mainDrawerButton");
-        if (b) b.click();
     }
 
     function syncLinks(stack) {
@@ -173,17 +162,6 @@
             logo.addEventListener("click", onLogoClick);
         }
         if (logo.nextElementSibling !== stack) toolbar.insertBefore(logo, stack);
-
-        var menu = toolbar.querySelector(":scope > .pf-menu-modern");
-        if (!menu) {
-            menu = document.createElement("button");
-            menu.type = "button";
-            menu.className = "pf-menu-modern";
-            menu.setAttribute("aria-label", "Menu");
-            menu.innerHTML = MENU_ICON;
-            menu.addEventListener("click", onMenuClick);
-        }
-        if (menu.nextElementSibling !== logo) toolbar.insertBefore(menu, logo);
 
         var home = stack.querySelector("a.pf-nav-home");
         if (!home) {
