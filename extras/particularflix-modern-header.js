@@ -50,6 +50,11 @@
         // Com o logo do filme na tela, o titulo em texto do Jellyfin sai (no Legado so aparece o logo).
         ".videoOsd-appBar:has(#jms-osd-header-ratings-v4 img[src]:not([src=\"\"])) > p.MuiTypography-root{display:none !important;}",
         ROOT + " .MuiToolbar-root{position:relative;}",
+        // Logo: PARTICULAR e FLIX na mesma linha de base em todos os estados e layouts (o CSS do Legado sobe o FLIX 0,7px).
+        ".pf-logo .pf-wm,.pf-logo-modern .pf-wm,.pf-logo-osd .pf-wm{display:inline-flex !important;align-items:baseline !important;}",
+        ".pf-logo .pf-wm-p,.pf-logo .pf-wm-f,.pf-logo-modern .pf-wm-p,.pf-logo-modern .pf-wm-f,.pf-logo-osd .pf-wm-p,.pf-logo-osd .pf-wm-f{top:0 !important;bottom:auto !important;margin-top:0 !important;margin-bottom:0 !important;vertical-align:baseline !important;line-height:1 !important;}",
+        // Selo do Jellyfin Oscars nos detalhes: so o trofeu e o texto, sem contorno nem fundo.
+        ".jellyfinOscarsDetailBadge,.jellyfinOscarsDetailBadge.mediaInfoText,.oscarsBadge.mediaInfoText{border:0 !important;outline:0 !important;box-shadow:none !important;background:transparent !important;background-image:none !important;padding:0 !important;border-radius:0 !important;}",
         // Os botoes de icone nascem com 52 px e so caem para 48 px quando o resto do CSS entra; isso mudava a
         // altura da barra e o slider (que se posiciona abaixo dela) pulava na primeira carga.
         ROOT + " .MuiToolbar-root .MuiIconButton-root{max-height:48px;box-sizing:border-box;}",

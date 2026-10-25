@@ -297,6 +297,12 @@ function onTabClickCapture(event) {
   if (!link) return;
   const href = link.getAttribute?.("href");
   if (href != null && !isHomeHref(href)) return;
+  // Still on #/home?tab=N (a plugin tab opened by its address): the address keeps asking for that tab, so a
+  // click on Home was undone. Drop ?tab= from the address (no navigation) and select Home.
+  const tab = requestedTab();
+  if (tab != null && tab > 0) {
+    try { history.replaceState(history.state, "", window.location.href.replace(/#.*$/, "#/home")); } catch {}
+  }
   setTimeout(() => { if (requestedTab() === 0) schedule(); }, 0);
 }
 

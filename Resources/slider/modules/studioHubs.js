@@ -639,14 +639,21 @@ const STUDIO_PREVIEW_TTL_MS = 10 * 60 * 1000;
 const PREVIEW_POSTER_H = 300;
 const PREVIEW_POSTER_Q = 90;
 
-// Posters start downloading when the mouse reaches the card (they used to wait for the popover to open).
-function preloadPreviewPosters(items) {
+// Posters used to wait for the popover to open, and Jellyfin resizes each poster the first time it is asked
+// for, which made the first hover on every card slow. Cards on screen get them while the browser is idle (low
+// priority), and a card the mouse reaches gets them right away.
+function preloadPreviewPosters(items, lowPriority = false) {
   (items || []).slice(0, 5).forEach((it) => {
     if (!it || it.__jmsPosterWarm) return;
     const url = buildPosterUrl(it, PREVIEW_POSTER_H, PREVIEW_POSTER_Q);
     if (!url) return;
     it.__jmsPosterWarm = true;
-    try { const img = new Image(); img.decoding = "async"; img.src = url; } catch {}
+    try {
+      const img = new Image();
+      img.decoding = "async";
+      if (lowPriority) img.fetchPriority = "low";
+      img.src = url;
+    } catch {}
   });
 }
 const __studioPreviewCache = new Map();
@@ -726,14 +733,20 @@ function createPreviewButton(card, studioName, studioId, userId) {
     return studioItems || [];
   }
 
-  const prefetch = (withPosters) => {
+  card.addEventListener('mouseenter', () => {
     loadStudioPreviewItems(studioId, studioName, userId).then((items) => {
       studioItems = items;
-      if (withPosters) preloadPreviewPosters(items);
+      preloadPreviewPosters(items);
     }).catch(() => {});
-  };
-  card.addEventListener('mouseenter', () => prefetch(true), { passive: true });
-  warmPreviewWhenVisible(card, () => prefetch(false));
+  }, { passive: true });
+  warmPreviewWhenVisible(card, () => {
+    loadStudioPreviewItems(studioId, studioName, userId).then((items) => {
+      studioItems = items;
+      const run = () => preloadPreviewPosters(items, true);
+      if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 4000 });
+      else setTimeout(run, 800);
+    }).catch(() => {});
+  });
 
   btn.addEventListener('click', async (e) => {
     e.preventDefault();

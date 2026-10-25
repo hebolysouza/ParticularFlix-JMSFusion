@@ -1252,6 +1252,12 @@ function clearPreviewPlaybackFlag() {
     }
     // Fullscreen goes right under the pause button (same column); without a pause button, under the volume button.
     syncFullscreenButtonVisibility(visible, alignWithAutoToggle ? "14px" : "48px");
+    // With the automatic trailer enabled the pause button comes with the other two, also when the trailer was
+    // started by hovering (it used to appear only when the automatic trailer took over, a moment later).
+    if (alignWithAutoToggle && visible && (playingKind === "localTrailer" || playingKind === "video")) {
+      setAutoToggleVisible(true);
+      syncAutoToggleButton();
+    }
   }
 
   function getFullscreenElement() {
@@ -1651,7 +1657,25 @@ function clearPreviewPlaybackFlag() {
   }
 
   function toggleAutoTrailerPlayback() {
-    if (!autoPreviewActive || !playingKind) return;
+    if (!playingKind) return;
+    if (!autoPreviewActive) {
+      // Trailer started by hovering: pause or resume the video itself.
+      if (playingKind !== "localTrailer" && playingKind !== "video") return;
+      try {
+        if (videoElement.paused) {
+          const p = videoElement.play();
+          if (p && typeof p.catch === "function") p.catch(() => {});
+        } else {
+          videoElement.pause();
+        }
+      } catch {}
+      if (autoToggleButton) {
+        autoToggleButton.innerHTML = videoElement.paused
+          ? '<i class="fa-solid fa-play"></i>'
+          : '<i class="fa-solid fa-pause"></i>';
+      }
+      return;
+    }
     const nextPaused = !autoTrailerPaused;
     autoTrailerUserPaused = nextPaused;
     if (!nextPaused) {
