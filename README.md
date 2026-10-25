@@ -22,8 +22,8 @@
   />
 
   <img
-    alt="Jellyfin 10.11"
-    src="https://img.shields.io/badge/Jellyfin-10.11-00a4dc?style=for-the-badge"
+    alt="Jellyfin 12"
+    src="https://img.shields.io/badge/Jellyfin-12.x-00a4dc?style=for-the-badge"
   />
 
   <a href="https://github.com/G-grbz/Jellyfin-MonWUI-Plugin/blob/main/LICENSE">
@@ -41,7 +41,7 @@
 > [Jellyfin-MonWUI-Plugin](https://github.com/G-grbz/Jellyfin-MonWUI-Plugin), which has been archived by its author.
 > It keeps the same plugin GUID, so it upgrades an existing JMSFusion install in place. It fixes a configuration security hole,
 > adds per-profile settings, new slider sources, native trailers, a "New season" badge, section ordering that works together with
-> Home Screen Sections, and many performance improvements. It is built and tested against Jellyfin 10.11.x.
+> Home Screen Sections, and many performance improvements. Version 4.0 is built for **Jellyfin 12.x** (net10.0, tested on 12.3). Jellyfin 10.11.x users should stay on 3.8.2.45, which remains available in the plugin catalog.
 > See [CHANGELOG.md](CHANGELOG.md) for the full list and the upgrade notes, and the
 > [Releases](https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases) page for the latest version.
 
@@ -106,7 +106,7 @@ JMSFusion works by injecting JavaScript and CSS into the **Jellyfin Web UI**.
 
 In short, if a client does not render the server's `/web/index.html`, JMSFusion cannot modify its interface.
 
-Compatibility is tracked against Jellyfin 10.11.x. Newer Jellyfin major versions are checked when they are released, and fixes are published as new releases of this fork.
+Compatibility: 4.0.x targets Jellyfin 12.x; 3.8.2.45 is the last build for Jellyfin 10.11.x. Newer Jellyfin major versions are checked when they are released, and fixes are published as new releases of this fork.
 
 ---
 

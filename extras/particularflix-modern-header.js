@@ -370,6 +370,12 @@
         ".pf-dr a.navMenuOption.pf-dr-active{background:#E50914;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
         ".pf-dr .navMenuOptionIcon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:24px;height:24px;font-size:22px;color:inherit;}",
         ".pf-dr .navMenuOptionText{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
+        ".pf-dr .pluginMenuOptions{display:block;margin:0;padding:0;}",
+        ".pf-dr .pluginMenuOptions a,.pf-dr .pluginMenuOptions .emby-button{display:flex !important;align-items:center;justify-content:flex-start !important;gap:14px;width:auto;box-sizing:border-box;padding:10px 14px !important;margin:2px 0 !important;border-radius:10px;color:#fff;text-align:left;text-transform:none;font-size:15px;line-height:1.2;text-decoration:none;}",
+        ".pf-dr .pluginMenuOptions a:hover,.pf-dr .pluginMenuOptions a:focus-visible{background:rgba(229,9,20,0.28);outline:none;}",
+        ".pf-dr .pluginMenuOptions .navMenuOptionIcon,.pf-dr .pluginMenuOptions .material-icons{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;width:24px;height:24px;margin:0 !important;font-size:22px;}",
+        ".pf-dr .pluginMenuOptions .navMenuOptionText{flex:1 1 auto;margin:0 !important;text-align:left;}",
+        ".mainAnimatedPage[id^=\"je-\"]:not(.hide),#je-recommendations-category-page:not(.hide){position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;height:auto !important;opacity:1 !important;overflow-y:auto !important;z-index:1095 !important;isolation:isolate !important;background:#0a0a0e !important;contain:none !important;padding-top:70px !important;}",
         "@media (prefers-reduced-motion:reduce){.pf-dr-panel,.pf-dr-back{transition:none;}}"
     ].join("\n");
 
@@ -507,6 +513,7 @@
     function drClose() {
         if (!drEl) return;
         drEl.classList.remove("pf-dr-open");
+        try { if (drEl.contains(document.activeElement)) document.activeElement.blur(); } catch (e) {}
         drEl.setAttribute("aria-hidden", "true");
         var b = document.querySelector(".pf-dr-btn");
         if (b) b.setAttribute("aria-expanded", "false");
@@ -668,6 +675,10 @@
         var lastUrl = location.href;
         pfPoll = setInterval(function () {
             if (location.href !== lastUrl) { lastUrl = location.href; schedule(); }
+            try {
+                var pgs = document.querySelectorAll('.mainAnimatedPage[id^="je-"]:not(.hide), #je-recommendations-category-page:not(.hide)');
+                for (var i = 0; i < pgs.length; i++) { if (pgs[i].parentNode !== document.body) document.body.appendChild(pgs[i]); }
+            } catch (e) {}
         }, 250);
         // Sincrono (antes da pintura): se o React recriar o cabecalho, a nossa marca volta no mesmo quadro, sem piscar.
         pfObs = new MutationObserver(function (muts) { if (relevante(muts)) safePlace(); });

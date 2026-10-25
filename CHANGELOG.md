@@ -5,6 +5,52 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 4.0.0.0 (fork build, Jellyfin 12)
+
+First build for **Jellyfin 12.x** (net10.0, validated on 12.3). Same plugin GUID. Does not load on Jellyfin 10.11.x: stay on 3.8.2.45 there.
+**Version 4.0 is built for Jellyfin 12.x (.NET 10) and was validated on Jellyfin 12.3.** It keeps the same plugin GUID, so it upgrades an existing JMSFusion install in place. It does **not** load on Jellyfin 10.11.x: if you are still on 10.11, stay on **3.8.2.45**, which remains in the catalog.
+
+### Read before upgrading
+- Jellyfin 12 migrates the server database on its first start, and that cannot be undone. **Back up your whole Jellyfin config folder (including `data`) with the server stopped before you move to Jellyfin 12.** Rolling back means restoring that backup, not only changing the image.
+- Pin your Jellyfin image to a specific 12.x version after the move, and update on purpose, not by accident.
+- Plugins that patch the web client (Home Screen Sections, Plugin Pages) must be builds made for Jellyfin 12. The 10.11 builds break the home sections and the Modular Home page on 12.3. Use Home Screen Sections 3.0.3.0 and Plugin Pages 3.0.2.0 compiled with `JellyfinVersion=12.3.0` (the upstream sources already contain the 12.x code paths).
+- Settings are kept. No setting is renamed or reset.
+
+### Jellyfin 12 compatibility (the main point of this release)
+- Rebuilt for **net10.0** against the **Jellyfin 12.3.0** packages. Plugin ABI 12.0.0.0.
+- New authentication path: the plugin now talks to the server with the modern `Authorization: MediaBrowser Token=...` header and API keys (the old query-string token style no longer works on 12). A compatibility shim keeps the older call sites working. TMDb calls keep their own `api_key`.
+- User listing goes through the server's user accessor, fixing the namespace change in 12.
+- **Modern (MUI) header support**: the 12.x web client has a new layout. An optional script (`extras/particularflix-modern-header.js`) draws the ParticularFlix logo, centered navigation pills with a red active state, and keeps every pill by shrinking in steps (compact, flow, icons with tooltip) when the window is narrow.
+  - The logo and "Home" always return to the first tab, from every tab (Favorites, Watchlist, Requests, Catalog, Calendar).
+  - Hamburger menu in the wide window, with Home, Jellyfin Enhanced entries, Media, Administration (Dashboard, Metadata) and the user section.
+  - Notification bell without background glow on hover, with a small ringing animation.
+  - Fix for Jellyfin Enhanced category pages (Trending, Upcoming, Popular) that opened invisible under the Custom Tabs content on 12.3.
+- Home Screen Sections on 12.3: found and documented the real causes (webpack names changed, and `userSettings.getData` no longer exists in 12). The home sections work again.
+- Plugin Pages on 12.3: the Modular Home settings page opens again (the 10.11 route format caused `t[1].map is not a function`).
+
+### New: slider and layout
+- **Slider positions per style** (Normal, Peak, Compact, Cinema, Mosaic, Coverflow) with global style adjustments (side and bottom margin, text width, block gap), copy settings from another style, and plot mode (hide, 2/3/4 lines, full).
+- **Drag and drop floating editor** with alignment guides, per-change Save, close button, per-block X/Y fields, three move groups (texts and badges, buttons and genre, whole set), outline on the block being edited, and revert of unsaved changes on close.
+- **Cinema**: two-zone layout (texts on top, badges below, buttons and genre centered at the bottom), smaller navigation arrows tucked in the side margin, trailer starts with no wait.
+- **Buttons**: two new looks (glass pills and round orbs), new Netflix-style translucent side-bar arrows, details button (i), elegant red accent, independent alignment for buttons and info.
+- **Indicators**: modern glass dots with click-to-jump, a "next slide" indicator menu (card, modern dots, hidden), dots and movie progress bar as movable blocks, dots above every slide layer, and a **hover image preview on the dots** (the cover of that title, same as the "Up next" card) with an on/off option in Buttons settings.
+- **Quality badges**: real resolution (1080p/720p/2160p), HDR, primary audio codec and channels; now also on **series**, taken from the first regular episode, cached for 7 days and non-blocking. Kill switch: `pf:qualityExtras=off`.
+- **Trailer delay** setting now applies to automatic start (0 is allowed), with early trailer prefetch for the first slides.
+- Series badges no longer race the slide insertion on cache hits; empty results are not cached.
+
+### New: scheduled task
+- **Trailer sync** runs at four fixed daily times (every 6 hours). Jellyfin's interval trigger restarted its count on every server restart, so fixed times are more predictable.
+
+### Fixes
+- Modern header: invalid nested selector that disabled centering, spacer boxes that made pills fall back to flow mode, overlap on narrow windows, profile caret alignment.
+- Home Screen Sections ordering keeps working together with the plugin's own section order.
+- Floating editor: ghost box removed, close button and per-change Save, text area click guard covers gaps, favorite icon white with outline only.
+
+### Known limitations
+- JMSFusion cannot change clients that do not render the server's `/web/index.html` (native Android TV and similar).
+- The Modular Home entry in the hamburger menu is larger than the other items (cosmetic, tracked for a later build).
+- Some third-party plugins are not Jellyfin 12 ready at the time of this release. Check each plugin's own page before upgrading the server.
+
 ## 3.8.2.45 (fork build)
 
 Much faster first load of the slider on a cold start. Rolls up the test-only builds 3.8.2.41 to 3.8.2.44.
