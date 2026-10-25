@@ -49,6 +49,8 @@ First build for **Jellyfin 12.x** (net10.0, validated on 12.3). Same plugin GUID
 ### Known limitations
 - JMSFusion cannot change clients that do not render the server's `/web/index.html` (native Android TV and similar).
 - The Modular Home entry in the hamburger menu is larger than the other items (cosmetic, tracked for a later build).
+- In the original slider look, the details (i) button still renders flatter than the other action buttons (cosmetic, tracked for a later build).
+- The slider pause, volume and fullscreen icons can occasionally end up in the wrong position after switching quickly between them (cosmetic, tracked for a later build).
 - Some third-party plugins are not Jellyfin 12 ready at the time of this release. Check each plugin's own page before upgrading the server.
 
 ## 3.8.2.45 (fork build)
