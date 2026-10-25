@@ -47,6 +47,7 @@ Fixes found after the 4.0.0.0 rollout. Same requirements as 4.0.0.0 (Jellyfin 12
 ### Known limitations
 - Jellyfin 12 itself downloads about 4.5 MB from `/Playback/BitrateTest` a few seconds after the web client opens (it happens without JMSFusion too). It does not block the slider, but it competes for bandwidth on slow remote connections.
 - Legacy layout: if you leave a details page for a plugin tab within a fraction of a second, Jellyfin may not rebuild the tab strip; the tab content is shown, the strip comes back on the next navigation.
+- Logo alignment in Firefox uses an approximate fallback: Firefox does not support trimming text to its capital letters yet (Edge, Chrome and Safari use the exact alignment).
 - The details (i) limitation listed for 4.0.0.0 is fixed; the others still apply.
 
 ### Third-party asset
