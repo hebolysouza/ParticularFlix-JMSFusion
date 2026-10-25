@@ -20,6 +20,7 @@ const SLIDER_HEADER_OBSERVER_OPTIONS = {
 
 const SLIDER_HEADER_RELEVANT_SELECTOR = [
   '.skinHeader',
+  'header.MuiAppBar-root',
   '.mainDrawer',
   '.mainDrawerButton',
   '#monwui-slides-container',
@@ -104,6 +105,9 @@ function findVisibleSkinHeader() {
   for (const header of candidates) {
     if (isElementVisible(header)) return header;
   }
+  // Jellyfin 12 (layout moderno): o cabecalho antigo fica escondido e o visivel e o da interface nova
+  const modern = document.querySelector('header.MuiAppBar-root');
+  if (modern && isElementVisible(modern)) return modern;
   return null;
 }
 

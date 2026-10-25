@@ -1,7 +1,7 @@
 import { getAdminTargetProfile, getConfig, getDeviceProfileAuto, normalizeManagedCardTitleDisplayMode, normalizeManagedHomeSectionOrder, normalizeSettingsHotkey, publishAdminSnapshotIfForced, SETTINGS_HOTKEY_DEFAULT } from "../config.js";
 import { updateConfig } from "../configPersistence.js";
 import { getActivePositionProfile, isPositionKey, savePositionOverrides } from "../positionProfiles.js";
-import { saveTuning, applyLayoutTuning } from "../layoutTuning.js";
+import { saveTuning, applyLayoutTuning, isStringField } from "../layoutTuning.js";
 import { loadCSS } from "../playerStyles.js";
 import { updateSlidePosition } from '../positionUtils.js';
 import { createCheckbox, createImageTypeSelect, bindCheckboxKontrol, bindTersCheckboxKontrol } from "./shared.js";
@@ -1120,7 +1120,7 @@ const USER_ONLY_KEYS = [
           for (const [k, v] of formData.entries()) {
             if (typeof k === 'string' && k.startsWith('jmsLay:')) {
               const name = k.slice(7);
-              tuning[name] = (name === 'plot' || name === 'layout' || v === '') ? String(v) : Number(v);
+              tuning[name] = (isStringField(name) || v === '') ? String(v) : Number(v);
             }
           }
           if (Object.keys(tuning).length) {

@@ -3,7 +3,7 @@
    Only the look of each button changes. Layout of the row, click handlers and states are untouched. */
 
 html[data-button-style=pills],html[data-button-style=orbs]{
-  --pf-btn-h:clamp(38px,4.4vh,46px);--pf-btn-accent:var(--accent-color,#e50914);--pf-btn-ease:cubic-bezier(.2,.8,.2,1)}
+  --pf-btn-h:clamp(38px,4.4vh,46px);--pf-btn-accent:#e50914;--pf-btn-ease:cubic-bezier(.2,.8,.2,1)}
 
 /* ---- shared reset: drop the original dark square, dashed divider, shine and photo background ---- */
 html[data-button-style=pills] .monwui-btn-container:not(.monwui-main-btn-container),
@@ -58,7 +58,7 @@ html[data-button-style=pills] .monwui-btn-container:active{transform:translateY(
 html[data-button-style=pills] .monwui-btn-container:has(.monwui-watch-btn){
   background:#fff!important;border-color:#fff;color:#0b0f17;-webkit-backdrop-filter:none;backdrop-filter:none}
 html[data-button-style=pills] .monwui-btn-container:has(.monwui-watch-btn) .monwui-btn-text{opacity:1!important;font-weight:700}
-html[data-button-style=pills] .monwui-btn-container:has(.monwui-watch-btn):hover{background:#ffe9e6!important;border-color:#ffe9e6;box-shadow:0 12px 28px rgba(229,9,20,.38)!important}
+html[data-button-style=pills] .monwui-btn-container:has(.monwui-watch-btn):hover{background:#ffe9e6!important;border-color:#ffe9e6;box-shadow:0 0 0 3px #e50914,0 6px 14px rgba(0,0,0,.35)!important}
 html[data-button-style=pills] .monwui-btn-container:has(.monwui-watch-btn):hover i{transform:translateX(2px) scale(1.08)}
 html[data-button-style=pills] .monwui-btn-container:has(.monwui-trailer-btn):hover i{animation:pf-btn-wiggle .55s ease}
 html[data-button-style=pills] .monwui-btn-container:has(.monwui-favorite-btn):hover i,
@@ -66,29 +66,39 @@ html[data-button-style=pills] .monwui-btn-container:has(.monwui-played-btn):hove
 html[data-button-style=pills] .monwui-btn-container:has(button.played),html[data-button-style=pills] .monwui-btn-container:has(button.favorited){
   border-color:color-mix(in srgb,var(--pf-btn-accent) 70%,transparent)}
 
-/* ======================= ORBS: round glass icons that open into a pill on hover ======================= */
-html[data-button-style=orbs] .monwui-btn-container:not(.monwui-main-btn-container){width:auto;max-width:var(--pf-btn-h);min-width:var(--pf-btn-h)}
-html[data-button-style=orbs] .monwui-btn-container:not(.monwui-main-btn-container):hover,
-html[data-button-style=orbs] .monwui-btn-container:not(.monwui-main-btn-container):focus-within{max-width:220px}
+/* ======================= ORBS: icon-only glass discs, name floats above, red ring spins on hover ======================= */
+@property --pf-ring{syntax:"<angle>";inherits:false;initial-value:0deg}
+html[data-button-style=orbs]{--pf-orb:clamp(44px,5vh,54px)}
+html[data-button-style=orbs] .monwui-btn-container:not(.monwui-main-btn-container){
+  position:relative;overflow:visible;width:var(--pf-orb);min-width:var(--pf-orb);max-width:var(--pf-orb);height:var(--pf-orb);
+  border:2px solid transparent;border-radius:50%;
+  background:linear-gradient(rgba(14,18,28,.5),rgba(14,18,28,.5)) padding-box,linear-gradient(rgba(255,255,255,.22),rgba(255,255,255,.22)) border-box!important}
+html[data-button-style=orbs] .monwui-btn-container .monwui-btn-content{padding:0!important;justify-content:center;width:100%}
+html[data-button-style=orbs] .monwui-btn-container .monwui-icon-wrapper{width:100%}
+html[data-button-style=orbs] .monwui-btn-container button i{font-size:calc(var(--pf-orb) * .4)}
 html[data-button-style=orbs] .monwui-btn-container .monwui-btn-text{
-  max-width:0!important;opacity:0!important;padding:0!important;transition:max-width .35s var(--pf-btn-ease),opacity .22s ease,padding .35s var(--pf-btn-ease)!important}
+  position:absolute;left:50%;bottom:calc(100% + 12px);transform:translate(-50%,6px);z-index:5;pointer-events:none;
+  padding:7px 12px!important;border-radius:10px;background:rgba(10,13,20,.88);border:1px solid rgba(255,255,255,.14);
+  font-size:12.5px;max-width:none!important;opacity:0!important;transition:opacity .2s ease,transform .25s var(--pf-btn-ease)!important}
 html[data-button-style=orbs] .monwui-btn-container:hover .monwui-btn-text,
-html[data-button-style=orbs] .monwui-btn-container:focus-within .monwui-btn-text{max-width:170px!important;opacity:1!important;padding:0 calc(var(--pf-btn-h) * .42) 0 0!important}
-html[data-button-style=orbs] .monwui-btn-container:hover{
-  background:linear-gradient(rgba(255,255,255,.18),rgba(255,255,255,.18))!important;border-color:rgba(255,255,255,.4);
-  transform:translateY(-2px)!important;box-shadow:0 12px 26px rgba(0,0,0,.4)!important}
-html[data-button-style=orbs] .monwui-btn-container:active{transform:translateY(0) scale(.96)!important}
+html[data-button-style=orbs] .monwui-btn-container:focus-within .monwui-btn-text{opacity:1!important;transform:translate(-50%,0)}
+html[data-button-style=orbs] .monwui-btn-container:not(.monwui-main-btn-container):hover{
+  transform:translateY(-3px) scale(1.06)!important;
+  background:linear-gradient(rgba(14,18,28,.62),rgba(14,18,28,.62)) padding-box,conic-gradient(from var(--pf-ring),#e50914,rgba(229,9,20,.08) 45%,#e50914) border-box!important;
+  animation:pf-ring-spin 1.6s linear infinite;box-shadow:0 10px 22px rgba(0,0,0,.45)!important}
+@keyframes pf-ring-spin{to{--pf-ring:360deg}}
+html[data-button-style=orbs] .monwui-btn-container:active{transform:translateY(0) scale(.94)!important}
 html[data-button-style=orbs] .monwui-btn-container:has(.monwui-watch-btn){
-  background:var(--pf-btn-accent)!important;border-color:transparent;color:#fff;-webkit-backdrop-filter:none;backdrop-filter:none;
-  animation:pf-btn-halo 2.6s ease-out infinite}
+  background:#e50914!important;border-color:transparent;color:#fff;-webkit-backdrop-filter:none;backdrop-filter:none;
+  width:calc(var(--pf-orb) * 1.18)!important;min-width:calc(var(--pf-orb) * 1.18)!important;max-width:calc(var(--pf-orb) * 1.18)!important;height:calc(var(--pf-orb) * 1.18)!important;
+  animation:pf-orb-pulse 2.4s ease-out infinite}
 html[data-button-style=orbs] .monwui-btn-container:has(.monwui-watch-btn):hover{
-  background:color-mix(in srgb,var(--pf-btn-accent) 88%,#fff)!important;animation:none;box-shadow:0 12px 28px color-mix(in srgb,var(--pf-btn-accent) 50%,transparent)!important}
-html[data-button-style=orbs] .monwui-btn-container:has(.monwui-watch-btn) .monwui-btn-text{font-weight:700}
+  background:#ff1f2d!important;animation:none;box-shadow:0 0 0 3px rgba(255,255,255,.9),0 10px 22px rgba(0,0,0,.45)!important}
+@keyframes pf-orb-pulse{0%{box-shadow:0 0 0 0 rgba(229,9,20,.6)}70%,100%{box-shadow:0 0 0 12px rgba(229,9,20,0)}}
 html[data-button-style=orbs] .monwui-btn-container:has(.monwui-watch-btn):hover i{transform:translateX(2px)}
 html[data-button-style=orbs] .monwui-btn-container:has(.monwui-trailer-btn):hover i{animation:pf-btn-wiggle .55s ease}
 html[data-button-style=orbs] .monwui-btn-container:has(button.played),html[data-button-style=orbs] .monwui-btn-container:has(button.favorited){
-  border-color:color-mix(in srgb,var(--pf-btn-accent) 75%,transparent);
-  box-shadow:0 6px 18px rgba(0,0,0,.32),0 0 16px color-mix(in srgb,var(--pf-btn-accent) 28%,transparent)!important}
+  background:linear-gradient(rgba(14,18,28,.5),rgba(14,18,28,.5)) padding-box,linear-gradient(#e50914,#e50914) border-box!important}
 
 @media (prefers-reduced-motion:reduce){
   html[data-button-style=pills] .monwui-btn-container,html[data-button-style=orbs] .monwui-btn-container,
@@ -98,4 +108,5 @@ html[data-button-style=orbs] .monwui-btn-container:has(button.played),html[data-
 /* touch screens have no hover: orbs stay icon only, pills stay readable */
 @media (hover:none){
   html[data-button-style=orbs] .monwui-btn-container:has(.monwui-watch-btn){animation:none}
+  html[data-button-style=orbs] .monwui-btn-container .monwui-btn-text{display:none!important}
 }

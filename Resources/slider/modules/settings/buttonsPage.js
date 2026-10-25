@@ -11,17 +11,16 @@ export function createButtonsPanel(config, labels) {
 
     // Fork ParticularFlix: aparencia dos botoes de acao do slide (Assistir, Trailer, Assistido, Minha lista)
     const styleDiv = document.createElement('div');
-    styleDiv.className = 'setting-item';
-    const styleLabel = document.createElement('label');
+    styleDiv.className = 'fsetting-item';
+    const styleLabel = document.createElement('h3');
     styleLabel.textContent = labels.buttonStyle || 'Button style:';
-    styleLabel.htmlFor = 'buttonStyleSelect';
     const styleSelect = document.createElement('select');
     styleSelect.name = 'buttonStyle';
     styleSelect.id = 'buttonStyleSelect';
     [
         { value: 'classic', label: labels.buttonStyleClassic || 'Original' },
         { value: 'pills', label: labels.buttonStylePills || 'Glass pills (icon and text)' },
-        { value: 'orbs', label: labels.buttonStyleOrbs || 'Round orbs (text on hover)' }
+        { value: 'orbs', label: labels.buttonStyleOrbs || 'Orbs (floating name)' }
     ].forEach((o) => {
         const opt = document.createElement('option');
         opt.value = o.value;

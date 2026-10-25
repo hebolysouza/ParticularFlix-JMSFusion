@@ -342,7 +342,8 @@ export function createPositionEditor(config, labels, section) {
 
   function setupFloatingEditor(modal, content, handle, containerType, target) {
     ensurePositionHelperStyles();
-    const selector = targetSelector(containerType, target);
+    const tuningMode = containerType === '__tuning__';
+    const selector = tuningMode ? '.monwui-slide.active' : targetSelector(containerType, target);
     const imp = (el, prop, val) => el.style.setProperty(prop, val, 'important');
 
     // a camada cheia some: a tela de trás continua visível e clicável
@@ -353,12 +354,12 @@ export function createPositionEditor(config, labels, section) {
       ['width', 'min(340px, calc(100vw - 24px))'], ['max-width', 'calc(100vw - 24px)'], ['padding', '14px'],
       ['gap', '10px'], ['border-radius', '16px'], ['opacity', '0.97']].forEach(([k, v]) => imp(content, k, v));
 
-    const marked = Array.from(document.querySelectorAll(selector));
+    const marked = tuningMode ? [] : Array.from(document.querySelectorAll(selector));
     marked.forEach((el) => el.classList.add('jms-pos-target'));
 
     const status = document.createElement('p');
     status.className = 'position-modal-status';
-    content.appendChild(status);
+    if (!tuningMode) content.appendChild(status);
 
     const statusText = {
       visible: L('posStatusVisible', 'Item visible on screen (outlined in yellow).'),
@@ -382,8 +383,9 @@ export function createPositionEditor(config, labels, section) {
       const r = first ? first.getBoundingClientRect() : null;
       const cx = r && r.width ? r.left + r.width / 2 : window.innerWidth / 2;
       const cy = r && r.height ? r.top + r.height / 2 : window.innerHeight / 2;
-      const left = cx > window.innerWidth / 2 ? 16 : window.innerWidth - w - 16;
-      const top = cy > window.innerHeight / 2 ? 72 : window.innerHeight - h - 16;
+      // ajustes globais: a caixinha vai para o canto direito de cima, longe do texto (que fica a esquerda e embaixo)
+      const left = tuningMode ? window.innerWidth - w - 16 : (cx > window.innerWidth / 2 ? 16 : window.innerWidth - w - 16);
+      const top = tuningMode ? 84 : (cy > window.innerHeight / 2 ? 72 : window.innerHeight - h - 16);
       imp(content, 'left', `${Math.max(8, left)}px`);
       imp(content, 'top', `${Math.max(8, top)}px`);
     };
@@ -828,6 +830,98 @@ export function createPositionEditor(config, labels, section) {
     applyLayoutTuning(collectTuning());
   }
 
+  /* Caixinha flutuante para os ajustes globais: a janela de configuracoes some e a tela de tras fica visivel. */
+  function openTuningModal(el, labelText, hintText) {
+    if (document.querySelector('.position-modal')) return null;
+    const mainModal = hideMainModal();
+    const modal = document.createElement('div');
+    modal.className = 'position-modal';
+    modal.style.display = 'block';
+    const content = document.createElement('div');
+    content.className = 'position-modal-content';
+    let floating = null;
+    const closeModal = () => {
+      document.removeEventListener('keydown', onKey, true);
+      if (floating) floating.dispose();
+      modal.remove();
+      showMainModal(mainModal);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); closeModal(); }
+    };
+    document.addEventListener('keydown', onKey, true);
+
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'position-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.onclick = closeModal;
+    const title = document.createElement('h3');
+    title.className = 'position-modal-title';
+    title.textContent = labelText;
+    const hint = document.createElement('p');
+    hint.className = 'position-block-desc';
+    hint.textContent = hintText || '';
+    content.append(closeBtn, title, hint);
+
+    if (el.tagName === 'SELECT') {
+      const box = document.createElement('div');
+      box.className = 'position-modal-options';
+      Array.from(el.options).forEach((opt) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'position-modal-option';
+        if (el.value === opt.value) b.classList.add('active');
+        b.textContent = opt.textContent;
+        b.onclick = () => {
+          el.value = opt.value;
+          box.querySelectorAll('.position-modal-option').forEach((x) => x.classList.remove('active'));
+          b.classList.add('active');
+          previewTuning();
+        };
+        box.appendChild(b);
+      });
+      content.appendChild(box);
+    } else {
+      const f = TUNING_FIELDS[el.dataset.jmsLay] || {};
+      const row = document.createElement('div');
+      row.className = 'position-modal-input-container';
+      const num = document.createElement('input');
+      num.type = 'number';
+      num.className = 'position-modal-input';
+      num.min = f.min; num.max = f.max; num.step = f.step;
+      num.value = el.value;
+      const range = document.createElement('input');
+      range.type = 'range';
+      range.min = f.min; range.max = f.max; range.step = f.step;
+      range.value = el.value === '' ? String(f.min) : el.value;
+      range.style.cssText = 'width:100%;margin-top:8px';
+      const push = (v) => { el.value = v; previewTuning(); };
+      num.addEventListener('input', () => { if (num.value !== '') range.value = num.value; push(num.value); });
+      range.addEventListener('input', () => { num.value = range.value; push(range.value); });
+      const def = document.createElement('button');
+      def.type = 'button';
+      def.className = 'reset-button';
+      def.textContent = L('resetButton', 'Padrão');
+      def.style.marginTop = '8px';
+      def.onclick = () => { num.value = ''; range.value = String(f.min); push(''); };
+      row.append(num, range, def);
+      content.appendChild(row);
+      setTimeout(() => { num.focus(); num.select?.(); }, 60);
+    }
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    floating = setupFloatingEditor(modal, content, title, '__tuning__', 'slides');
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+    return modal;
+  }
+
+  function bindTuningEditor(el, labelText, hintText) {
+    const open = (e) => { if (e) e.preventDefault(); el.blur(); openTuningModal(el, labelText, hintText); };
+    if (el.tagName === 'SELECT') el.addEventListener('mousedown', open);
+    else el.addEventListener('focus', () => open());
+    el.addEventListener('keydown', (e) => { if (e.key === 'Enter' && el.tagName === 'SELECT') open(e); });
+  }
+
   function createTuningNumber(name, labelText, hintText, stored) {
     const f = TUNING_FIELDS[name];
     const row = document.createElement('div');
@@ -846,6 +940,7 @@ export function createPositionEditor(config, labels, section) {
     input.title = hintText;
     label.htmlFor = input.id;
     input.addEventListener('input', previewTuning);
+    bindTuningEditor(input, labelText, hintText);
     const reset = document.createElement('button');
     reset.type = 'button';
     reset.className = 'reset-button';
@@ -857,6 +952,32 @@ export function createPositionEditor(config, labels, section) {
     row.append(label, input, reset);
     section.append(row, hint);
     return input;
+  }
+
+  function appendAlignSelect(stored) {
+    const row = document.createElement('div');
+    row.className = 'position-item';
+    const label = document.createElement('label');
+    label.textContent = L('posAlign', 'Alinhar botões e gênero/ano/país');
+    const sel = document.createElement('select');
+    sel.name = 'jmsLay:align';
+    sel.id = 'input-jmsLay-align';
+    sel.dataset.jmsLay = 'align';
+    label.htmlFor = sel.id;
+    [['', L('posAlignDefault', 'Padrão do estilo')], ['left', L('posAlignLeft', 'Esquerda')], ['center', L('posAlignCenter', 'Centralizado')], ['right', L('posAlignRight', 'Direita')]].forEach(([v, t]) => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = t;
+      if (stored.align === v) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', previewTuning);
+    const hintText = L('posAlignHint', 'Move a linha de botões (Assistir, Trailer, Assistido, Favoritos) e a linha de gênero, ano e país juntas. Centralizado deixa como na produção.');
+    bindTuningEditor(sel, label.textContent, hintText);
+    const hint = document.createElement('p');
+    hint.className = 'position-block-desc';
+    hint.textContent = hintText;
+    row.append(label, sel);
+    section.append(row, hint);
   }
 
   function appendTuningBlock() {
@@ -887,6 +1008,7 @@ export function createPositionEditor(config, labels, section) {
         lsel.appendChild(o);
       });
       lsel.addEventListener('change', previewTuning);
+      bindTuningEditor(lsel, L('posLayoutMode', 'Disposição'), L('posLayoutHint', ''));
       const lhint = document.createElement('p');
       lhint.className = 'position-block-desc';
       lhint.textContent = L('posLayoutHint', 'Pilha única: todos os blocos empilhados na parte de baixo. Duas zonas: logo, título, sinopse (com a barra de progresso do filme) e diretor em cima; selos no meio; botões e gênero centralizados embaixo. Se você já tinha deslocamentos manuais no Cinema, use "Redefinir tudo" ao trocar para Duas zonas.');
@@ -899,6 +1021,9 @@ export function createPositionEditor(config, labels, section) {
       createTuningNumber('padB', L('posTunePadB', 'Margem inferior (%)'), L('posTunePadBHint', 'Distância entre o último bloco (botões e gênero) e a borda de baixo do slide.'), stored);
       createTuningNumber('textW', L('posTuneTextW', 'Largura do texto (vw)'), L('posTuneTextWHint', 'Largura máxima da coluna de texto (logo, selos, sinopse). Valores menores deixam a sinopse mais estreita.'), stored);
       createTuningNumber('gap', L('posTuneGap', 'Espaço entre blocos (px)'), L('posTuneGapHint', 'Espaço vertical entre logo, selos, sinopse, botões e gênero.'), stored);
+      createTuningNumber('fmtTop', L('posTuneFmtTop', 'Selos do topo: distância do topo (px)'), L('posTuneFmtTopHint', 'Posição vertical dos selos de Filme/Série e qualidade. Aumente para descer, diminua para subir. Vazio = padrão do estilo.'), stored);
+      createTuningNumber('fmtLeft', L('posTuneFmtLeft', 'Selos do topo: distância da esquerda (px)'), L('posTuneFmtLeftHint', 'Posição horizontal dos selos. Vazio = acompanha a margem lateral.'), stored);
+      appendAlignSelect(stored);
       if (profile === 'cinema') createTuningNumber('zoneGap', L('posTuneZoneGap', 'Espaço entre a sinopse e os selos (vh), só em Duas zonas'), L('posTuneZoneGapHint', 'Distância entre o último bloco de texto (sinopse, barra de progresso, diretor) e a linha de selos. Vazio = automático.'), stored);
     }
 
@@ -920,6 +1045,7 @@ export function createPositionEditor(config, labels, section) {
       select.appendChild(o);
     });
     select.addEventListener('change', previewTuning);
+    bindTuningEditor(select, label.textContent, '');
     const hint = document.createElement('p');
     hint.className = 'position-block-desc';
     hint.textContent = flow

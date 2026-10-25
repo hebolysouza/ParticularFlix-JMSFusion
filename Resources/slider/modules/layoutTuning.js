@@ -16,12 +16,17 @@ const FLOW = new Set(["cinema", "mosaic"]);
 const STYLE_ID = "jms-layout-tuning-css";
 
 export const TUNING_FIELDS = {
-  padX:  { css: "--lay-pad-x",  unit: "px", min: 16, max: 240, step: 2,   flow: true },
+  padX:  { css: "--lay-pad-x",  unit: "px", min: 0,  max: 400, step: 1,   flow: true },
   padB:  { css: "--lay-pad-b",  unit: "%",  min: 1,  max: 20,  step: 0.5, flow: true },
   textW: { css: "--lay-text-w", unit: "vw", min: 25, max: 80,  step: 1,   flow: true },
   gap:   { css: "--lay-gap",    unit: "px", min: 0,  max: 40,  step: 1,   flow: true },
-  zoneGap: { css: "--lay-zone-gap", unit: "vh", min: 0, max: 40, step: 1,   flow: true, zonesOnly: true }
+  zoneGap: { css: "--lay-zone-gap", unit: "vh", min: 0, max: 40, step: 1,   flow: true, zonesOnly: true },
+  fmtTop:  { css: "--lay-fmt-top",  unit: "px", min: 0, max: 300, step: 1,   flow: true },
+  fmtLeft: { css: "--lay-fmt-left", unit: "px", min: 0, max: 600, step: 1,   flow: true }
 };
+export const ALIGN_MODES = ["", "left", "center", "right"];
+const STRING_FIELDS = new Set(["plot", "layout", "align"]);
+export function isStringField(name) { return STRING_FIELDS.has(name); }
 export const LAYOUT_MODES = ["", "zones"];
 export const PLOT_MODES = ["", "hidden", "l2", "l3", "l4", "full"];
 
@@ -29,6 +34,10 @@ const CSS = `
 /* ocultar a sinopse nao esconde a barra de progresso do filme (ela mora dentro do mesmo bloco) */
 html[data-jms-plot=hidden] .monwui-plot-container .monwui-plot{display:none!important}
 html[data-jms-plot=hidden] .monwui-plot-container:not(:has(.monwui-playing-progress-container)){display:none!important}
+/* alinhamento horizontal dos botoes e da linha de genero/ano/pais (Cinema e Mosaico) */
+html[data-slider-layout][data-jms-btnalign=left] .monwui-slide>.monwui-main-button-container,html[data-slider-layout][data-jms-btnalign=left] .monwui-slide>.monwui-info-container{align-self:flex-start!important;justify-content:flex-start!important}
+html[data-slider-layout][data-jms-btnalign=center] .monwui-slide>.monwui-main-button-container,html[data-slider-layout][data-jms-btnalign=center] .monwui-slide>.monwui-info-container{align-self:center!important;justify-content:center!important}
+html[data-slider-layout][data-jms-btnalign=right] .monwui-slide>.monwui-main-button-container,html[data-slider-layout][data-jms-btnalign=right] .monwui-slide>.monwui-info-container{align-self:flex-end!important;justify-content:flex-end!important}
 html[data-slider-layout=cinema][data-jms-plot=full] .monwui-plot-container .monwui-plot,
 html[data-slider-layout=mosaic][data-jms-plot=full] .monwui-plot-container .monwui-plot{display:block!important;-webkit-line-clamp:unset!important;overflow:visible!important}
 `;
@@ -46,7 +55,7 @@ function keyOf(profile, name) { return `${NS}${profile}:${name}`; }
 export function isFlowProfile(profile) { return FLOW.has(profile); }
 
 export function readTuning(profile = getActivePositionProfile()) {
-  const out = { plot: "", layout: "" };
+  const out = { plot: "", layout: "", align: "" };
   Object.keys(TUNING_FIELDS).forEach((k) => { out[k] = ""; });
   try {
     Object.keys(out).forEach((k) => {
@@ -54,6 +63,7 @@ export function readTuning(profile = getActivePositionProfile()) {
       if (raw === null || raw === "") return;
       if (k === "plot") { out.plot = PLOT_MODES.includes(raw) ? raw : ""; return; }
       if (k === "layout") { out.layout = LAYOUT_MODES.includes(raw) ? raw : ""; return; }
+      if (k === "align") { out.align = ALIGN_MODES.includes(raw) ? raw : ""; return; }
       const n = Number(raw);
       if (Number.isFinite(n)) out[k] = n;
     });
@@ -64,7 +74,7 @@ export function readTuning(profile = getActivePositionProfile()) {
 export function saveTuning(profile, values) {
   try {
     Object.entries(values || {}).forEach(([k, v]) => {
-      if (k !== "plot" && k !== "layout" && !TUNING_FIELDS[k]) return;
+      if (!STRING_FIELDS.has(k) && !TUNING_FIELDS[k]) return;
       const key = keyOf(profile, k);
       const empty = v === "" || v === null || v === undefined || (typeof v === "number" && !Number.isFinite(v));
       if (empty) { localStorage.removeItem(key); return; }
@@ -99,6 +109,9 @@ export function applyLayoutTuning(preview) {
     // disposicao em duas zonas: so no Cinema
     if (profile === "cinema" && values.layout === "zones") { if (root.dataset.jmsZones !== "on") root.dataset.jmsZones = "on"; }
     else delete root.dataset.jmsZones;
+
+    const align = flow && ALIGN_MODES.includes(values.align) ? values.align : "";
+    if (align) { if (root.dataset.jmsBtnalign !== align) root.dataset.jmsBtnalign = align; } else { delete root.dataset.jmsBtnalign; }
 
     const plot = PLOT_MODES.includes(values.plot) ? values.plot : "";
     const effective = plot === "l2" ? "" : plot;

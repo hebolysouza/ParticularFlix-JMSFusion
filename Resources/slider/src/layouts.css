@@ -39,7 +39,7 @@ html[data-slider-layout=cinema] .monwui-logo,html[data-slider-layout=mosaic] .mo
 html[data-slider-layout=coverflow] .monwui-logo{object-fit:contain}
 
 /* badges / cast / providers stay at the edges */
-html[data-slider-layout=cinema] .monwui-format-container,html[data-slider-layout=mosaic] .monwui-format-container{position:absolute!important;top:5%!important;left:var(--lay-pad-x)!important;margin:0!important}
+html[data-slider-layout=cinema] .monwui-format-container,html[data-slider-layout=mosaic] .monwui-format-container{position:absolute!important;top:var(--lay-fmt-top,5%)!important;left:var(--lay-fmt-left,var(--lay-pad-x))!important;margin:0!important}
 html[data-slider-layout=cinema] .monwui-provider-container,html[data-slider-layout=mosaic] .monwui-provider-container{position:absolute!important;top:5%!important;right:var(--lay-pad-x)!important;left:auto!important}
 html[data-slider-layout=cinema] .monwui-slider-wrapper,html[data-slider-layout=mosaic] .monwui-slider-wrapper{top:auto!important;bottom:var(--lay-pad-b)!important;left:auto!important;right:var(--lay-pad-x)!important}
 html[data-slider-layout=cinema] .monwui-dot-navigation-container:not(.dot-poster-mode),
