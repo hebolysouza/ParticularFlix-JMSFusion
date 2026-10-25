@@ -62,7 +62,10 @@
         // Sino de notificacoes do JMSFusion: mesmo tamanho e alinhamento dos outros icones da barra, hover vermelho.
         "html.pf-modern-on header.MuiAppBar-root #jfNotifBtn{display:inline-flex !important;align-items:center;justify-content:center;align-self:center;position:relative;box-sizing:border-box;width:40px;height:40px;min-width:40px;margin:0 !important;padding:0 !important;top:0 !important;vertical-align:middle;border:0;border-radius:50% !important;background:transparent;color:inherit;line-height:1;cursor:pointer;transition:background-color 200ms ease,color 200ms ease,box-shadow 200ms ease;}",
         "html.pf-modern-on header.MuiAppBar-root #jfNotifBtn .jf-notif-icon,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn svg,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn i{display:block;margin:0 !important;font-size:20px;width:auto;height:auto;line-height:1;}",
-        "html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:focus-visible{background:rgba(229,9,20,0.38) !important;color:#FFFFFF;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
+        "html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:focus,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:focus-visible,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:active{background:transparent !important;box-shadow:none !important;outline:none;color:#FFFFFF;}",
+        "@keyframes pfBellRing{0%{transform:rotate(0)}15%{transform:rotate(16deg)}30%{transform:rotate(-14deg)}45%{transform:rotate(10deg)}60%{transform:rotate(-8deg)}75%{transform:rotate(4deg)}100%{transform:rotate(0)}}",
+        "html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover .jf-notif-icon,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover svg,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover i,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:focus-visible .jf-notif-icon,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:focus-visible svg,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:focus-visible i{transform-origin:50% 12%;animation:pfBellRing 650ms ease-in-out 1;}",
+        "@media (prefers-reduced-motion:reduce){html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover svg,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover i,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover .jf-notif-icon{animation:none;}}",
         "html.pf-modern-on header.MuiAppBar-root #jfNotifBtn .jf-notif-badge{top:3px !important;right:2px !important;}",
         // Secao Administracao na gaveta do hamburguer (o Jellyfin 12 so tem o Painel no menu do avatar).
         ".pf-admin-sec{border-top:1px solid rgba(255,255,255,0.12);margin-top:8px;padding-top:8px;}",
@@ -113,22 +116,58 @@
         (document.head || document.documentElement).appendChild(s);
     }
 
+    // Na Inicio do Jellyfin 12 o endereco #/home sem ?tab= NAO troca a aba sozinho (so a primeira vez).
+    // Por isso, depois de navegar para a Inicio, pedimos ao proprio seletor de abas do Jellyfin a aba 0.
+    function selecionarAbaInicio() {
+        var raw = (window.location.hash || "#/").replace(/^#/, "").split("?");
+        var cur = raw[0];
+        if (!(cur === "/home" || cur === "/home.html" || cur === "/" || cur === "")) return;
+        var tab = new URLSearchParams(raw[1] || "").get("tab");
+        if (tab !== null && tab !== "0") return;
+        var tabs = document.querySelector('.headerTabs [is="emby-tabs"]') || document.querySelector('[is="emby-tabs"]') || document.querySelector(".headerTabs .emby-tabs");
+        if (!tabs) return;
+        try {
+            var atual = typeof tabs.selectedIndex === "function" ? tabs.selectedIndex() : null;
+            if (atual === 0) return;
+            if (typeof tabs.selectedIndex === "function") { tabs.selectedIndex(0); return; }
+            var b = tabs.querySelector('.emby-tab-button[data-index="0"]');
+            if (b) b.click();
+        } catch (e) {}
+    }
+
+    function agendarAbaInicio() {
+        [0, 120, 350, 800].forEach(function (ms) { setTimeout(selecionarAbaInicio, ms); });
+    }
+
+    function onHomePillClick() {
+        agendarAbaInicio();
+    }
+
     function onLogoClick(ev) {
         var raw = (window.location.hash || "#/").replace(/^#/, "").split("?");
         var cur = raw[0];
         var tab = new URLSearchParams(raw[1] || "").get("tab");
         var naPrimeiraAba = tab === null || tab === "0";
-        // Ja esta na Inicio (primeira aba): so sobe a pagina. Em outra aba ou pagina, navega como o botao Inicio.
-        if ((cur === "/home" || cur === "/home.html" || cur === "/" || cur === "") && naPrimeiraAba) {
+        var tabs = document.querySelector('.headerTabs [is="emby-tabs"]') || document.querySelector('[is="emby-tabs"]');
+        var abaAtual = null;
+        try { if (tabs && typeof tabs.selectedIndex === "function") abaAtual = tabs.selectedIndex(); } catch (e) {}
+        var naInicio = (cur === "/home" || cur === "/home.html" || cur === "/" || cur === "");
+        // Ja esta na Inicio (primeira aba): so sobe a pagina.
+        if (naInicio && naPrimeiraAba && (abaAtual === null || abaAtual === 0)) {
             ev.preventDefault();
             try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
             return;
         }
-        var home = document.querySelector("a.pf-nav-home");
-        if (home) {
-            ev.preventDefault();
-            home.click();
+        ev.preventDefault();
+        if (naInicio) {
+            // Mesma rota (outra aba): so o seletor de abas resolve.
+            if (!naPrimeiraAba) { try { window.location.hash = "#/home"; } catch (e) {} }
+            agendarAbaInicio();
+            return;
         }
+        var home = document.querySelector("a.pf-nav-home");
+        if (home) home.click(); else window.location.hash = "#/home";
+        agendarAbaInicio();
     }
 
     function syncLinks(stack) {
@@ -319,6 +358,7 @@
             home = document.createElement("a");
             home.className = "pf-nav-home";
             home.href = "#/home";
+            home.addEventListener("click", onHomePillClick);
             home.innerHTML = HOME_ICON + "<span>" + homeLabel() + "</span>";
         }
         if (stack.firstElementChild !== home) stack.insertBefore(home, stack.firstElementChild);
