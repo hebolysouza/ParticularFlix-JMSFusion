@@ -11,8 +11,6 @@ html[data-slider-layout=cinema] .monwui-slide:not([style*="display: none"]),
 html[data-slider-layout=mosaic] .monwui-slide:not([style*="display: none"]){
   display:flex!important;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:var(--lay-gap);
   box-sizing:border-box;height:100%;padding:clamp(64px,9%,96px) var(--lay-pad-x) var(--lay-pad-b)}
-/* the text column starts after the left navigation arrow, so the arrow never covers the text */
-html[data-slider-layout=cinema] .monwui-slide:not([style*="display: none"]),html[data-slider-layout=mosaic] .monwui-slide:not([style*="display: none"]){padding-left:max(var(--lay-pad-x),var(--lay-nav-w,60px))!important}
 html[data-slider-layout=cinema] .monwui-main-content-container,
 html[data-slider-layout=mosaic] .monwui-main-content-container{display:contents}
 
@@ -161,3 +159,12 @@ html[data-slider-layout=cinema][data-jms-zones=on] .monwui-slide>.monwui-meta-co
 html[data-slider-layout=cinema][data-jms-zones=on] .monwui-slide>.monwui-main-button-container{order:6;align-self:center;margin-top:auto!important}
 html[data-slider-layout=cinema][data-jms-zones=on] .monwui-slide>.monwui-info-container{order:7;align-self:center;justify-content:center}
 html[data-slider-layout=cinema][data-jms-zones=on] .monwui-playing-progress-container{margin-top:6px}
+
+/* text blocks are not clickable: no hand cursor over them (the details modal opens from the "i" button) */
+html[data-slider-layout=cinema] .monwui-logo-container,html[data-slider-layout=mosaic] .monwui-logo-container,
+html[data-slider-layout=cinema] .monwui-title-container,html[data-slider-layout=mosaic] .monwui-title-container,
+html[data-slider-layout=cinema] .monwui-meta-container,html[data-slider-layout=mosaic] .monwui-meta-container,
+html[data-slider-layout=cinema] .monwui-plot-container,html[data-slider-layout=mosaic] .monwui-plot-container,
+html[data-slider-layout=cinema] .monwui-director-container,html[data-slider-layout=mosaic] .monwui-director-container,
+html[data-slider-layout=cinema] .monwui-info-container,html[data-slider-layout=mosaic] .monwui-info-container,
+html[data-slider-layout=cinema] .monwui-format-container,html[data-slider-layout=mosaic] .monwui-format-container{cursor:default}

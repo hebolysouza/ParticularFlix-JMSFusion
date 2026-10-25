@@ -44,6 +44,10 @@ const NAV_CSS = `
 /* the brand script row arrows (.pf-row-arrow) must not double the slider arrows */
 #monwui-slides-container .pf-row-arrow,.pf-slider-arrow,.emby-scroller:has(#monwui-slides-container)>.pf-row-arrow,.pf-row-arrow:has(~ #monwui-slides-container){display:none!important}
 html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-nav-arrow.next{right:calc(var(--jms-rail-w, 27%) + var(--lay-inset, 12px) + 22px)}
+/* Cinema and Mosaic: smaller arrows tucked into the side margin and raised above the text block (the text is bottom aligned), so they never sit on top of it */
+html[data-slider-layout=cinema] #${ARROWS_ID} .jms-nav-arrow,html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-nav-arrow{width:32px;height:32px;margin-top:-16px;top:34%;font-size:16px}
+html[data-slider-layout=cinema] #${ARROWS_ID} .jms-nav-arrow.prev,html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-nav-arrow.prev{left:clamp(4px,calc(var(--lay-pad-x,56px) - 40px),16px)}
+html[data-slider-layout=cinema] #${ARROWS_ID} .jms-nav-arrow.next{right:clamp(4px,calc(var(--lay-pad-x,56px) - 40px),16px)}
 html[data-slider-layout=coverflow] #${ARROWS_ID} .jms-nav-arrow{width:46px;height:46px;margin-top:-23px}
 `;
 

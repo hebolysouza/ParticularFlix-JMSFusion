@@ -847,6 +847,7 @@ export function createPositionEditor(config, labels, section) {
   function blockSelectorForField(name) {
     const b = BLOCKS.find((x) => name.startsWith(x.id) && /^(X|Y|Top|Left)?$/.test(name.slice(x.id.length)));
     if (b) return b.sel;
+    if (name === 'allX' || name === 'allY') return '.monwui-title-container, .monwui-meta-container, .monwui-plot-container, .monwui-main-button-container';
     if (name === 'align') return '.monwui-main-button-container';
     if (name === 'alignInfo') return '.monwui-info-container';
     return '';
@@ -1070,6 +1071,8 @@ export function createPositionEditor(config, labels, section) {
       createTuningNumber('padB', L('posTunePadB', 'Margem inferior (%)'), L('posTunePadBHint', 'Distância entre o último bloco (botões e gênero) e a borda de baixo do slide.'), stored);
       createTuningNumber('textW', L('posTuneTextW', 'Largura do texto (vw)'), L('posTuneTextWHint', 'Largura máxima da coluna de texto (logo, selos, sinopse). Valores menores deixam a sinopse mais estreita.'), stored);
       createTuningNumber('gap', L('posTuneGap', 'Espaço entre blocos (px)'), L('posTuneGapHint', 'Espaço vertical entre logo, selos, sinopse, botões e gênero.'), stored);
+      createTuningNumber('allX', L('posAllX', 'Mover tudo junto: horizontal (px)'), L('posAllXHint', 'Move logo, título, selos, sinopse, diretor, botões e gênero como uma peça só. Positivo vai para a direita, negativo para a esquerda. Não muda o espaço entre os blocos nem a margem inferior.'), stored);
+      createTuningNumber('allY', L('posAllY', 'Mover tudo junto: vertical (px)'), L('posAllYHint', 'Positivo desce o conjunto, negativo sobe. Não muda o espaço entre os blocos nem a margem inferior.'), stored);
       createTuningNumber('fmtTop', L('posTuneFmtTop', 'Selos do topo: distância do topo (px)'), L('posTuneFmtTopHint', 'Posição vertical dos selos de Filme/Série e qualidade. Aumente para descer, diminua para subir. Vazio = padrão do estilo.'), stored);
       createTuningNumber('fmtLeft', L('posTuneFmtLeft', 'Selos do topo: distância da esquerda (px)'), L('posTuneFmtLeftHint', 'Posição horizontal dos selos. Vazio = acompanha a margem lateral.'), stored);
       appendStringSelect('align', L('posAlignBtn', 'Botões (Assistir, Trailer...): alinhamento'), L('posAlignBtnHint', 'Alinha só a linha de botões. Centralizado embaixo deixa os botões centralizados e colados na parte de baixo da tela, como na produção.'), [['', L('posAlignDefault', 'Padrão do estilo')], ['left', L('posAlignLeft', 'Esquerda')], ['center', L('posAlignCenter', 'Centralizado')], ['bottom', L('posAlignBottom', 'Centralizado embaixo')], ['right', L('posAlignRight', 'Direita')]], stored);

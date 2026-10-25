@@ -45,6 +45,11 @@ BLOCKS.forEach((b) => {
   TUNING_FIELDS[`${b.id}Y`] = { css: `--lay-${b.id}-y`, unit: "px", min: -1500, max: 1500, step: 1, def: 0, flow: true, offset: true };
 });
 
+/* Mover tudo junto: desloca o grupo de textos (logo, titulo, selos, sinopse, diretor, botoes, info) como uma peca so. */
+export const GROUP_IDS = ["logo", "title", "meta", "plot", "dir", "btn", "info"];
+TUNING_FIELDS.allX = { css: "--lay-all-x", unit: "px", min: -1500, max: 1500, step: 1, def: 0, flow: true, offset: true };
+TUNING_FIELDS.allY = { css: "--lay-all-y", unit: "px", min: -1500, max: 1500, step: 1, def: 0, flow: true, offset: true };
+
 export const ALIGN_MODES = ["", "left", "center", "right", "bottom"];
 export const CORNER_MODES = ["", "left", "right", "top", "none"];
 export const LAYOUT_MODES = ["", "zones"];
@@ -79,7 +84,9 @@ html[data-slider-layout][data-jms-corners=left] .monwui-slide{border-radius:0 va
 html[data-slider-layout][data-jms-corners=right] .monwui-slide{border-radius:var(--lay-radius,24px) 0 0 var(--lay-radius,24px)!important}
 html[data-slider-layout][data-jms-corners=top] .monwui-slide{border-radius:0 0 var(--lay-radius,24px) var(--lay-radius,24px)!important}
 html[data-slider-layout][data-jms-corners=none] .monwui-slide{border-radius:0!important}
-${BLOCKS.map((b) => `html[data-slider-layout][data-jms-moved~=${b.id}] ${b.sel}{translate:var(--lay-${b.id}-x,0px) var(--lay-${b.id}-y,0px)}`).join("\n")}
+${BLOCKS.map((b) => GROUP_IDS.includes(b.id)
+  ? `html[data-slider-layout][data-jms-moved~=${b.id}] ${b.sel},html[data-slider-layout][data-jms-moved~=all] ${b.sel}{translate:calc(var(--lay-all-x,0px) + var(--lay-${b.id}-x,0px)) calc(var(--lay-all-y,0px) + var(--lay-${b.id}-y,0px))}`
+  : `html[data-slider-layout][data-jms-moved~=${b.id}] ${b.sel}{translate:var(--lay-${b.id}-x,0px) var(--lay-${b.id}-y,0px)}`).join("\n")}
 html[data-slider-layout=cinema][data-jms-plot=full] .monwui-plot-container .monwui-plot,
 html[data-slider-layout=mosaic][data-jms-plot=full] .monwui-plot-container .monwui-plot{display:block!important;-webkit-line-clamp:unset!important;overflow:visible!important}
 `;

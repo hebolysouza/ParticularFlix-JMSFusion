@@ -729,6 +729,34 @@ async function createSlide(item, options = {}) {
     perSlideObservers.push(ioPreload);
   }
 
+  // area dos textos = retangulo que envolve todos os blocos de texto (com folga), inclusive os vaos entre eles
+  const isInTextArea = (slideEl, x, y) => {
+    const mode = document.documentElement.dataset.sliderLayout;
+    if ((mode !== 'cinema' && mode !== 'mosaic') || !slideEl) return false;
+    let L = Infinity, T = Infinity, R = -Infinity, B = -Infinity;
+    slideEl.querySelectorAll(
+      '.monwui-format-container,.monwui-logo-container,.monwui-title-container,.monwui-meta-container,.monwui-plot-container,.monwui-director-container,.monwui-info-container,.monwui-main-button-container'
+    ).forEach((n) => {
+      const r = n.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return;
+      L = Math.min(L, r.left); T = Math.min(T, r.top); R = Math.max(R, r.right); B = Math.max(B, r.bottom);
+    });
+    const pad = 16;
+    return L !== Infinity && x >= L - pad && x <= R + pad && y >= T - pad && y <= B + pad;
+  };
+
+  // sem a "maozinha" sobre a area dos textos: o mouse nao deve indicar nada clicavel ali
+  let cursorRaf = 0;
+  slide.addEventListener('pointermove', (ev) => {
+    if (cursorRaf) return;
+    const x = ev.clientX, y = ev.clientY;
+    cursorRaf = requestAnimationFrame(() => {
+      cursorRaf = 0;
+      const want = isInTextArea(slide, x, y) ? 'default' : '';
+      if (backdropImg.style.cursor !== want) backdropImg.style.cursor = want;
+    });
+  }, { signal, passive: true });
+
   backdropImg.addEventListener('click', async (ev) => {
     const slideEl = ev.currentTarget.closest('.monwui-slide');
     const sc = document.querySelector('#monwui-slides-container');
@@ -740,24 +768,7 @@ async function createSlide(item, options = {}) {
 
     // Fork ParticularFlix: nos layouts Cinema e Mosaico a area dos textos nao abre mais o modulo de detalhes
     // (ele abre pelo botao "i" da linha de botoes).
-    const layoutMode = document.documentElement.dataset.sliderLayout;
-    if (layoutMode === 'cinema' || layoutMode === 'mosaic') {
-      // area dos textos = retangulo que envolve todos os blocos de texto (com folga), inclusive os vaos entre eles
-      let hit = false;
-      if (slideEl) {
-        let L = Infinity, T = Infinity, R = -Infinity, B = -Infinity;
-        slideEl.querySelectorAll(
-          '.monwui-format-container,.monwui-logo-container,.monwui-title-container,.monwui-meta-container,.monwui-plot-container,.monwui-director-container,.monwui-info-container,.monwui-main-button-container'
-        ).forEach((n) => {
-          const r = n.getBoundingClientRect();
-          if (r.width <= 0 || r.height <= 0) return;
-          L = Math.min(L, r.left); T = Math.min(T, r.top); R = Math.max(R, r.right); B = Math.max(B, r.bottom);
-        });
-        const pad = 16;
-        hit = L !== Infinity && ev.clientX >= L - pad && ev.clientX <= R + pad && ev.clientY >= T - pad && ev.clientY <= B + pad;
-      }
-      if (hit) { ev.preventDefault(); ev.stopPropagation(); return; }
-    }
+    if (isInTextArea(slideEl, ev.clientX, ev.clientY)) { ev.preventDefault(); ev.stopPropagation(); return; }
 
     ev.preventDefault();
     ev.stopPropagation();
