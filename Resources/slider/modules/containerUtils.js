@@ -246,11 +246,11 @@ export function ensureVideoQualityBadgeStyles() {
   style.id = "monwui-video-quality-style";
   style.textContent = `
     html:not([data-pf-quality-extras="off"]) .monwui-format-container .video-quality .monwui-quality-group[data-quality-group="audio"] {
-      display: inline-flex;
+      display: inline-flex !important;
     }
     html:not([data-pf-quality-extras="off"]) .monwui-quality-segment[data-pf-extra="lvl"],
     html[data-pf-quality-extras="off"] .monwui-quality-segment[data-pf-extra="res"] {
-      display: none;
+      display: none !important;
     }
     .monwui-quality-group {
       --monwui-quality-size: 24px;

@@ -28,6 +28,10 @@
         "html.pf-modern-on.pf-nav-flow " + HDR + "{position:static !important;transform:none;margin-left:12px;display:flex !important;align-items:center;gap:6px;}",
         STACK + " a:not(.pf-logo-modern){display:inline-flex !important;align-items:center;gap:6px;border-radius:999px !important;padding:6px 16px !important;min-width:0;background:rgba(255,255,255,0.06);color:#F2F2F2 !important;text-transform:none !important;text-decoration:none;font-size:14px;line-height:1.2;transition:background-color 200ms ease,box-shadow 200ms ease,color 200ms ease;}",
         "html.pf-modern-on.pf-nav-flow " + HDR + " a:not(.pf-logo-modern){padding:6px 12px !important;font-size:13px;}",
+        // Modo compacto: sem icones nas pilulas e sem quebra de linha, para o perfil/icones da direita nao cairem para a linha de baixo.
+        "html.pf-modern-on.pf-nav-flow " + HDR + " a:not(.pf-logo-modern) svg{display:none !important;}",
+        "html.pf-modern-on.pf-nav-flow header.MuiAppBar-root .MuiToolbar-root{flex-wrap:nowrap !important;}",
+        "html.pf-modern-on.pf-nav-flow header.MuiAppBar-root .MuiToolbar-root > :not(.MuiStack-root):not(.pf-logo-modern){flex-shrink:0;}",
         STACK + " a:not(.pf-logo-modern) svg{width:18px;height:18px;fill:currentColor;}",
         STACK + " a:not(.pf-logo-modern):hover{background:rgba(229,9,20,0.38);}",
         STACK + " a.pf-nav-active{background:#E50914 !important;color:#FFFFFF !important;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
