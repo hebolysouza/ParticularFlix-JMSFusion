@@ -801,7 +801,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         {
             var merged = new SmartProfile();
 
-            foreach (var otherUser in UserAccessor.List(_users).OfType<User>()
+            foreach (var otherUser in Jellyfin.Plugin.JMSFusion.Core.UserAccessor.List(_users).OfType<User>()
                 .Where(user => user is not null && user.Id != Guid.Empty && user.Id != currentUserId)
                 .OrderByDescending(user => user.LastActivityDate ?? DateTime.MinValue)
                 .ThenBy(user => user.Username ?? string.Empty, StringComparer.OrdinalIgnoreCase)
