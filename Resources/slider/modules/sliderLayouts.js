@@ -57,6 +57,20 @@ html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-bar.next{right:calc(var(--jms
 #${ARROWS_ID} .jms-bar.hot svg{transform:scale(1.2)}
 html.jms-bar-hot #monwui-slides-container,html.jms-bar-hot #monwui-slides-container *{cursor:pointer!important}
 @media (hover:none){#${ARROWS_ID} .jms-bar{display:none!important}}
+/* Modern dots (Next slide indicator = dots): a glass capsule with a sliding window of dots, the active one is a wine pill. Replaces the plugin's own dots while active. */
+html[data-next-style=dots] .monwui-dot-navigation-container{display:none!important}
+#monwui-slides-container>.jms-dots{position:absolute;left:50%;bottom:clamp(14px,2.2vh,26px);transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:10px;
+  padding:7px 14px;border-radius:999px;background:rgba(10,14,22,.5);border:1px solid rgba(255,255,255,.1);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  box-shadow:0 8px 22px rgba(0,0,0,.35);max-width:calc(100% - 24px)}
+.jms-dots-track{display:flex;align-items:center;gap:7px}
+.jms-dot{appearance:none;border:0;padding:0;margin:0;cursor:pointer;width:7px;height:7px;border-radius:999px;background:rgba(255,255,255,.34);transition:width .35s cubic-bezier(.2,.8,.2,1),background .25s ease,transform .25s ease,opacity .25s ease;flex:none}
+.jms-dot:hover{background:rgba(255,255,255,.8);transform:scale(1.35)}
+.jms-dot.edge{transform:scale(.62);opacity:.55}
+.jms-dot.near{background:rgba(255,255,255,.5)}
+.jms-dot.active{width:30px;background:linear-gradient(90deg,#b3151d,#d4343c);box-shadow:0 0 10px rgba(179,21,29,.6);transform:none;opacity:1;cursor:default}
+.jms-dot:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.jms-dots-count{font:600 11px/1 system-ui,sans-serif;color:rgba(255,255,255,.72);letter-spacing:.04em;white-space:nowrap;padding-left:2px;font-variant-numeric:tabular-nums}
+@media (max-width:700px){.jms-dots-count{display:none}}
 html[data-slider-layout=coverflow] #${ARROWS_ID} .jms-nav-arrow{width:46px;height:46px;margin-top:-23px}
 `;
 
@@ -231,6 +245,59 @@ function renderNext(container) {
   card.append(tag, title);
 }
 
+
+const DOTS_CLASS = "jms-dots";
+const DOTS_WINDOW = 9;
+
+function removeDots(container) {
+  container?.querySelectorAll?.(`:scope > .${DOTS_CLASS}`).forEach((n) => n.remove());
+}
+
+function renderDots(container) {
+  const slides = Array.from(container.querySelectorAll(":scope > .monwui-slide"));
+  if (slides.length < 2) { removeDots(container); return; }
+  let active = slides.findIndex((s) => s.classList.contains("active"));
+  if (active < 0) active = 0;
+  const n = slides.length;
+  const key = [active, n].join(":");
+  let box = container.querySelector(`:scope > .${DOTS_CLASS}`);
+  if (box && box.dataset.key === key) return;
+  if (!box) {
+    box = document.createElement("div");
+    box.className = DOTS_CLASS;
+    box.setAttribute("role", "tablist");
+    container.appendChild(box);
+  }
+  box.dataset.key = key;
+  box.textContent = "";
+  const win = Math.min(n, DOTS_WINDOW);
+  const start = Math.max(0, Math.min(active - Math.floor(win / 2), n - win));
+  const track = document.createElement("div");
+  track.className = "jms-dots-track";
+  for (let i = start; i < start + win; i++) {
+    const d = document.createElement("button");
+    d.type = "button";
+    d.className = "jms-dot";
+    d.setAttribute("role", "tab");
+    const title = tileTitle(slides[i]);
+    d.setAttribute("aria-label", title ? `${i + 1}: ${title}` : String(i + 1));
+    if (title) d.title = title;
+    if (i === active) { d.classList.add("active"); d.setAttribute("aria-selected", "true"); }
+    else if (Math.abs(i - active) === 1) d.classList.add("near");
+    if (win < n && ((i === start && start > 0) || (i === start + win - 1 && start + win < n))) d.classList.add("edge");
+    d.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (i !== active) { try { changeSlide(i - active); } catch {} }
+    });
+    track.appendChild(d);
+  }
+  const count = document.createElement("span");
+  count.className = "jms-dots-count";
+  count.textContent = `${active + 1} / ${n}`;
+  box.append(track, count);
+}
+
 function currentLayout() {
   return document.documentElement.dataset.sliderLayout || "";
 }
@@ -249,6 +316,11 @@ function disconnect() {
   observedContainer = null;
 }
 
+function nextStyle() {
+  const v = document.documentElement.dataset.nextStyle;
+  return v === "dots" || v === "none" ? v : "card";
+}
+
 export function refreshSliderLayouts() {
   const container = getContainer();
   if (!container) { disconnect(); return; }
@@ -256,10 +328,14 @@ export function refreshSliderLayouts() {
   ensureArrows(container);
 
   const layout = currentLayout();
-  if (layout !== "cinema") removeNext(container);
-  if (layout === "cinema") renderNext(container);
-  if (layout === "mosaic" || layout === "cinema") {
-    if (layout === "mosaic") renderRail(container); else removeRail(container);
+  const style = nextStyle();
+  const wantCard = layout === "cinema" && style === "card";
+  const wantDots = !!layout && style === "dots";
+  if (wantCard) renderNext(container); else removeNext(container);
+  if (wantDots) renderDots(container); else removeDots(container);
+  if (layout === "mosaic") renderRail(container); else removeRail(container);
+
+  if (wantCard || wantDots || layout === "mosaic") {
     if (observedContainer !== container) {
       disconnect();
       observedContainer = container;
@@ -277,7 +353,6 @@ export function refreshSliderLayouts() {
       observer.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
     }
   } else {
-    removeRail(container);
     disconnect();
   }
 }

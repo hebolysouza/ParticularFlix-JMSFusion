@@ -33,6 +33,8 @@ export const BLOCKS = [
   { id: "vol",  sel: ".monwui-preview-volume-control", label: "Volume do trailer" },
   { id: "full", sel: ".monwui-preview-fullscreen-toggle", label: "Tela cheia do trailer" },
   { id: "next", sel: ".jms-nextup", label: "Cartão Próximo" },
+  { id: "dots", sel: ".jms-dots", label: "Indicador de pontos" },
+  { id: "prog", sel: ".monwui-playing-progress-container", label: "Barra de progresso do filme" },
   { id: "pause", sel: ".monwui-auto-trailer-toggle", label: "Botão de pausar o trailer" },
   { id: "logo", sel: ".monwui-logo-container",     label: "Logo" },
   { id: "meta", sel: ".monwui-meta-container",     label: "Selos de informação (nota, duração)" },

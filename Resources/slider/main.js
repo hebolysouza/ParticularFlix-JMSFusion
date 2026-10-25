@@ -3167,6 +3167,7 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     if (sliderLayout) document.documentElement.dataset.sliderLayout = sliderLayout;
     else delete document.documentElement.dataset.sliderLayout;
     document.documentElement.dataset.badgeStyle = sliderCssEnabled ? (cfg.badgeStyle || 'minimal') : 'classic';
+    document.documentElement.dataset.nextStyle = ['dots', 'none'].includes(cfg.nextStyle) ? cfg.nextStyle : 'card';
     document.documentElement.dataset.arrowStyle = cfg.arrowStyle === 'bar' ? 'bar' : 'round';
     document.documentElement.dataset.buttonStyle = sliderCssEnabled ? (cfg.buttonStyle || 'classic') : 'classic';
     try { installSliderLayouts(); } catch {}

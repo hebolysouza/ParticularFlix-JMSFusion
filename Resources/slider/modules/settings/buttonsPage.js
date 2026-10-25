@@ -57,6 +57,30 @@ export function createButtonsPanel(config, labels) {
     arrowDiv.append(arrowLabel, arrowSelect, arrowDesc);
     section.appendChild(arrowDiv);
 
+    const nextDiv = document.createElement('div');
+    nextDiv.className = 'fsetting-item';
+    const nextLabel = document.createElement('h3');
+    nextLabel.textContent = labels.nextStyle || 'Next slide indicator:';
+    const nextSelect = document.createElement('select');
+    nextSelect.name = 'nextStyle';
+    nextSelect.id = 'nextStyleSelect';
+    [
+        { value: 'card', label: labels.nextStyleCard || 'Up next card (default)' },
+        { value: 'dots', label: labels.nextStyleDots || 'Modern dots' },
+        { value: 'none', label: labels.nextStyleNone || 'Hidden' }
+    ].forEach((o) => {
+        const opt = document.createElement('option');
+        opt.value = o.value;
+        opt.textContent = o.label;
+        if (o.value === (['dots', 'none'].includes(config.nextStyle) ? config.nextStyle : 'card')) opt.selected = true;
+        nextSelect.appendChild(opt);
+    });
+    const nextDesc = document.createElement('p');
+    nextDesc.className = 'description-text';
+    nextDesc.textContent = labels.nextStyleDesc || 'Shows what comes next.';
+    nextDiv.append(nextLabel, nextSelect, nextDesc);
+    section.appendChild(nextDiv);
+
     const trailerButtonDiv = document.createElement('div');
     trailerButtonDiv.appendChild(createCheckbox('showTrailerButton', labels.showTrailerButton || 'Fragman Butonunu Göster', config.showTrailerButton));
     section.appendChild(trailerButtonDiv);
