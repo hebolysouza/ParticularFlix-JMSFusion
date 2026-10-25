@@ -592,6 +592,7 @@ export const languageLabels = {
   dotVisibleCount: "Visible dot count",
   dotVisibleCountDescription: "0 = all dots stay visible. Lower values assign the monwui-dot-hidden class to distant dots.",
   gecikmeInput: "Trailer playback delay on slider (ms)",
+  gecikmeDesc: "Time to wait, in milliseconds, between the slide appearing and the trailer starting (applies to the automatic trailer and to hover). 0 = starts right away. In the Cinema layout the trailer always starts with no wait, regardless of this value.",
   previewPlaybackOptions: "Built-in Hover Playback Options",
   sliderAutoTrailerPlayback: "Automatically play the active slider trailer",
   sliderAutoTrailerPause: "Pause trailer",

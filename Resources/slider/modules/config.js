@@ -861,7 +861,7 @@ function computeConfig() {
     languageLabels: getLanguageLabels(defaultLanguage),
     sliderDuration: parseInt(localStorage.getItem('sliderDuration'), 10) || 15000,
     artistLimit: parseInt(localStorage.getItem('artistLimit'), 10) || 10,
-    gecikmeSure: parseInt(localStorage.getItem('gecikmeSure'), 10) || 500,
+    gecikmeSure: (() => { const n = parseInt(localStorage.getItem('gecikmeSure'), 10); return Number.isFinite(n) && n >= 0 ? n : 500; })(),
     sliderAutoTrailerPlayback: localStorage.getItem('sliderAutoTrailerPlayback') === 'true',
     limit: parseInt(localStorage.getItem('limit'), 10) || 15,
     onlyUnwatchedRandom: localStorage.getItem('onlyUnwatchedRandom') === 'true',

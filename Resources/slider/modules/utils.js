@@ -1087,9 +1087,12 @@ function clearPreviewPlaybackFlag() {
 
   const delayRaw = config && (config.gecikmeSure ?? config.gecikmesure);
   const delay = Number.isFinite(+delayRaw) ? +delayRaw : 500;
-  // Fork ParticularFlix 3.7.3: o atraso configurado (padrao 500 ms) existe para o hover nao disparar por
-  // acaso. No inicio automatico nao ha essa duvida e o trailer ja vem pre-resolvido, entao o atraso e curto.
-  const AUTO_START_DELAY_MS = 120;
+  // Fork ParticularFlix 3.9: o atraso configurado vale para o hover e para o inicio automatico (antes o
+  // automatico era travado em 120 ms e a opcao nao tinha efeito). No layout Cinema o trailer comeca sem
+  // atraso: o slide ja nasce tocando.
+  const isCinemaLayout = () => {
+    try { return document.documentElement.dataset.sliderLayout === "cinema"; } catch { return false; }
+  };
 
   const canUseYTApiPostMessage = (() => {
     try {
@@ -2097,7 +2100,7 @@ function clearPreviewPlaybackFlag() {
           finishAutoPreviewWithoutPlayback();
         }
       }
-    }, auto ? Math.min(delay, AUTO_START_DELAY_MS) : delay);
+    }, auto && isCinemaLayout() ? 0 : delay);
   };
 
   const stopPreview = ({ force = false, markAutoEnded = false } = {}) => {

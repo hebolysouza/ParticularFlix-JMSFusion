@@ -138,3 +138,10 @@ html[data-slider-layout=cinema] .jms-nextup-tag i{font-style:normal;opacity:.75}
 html[data-slider-layout=cinema] .jms-nextup-title{position:absolute;z-index:1;left:9px;right:9px;bottom:7px;font:600 clamp(.68rem,.8vw,.82rem)/1.2 var(--mwui-font-head,sans-serif);color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 html[data-slider-layout=cinema] .monwui-slider-wrapper{bottom:calc(var(--lay-pad-b) + clamp(90px,8vw,130px))!important}
 @media (max-width:900px){html[data-slider-layout=cinema] .jms-nextup{display:none}}
+
+/* Cinema: o trailer entra direto, sem a animacao de abertura do poster (largura/recorte/zoom do backdrop). */
+html[data-slider-layout=cinema] .monwui-slide .monwui-backdrop,
+html[data-slider-layout=cinema] .monwui-slide.intro-active .monwui-backdrop,
+html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-backdrop{transition:opacity .15s linear!important;transform:none!important;filter:none!important;clip-path:none!important}
+html[data-slider-layout=cinema] .monwui-slide .intro-video-container,
+html[data-slider-layout=cinema] .monwui-slide.trailer-active iframe{transition:opacity .15s linear!important}

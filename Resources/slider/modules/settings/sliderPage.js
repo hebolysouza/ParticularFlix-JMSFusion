@@ -519,7 +519,10 @@ export function createSliderPanel(config, labels) {
   delayInput.step = 50;
   delayLabel.htmlFor = 'delayInput';
   delayInput.id = 'delayInput';
-  delayDiv.append(delayLabel, delayInput);
+  const delayDesc = document.createElement('div');
+  delayDesc.className = 'description-text';
+  delayDesc.textContent = labels.gecikmeDesc || 'Tempo de espera, em milissegundos, entre o slide aparecer e o trailer comecar a tocar (vale para o trailer automatico e para o hover). 0 = comeca na hora. No layout Cinema o trailer sempre comeca sem espera, independente deste valor.';
+  delayDiv.append(delayLabel, delayInput, delayDesc);
   sliderDiv.appendChild(delayDiv);
 
   const backgroundOptionsDiv = document.createElement('div');
@@ -869,6 +872,116 @@ export function createSliderPanel(config, labels) {
   sliderDiv.appendChild(dotopacityDiv);
 
 
+  // ---- Descricoes do que cada opcao faz (fork ParticularFlix 3.9) ----
+  // Textos em pt, en e es. Chave de idioma opcional: labels.sd_<nome> sobrescreve o texto padrao.
+  const SD_LANG = (() => {
+    const l = String(config.defaultLanguage || '').toLowerCase();
+    if (l.startsWith('por') || l.startsWith('pt')) return 'pt';
+    if (l.startsWith('spa') || l.startsWith('es')) return 'es';
+    return 'en';
+  })();
+  const SD = {
+    cssVariant: {
+      pt: 'Escolhe o visual do slider da página inicial. Normal: texto à esquerda e imagem ou trailer à direita. Peak: um cartão central em destaque com vizinhos dos lados. Cinema: imagem ou trailer em tela cheia, com as informações por cima e o cartão do próximo título. Mosaico: destaque grande com a lista dos próximos títulos ao lado. Coverflow 3D: cartões em carrossel 3D. Compacto: versão reduzida.',
+      en: 'Chooses the look of the home slider. Normal: text on the left, image or trailer on the right. Peak: a highlighted center card with neighbors on the sides. Cinema: full-screen image or trailer with the info on top and a next-title card. Mosaic: a large feature with the list of upcoming titles beside it. Coverflow 3D: cards in a 3D carousel. Compact: reduced version.',
+      es: 'Elige el aspecto del slider de la página de inicio. Normal: texto a la izquierda, imagen o tráiler a la derecha. Peak: una tarjeta central destacada con vecinas a los lados. Cinema: imagen o tráiler a pantalla completa con la información encima y la tarjeta del siguiente título. Mosaico: destacado grande con la lista de próximos títulos al lado. Coverflow 3D: tarjetas en carrusel 3D. Compacto: versión reducida.'
+    },
+    enableSlider: {
+      pt: 'Liga ou desliga o slider da página inicial. Desligado, o slider não é montado.',
+      en: 'Turns the home page slider on or off. When off, the slider is not built.',
+      es: 'Activa o desactiva el slider de la página de inicio. Desactivado, el slider no se monta.'
+    },
+    onlyShowSliderOnHomeTab: {
+      pt: 'Mostra o slider apenas na aba Início. Nas outras abas da home ele fica oculto.',
+      en: 'Shows the slider only on the Home tab. On the other home tabs it stays hidden.',
+      es: 'Muestra el slider solo en la pestaña Inicio. En las demás pestañas queda oculto.'
+    },
+    badgeStyle: {
+      pt: 'Aparência dos selos do slide (tipo, qualidade, status, nota). Original: visual do plugin. Minimalista: vidro fosco. Cor suave: fundo colorido translúcido. Contorno: só a borda colorida.',
+      en: 'Look of the slide badges (type, quality, status, rating). Original: the plugin look. Minimal: frosted glass. Soft color: translucent colored background. Outline: colored border only.',
+      es: 'Aspecto de las insignias del slide (tipo, calidad, estado, nota). Original: aspecto del plugin. Minimalista: vidrio esmerilado. Color suave: fondo de color translúcido. Contorno: solo el borde de color.'
+    },
+    sliderDuration: null,
+    showProgressAsSeconds: {
+      pt: 'Troca a barra de progresso do slide por uma contagem regressiva em segundos até o próximo slide.',
+      en: 'Replaces the slide progress bar with a countdown, in seconds, to the next slide.',
+      es: 'Cambia la barra de progreso del slide por una cuenta regresiva en segundos hasta el siguiente slide.'
+    },
+    enableTrailerPlayback: {
+      pt: 'Toca o trailer dentro do próprio slider quando você passa o mouse no slide.',
+      en: 'Plays the trailer inside the slider itself when you hover the slide.',
+      es: 'Reproduce el tráiler dentro del propio slider al pasar el mouse por el slide.'
+    },
+    enableVideoPlayback: {
+      pt: 'Toca uma prévia do próprio vídeo do item dentro do slider (em vez do trailer) quando você passa o mouse. Não funciona junto com o trailer.',
+      en: 'Plays a preview of the item\'s own video inside the slider (instead of the trailer) on hover. Cannot be combined with the trailer option.',
+      es: 'Reproduce una vista previa del propio video del ítem dentro del slider (en lugar del tráiler) al pasar el mouse. No se combina con la opción del tráiler.'
+    },
+    enableTrailerThenVideo: {
+      pt: 'Tenta tocar o trailer; se o item não tiver trailer, toca uma prévia do vídeo.',
+      en: 'Tries to play the trailer; if the item has none, plays a preview of the video.',
+      es: 'Intenta reproducir el tráiler; si el ítem no tiene, reproduce una vista previa del video.'
+    },
+    sliderAutoTrailerPlayback: {
+      pt: 'Toca o trailer sozinho no slide ativo, sem precisar passar o mouse. Quando o trailer termina, o slider avança para o próximo slide.',
+      en: 'Plays the trailer on its own on the active slide, no hover needed. When the trailer ends, the slider moves to the next slide.',
+      es: 'Reproduce el tráiler solo en el slide activo, sin pasar el mouse. Al terminar, el slider avanza al siguiente slide.'
+    },
+    disableAllPlayback: {
+      pt: 'Desliga toda reprodução dentro do slider (trailer e vídeo). Os slides mostram só a imagem.',
+      en: 'Turns off all playback inside the slider (trailer and video). Slides show only the image.',
+      es: 'Desactiva toda reproducción dentro del slider (tráiler y video). Los slides muestran solo la imagen.'
+    },
+    manualBackdropSelection: {
+      pt: 'Usa sempre a imagem de fundo de índice 0 de cada item, sem procurar a de maior qualidade. Deixa a abertura do slide mais rápida e tem efeito parecido com a opção de índice 0 acima.',
+      en: 'Always uses each item\'s backdrop at index 0 instead of searching for the highest-quality one. Makes the slide open faster and works much like the index 0 option above.',
+      es: 'Usa siempre la imagen de fondo de índice 0 de cada ítem, sin buscar la de mayor calidad. Abre el slide más rápido y funciona de forma parecida a la opción de índice 0 de arriba.'
+    },
+    backdropImageType: {
+      pt: 'Qual tipo de imagem do Jellyfin é usado como fundo do slide (por exemplo backdrop, banner ou thumb).',
+      en: 'Which Jellyfin image type is used as the slide background (for example backdrop, banner or thumb).',
+      es: 'Qué tipo de imagen de Jellyfin se usa como fondo del slide (por ejemplo backdrop, banner o thumb).'
+    },
+    showDotNavigation: {
+      pt: 'Mostra os indicadores (pontinhos) de navegação do slider. Passar o mouse num indicador pode abrir a prévia, conforme as opções abaixo.',
+      en: 'Shows the slider navigation indicators (dots). Hovering a dot can open the preview, depending on the options below.',
+      es: 'Muestra los indicadores (puntos) de navegación del slider. Pasar el mouse por un punto puede abrir la vista previa, según las opciones de abajo.'
+    },
+    previewModal: {
+      pt: 'Ao passar o mouse num indicador, abre um cartão de prévia estilo Netflix com detalhes do título.',
+      en: 'When you hover a dot, opens a Netflix-style preview card with the title details.',
+      es: 'Al pasar el mouse por un indicador, abre una tarjeta de vista previa estilo Netflix con detalles del título.'
+    },
+    dotBackgroundBlur: {
+      pt: 'Quanto o fundo atrás dos indicadores fica desfocado. Valor maior = mais desfoque.',
+      en: 'How blurred the background behind the dots is. Higher = more blur.',
+      es: 'Cuánto se desenfoca el fondo detrás de los indicadores. Mayor valor = más desenfoque.'
+    },
+    dotBackgroundOpacity: {
+      pt: 'Opacidade do fundo atrás dos indicadores. Valor maior = fundo mais forte.',
+      en: 'Opacity of the background behind the dots. Higher = stronger background.',
+      es: 'Opacidad del fondo detrás de los indicadores. Mayor valor = fondo más fuerte.'
+    },
+    peakDiagonal: {
+      pt: 'Só no estilo Peak: posiciona os cartões vizinhos na diagonal em vez de em linha reta.',
+      en: 'Peak style only: places the neighbor cards diagonally instead of in a straight line.',
+      es: 'Solo en el estilo Peak: coloca las tarjetas vecinas en diagonal en lugar de en línea recta.'
+    }
+  };
+  [cssDiv, sliderDiv].forEach((scope) => {
+    Object.entries(SD).forEach(([name, texts]) => {
+      if (!texts) return;
+      const ctl = scope.querySelector(`[name="${name}"]`);
+      if (!ctl) return;
+      const host = ctl.closest('.setting-item') || ctl;
+      if (host.nextElementSibling && host.nextElementSibling.classList.contains('pf-sd')) return;
+      const d = document.createElement('div');
+      d.className = 'description-text pf-sd';
+      d.textContent = labels['sd_' + name] || texts[SD_LANG] || texts.en;
+      host.insertAdjacentElement('afterend', d);
+    });
+  });
+
   panel.append(
     languageDiv,
     tmdbWrap,
@@ -887,7 +1000,8 @@ function updateTrailerRelatedFields() {
   const t = document.querySelector('#enableTrailerPlayback')?.checked;
   const v = document.querySelector('#enableVideoPlayback')?.checked;
   const tv = document.querySelector('#enableTrailerThenVideo')?.checked;
-  const isEnabled = !!(t || v || tv);
+  const au = document.querySelector('#sliderAutoTrailerPlayback')?.checked;
+  const isEnabled = !!(t || v || tv || au);
 
   const trailerDelayContainer = document.querySelector('.trailer-delay-container');
   if (trailerDelayContainer) {

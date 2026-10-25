@@ -32,6 +32,7 @@ import { initProfileChooser, syncProfileChooserHeaderButtonVisibility } from "./
 import { waitForNativeHomeSectionStability, waitForVisibleHomeSections } from "./modules/homeSectionNative.js";
 import { installHomeSectionOrder } from "./modules/homeSectionOrder.js";
 import { installSliderLayouts, readSliderLayout } from "./modules/sliderLayouts.js";
+import { prefetchLocalTrailer } from "./modules/utils.js";
 export { loadCSS } from "./modules/playerStyles.js";
 export { waitForAnyVisible };
 // Fork ParticularFlix 3.8.2.25: igual ao requestIdleCallback original, mas avisa no console quando uma tarefa
@@ -5508,6 +5509,14 @@ export async function slidesInit() {
             ? (buildPeakCreationBatches(selectedItems.length, getPeakDisplayOptions())[0] || [0])
             : [0, 1];
           firstBatch.forEach((i) => { if (i >= 0 && i < selectedItems.length) headIdx.add(i); });
+        } catch {}
+        // Fork ParticularFlix 3.9: resolve o trailer local dos primeiros slides ja agora, em paralelo com os detalhes,
+        // para o trailer do primeiro slide nao esperar a resolucao depois da tela aparecer.
+        try {
+          Array.from(headIdx).sort((x, y) => x - y).slice(0, 3).forEach((i) => {
+            const tid = selectedItems[i]?.Id;
+            if (tid) prefetchLocalTrailer(tid, { background: true });
+          });
         } catch {}
         const mergeRange = async (idxList, { fast = false } = {}) => {
           const ids = idxList.map((i) => selectedItems[i]?.Id);

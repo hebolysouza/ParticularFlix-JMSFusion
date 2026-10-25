@@ -581,6 +581,7 @@ export const languageLabels = {
   dotVisibleCount: "Cantidad de puntos visibles",
   dotVisibleCountDescription: "0 = todos los puntos permanecen visibles. Con valores más bajos, los puntos lejanos reciben la clase monwui-dot-hidden.",
   gecikmeInput: "Retraso de reproducción del tráiler en el slider (ms)",
+  gecikmeDesc: "Tiempo de espera, en milisegundos, entre que aparece el slide y empieza el tráiler (vale para el tráiler automático y para el hover). 0 = empieza al instante. En el diseño Cinema el tráiler siempre empieza sin espera, sin importar este valor.",
   previewPlaybackOptions: "Opciones de Reproducción al Pasar el Cursor",
   sliderAutoTrailerPlayback: "Reproducir automáticamente el tráiler del slider activo",
   sliderAutoTrailerPause: "Pausar tráiler",

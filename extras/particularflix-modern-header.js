@@ -36,6 +36,8 @@
         STACK + " a:not(.pf-logo-modern):hover{background:rgba(229,9,20,0.38);}",
         STACK + " a.pf-nav-active{background:#E50914 !important;color:#FFFFFF !important;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
         STACK + " a.pf-nav-hidden{display:none !important;}",
+        // Seta do chip do usuario: no layout Legado ela sobe 2px de proposito; no Modern fica centralizada com o nome.
+        "html.pf-modern-on header.MuiAppBar-root .jf-profile-header-caret{top:0 !important;display:inline-flex;align-items:center;align-self:center;line-height:1;transform:translateY(1px);}",
         ".pf-logo-modern{display:inline-flex !important;align-items:center;gap:10px;flex:0 0 auto;margin-left:4px;padding:4px 14px 4px 4px;line-height:1;text-decoration:none;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
         ".pf-logo-modern:hover .pf-badge-wrap{transform:scale(1.08);}",
         ".pf-logo-modern:hover .pf-bar-1{transform:scaleY(1.16);}",
