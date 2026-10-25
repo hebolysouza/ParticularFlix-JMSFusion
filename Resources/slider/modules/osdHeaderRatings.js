@@ -477,7 +477,7 @@ function applyHostModeStyles(host, mode) {
     willChange: "opacity, transform",
     padding: mode === "mui" ? "2px 8px" : "4px 6px",
     margin: mode === "mui" ? "6px" : "0 0 0 .3em",
-    flex: "1 1 auto",
+    flex: mode === "mui" ? "0 1 auto" : "1 1 auto",
     minWidth: "0",
     maxWidth: "100%",
     overflow: "hidden",
@@ -487,7 +487,7 @@ function applyHostModeStyles(host, mode) {
     Object.assign(brandEl.style, {
       display: mode === "mui" ? "inline-flex" : "none",
       alignItems: "center",
-      flex: mode === "mui" ? "1 1 auto" : "0 0 auto",
+      flex: mode === "mui" ? "0 1 auto" : "0 0 auto",
       minWidth: "0",
       overflow: "hidden",
     });
@@ -826,7 +826,7 @@ function renderBrand(host, item) {
   Object.assign(brandEl.style, {
     display: "none",
     alignItems: "center",
-    flex: mode === "mui" ? "1 1 auto" : "0 0 auto",
+    flex: mode === "mui" ? "0 1 auto" : "0 0 auto",
     minWidth: "0",
     overflow: "hidden",
   });

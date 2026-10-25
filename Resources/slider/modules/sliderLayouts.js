@@ -150,10 +150,11 @@ function installBarHandlers(container, wrap) {
   container.addEventListener("pointermove", (ev) => setHot(barAt(wrap, ev)), { passive: true });
   container.addEventListener("pointerleave", () => setHot(null), { passive: true });
   container.addEventListener("click", (ev) => {
+    if (ev.defaultPrevented) return;
     const hot = barAt(wrap, ev);
     if (!hot) return;
     ev.preventDefault();
-    ev.stopPropagation();
+    ev.stopImmediatePropagation();
     try { changeSlide(hot.classList.contains("prev") ? -1 : 1); } catch {}
   }, true);
 }

@@ -105,9 +105,14 @@ function findVisibleSkinHeader() {
   for (const header of candidates) {
     if (isElementVisible(header)) return header;
   }
-  // Jellyfin 12 (layout moderno): o cabecalho antigo fica escondido e o visivel e o da interface nova
+  // Jellyfin 12 (layout moderno): o cabecalho antigo fica escondido e o visivel e o da interface nova.
+  // Na primeira carga ele passa um tempo com visibility:hidden, mas ja ocupa o lugar e tem a altura final:
+  // medir por ele desde o inicio evita o slider nascer ~36 px acima e pular para baixo quando ele aparece.
   const modern = document.querySelector('header.MuiAppBar-root');
-  if (modern && isElementVisible(modern)) return modern;
+  if (modern?.isConnected) {
+    const rect = modern.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0 && window.getComputedStyle?.(modern)?.display !== 'none') return modern;
+  }
   return null;
 }
 

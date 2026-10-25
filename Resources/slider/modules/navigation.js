@@ -1570,8 +1570,14 @@ async function preloadGenreData(itemIds) {
   );
 }
 
+// Fork ParticularFlix: cada displaySlide() marca o slide como ativo um quadro depois. Cliques rapidos
+// (barras laterais, setas, teclado) enfileiravam varios desses quadros e dois slides ficavam "active"
+// ao mesmo tempo (cards do Peak/Coverflow fora da selecao). So o quadro da chamada mais recente roda.
+let displaySlideSeq = 0;
+
 export function displaySlide(index) {
   ensureFlickerFixCSS();
+  const seq = ++displaySlideSeq;
 
   const slidesContainer = getPeakViewportContainer();
   if (!slidesContainer) return;
@@ -1688,6 +1694,10 @@ export function displaySlide(index) {
     }
   }
   requestAnimationFrame(() => {
+    if (seq !== displaySlideSeq) return;
+    if (isPeak) {
+      slidesArr.forEach((s) => { if (s !== currentSlide) s.classList.remove("active"); });
+    }
     currentSlide.classList.add("active");
     currentSlide.dispatchEvent(new CustomEvent("slideActive", {
       bubbles: true,
@@ -2136,6 +2146,9 @@ export function enablePeakNeighborActivation() {
     const IG = ['BUTTON','A','INPUT','SELECT','TEXTAREA','LABEL','VIDEO'];
     if (e.defaultPrevented || IG.includes(e.target?.tagName)) return;
     if (e.target.closest?.('[data-no-peak-activate="1"], .monwui-dot-navigation-container')) return;
+    // Fork ParticularFlix: com as barras laterais estilo Netflix (sliderLayouts.js), clique na barra acesa
+    // e anterior/proximo, nao um salto para o card vizinho que esta embaixo dela (no Coverflow eles se cruzam).
+    if (document.documentElement.classList.contains('jms-bar-hot')) return;
 
     const x = e.clientX, y = e.clientY;
     const topEl    = document.elementFromPoint(x, y);

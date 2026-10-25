@@ -56,6 +56,7 @@ const QUERY_POOL_ITEM_KEEP_FIELDS = Object.freeze([
   "ChildCount",
   "ParentIndexNumber",
   "IndexNumber",
+  "LocalTrailerCount",
 ]);
 
 const DEFAULTS = {

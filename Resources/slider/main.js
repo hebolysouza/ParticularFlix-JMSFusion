@@ -31,6 +31,7 @@ import { startBackgroundCollectionIndexer, getBackgroundCollectionIndexerStatus 
 import { initProfileChooser, syncProfileChooserHeaderButtonVisibility } from "./modules/profileChooser.js";
 import { waitForNativeHomeSectionStability, waitForVisibleHomeSections } from "./modules/homeSectionNative.js";
 import { installHomeSectionOrder } from "./modules/homeSectionOrder.js";
+import { installLegacyHomeTabsFix } from "./modules/legacyHomeTabs.js";
 import { installSliderLayouts, readSliderLayout } from "./modules/sliderLayouts.js";
 import { applyLayoutTuning } from "./modules/layoutTuning.js";
 import { prefetchLocalTrailer } from "./modules/utils.js";
@@ -102,6 +103,7 @@ const HOME_ITEM_DETAILS_STATIC_FIELDS = [
   "ProviderIds",
   "RemoteTrailers",
   "TrailerUrls",
+  "LocalTrailerCount",
   "CommunityRating",
   "CriticRating",
   "OfficialRating",
@@ -7134,6 +7136,7 @@ function observeWhenHomeReady(cb, maxMs = 20000) {
     installFocusedPlaybackUserDataSync();
     installHomeTabSliderOnlyGate();
     try { installHomeSectionOrder(); } catch (e) { console.warn("homeSectionOrder hata:", e); }
+    try { installLegacyHomeTabsFix(); } catch (e) { console.warn("legacyHomeTabs hata:", e); }
     idle(() => {
       if (shouldRenderStudioHubsUi(getMainConfig())) {
         void ensureStudioHubsMountedLazy();

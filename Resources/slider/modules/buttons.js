@@ -315,11 +315,21 @@ export function createButtons(slide, config, UserData, itemId, RemoteTrailers, u
 
     appendTrailerButton(trailers[0]);
 
+    // Fork ParticularFlix: o item ja diz quantos trailers locais tem (LocalTrailerCount). Com essa
+    // informacao o botao entra junto com os outros na criacao do slide; antes ele so chegava depois da
+    // checagem em fila e empurrava os botoes ja desenhados para o lado na primeira carga. A fila abaixo
+    // fica so para itens que nao trazem esse campo.
+    const localTrailerCount = Number(item?.LocalTrailerCount);
+    const knowsLocalTrailers = Number.isFinite(localTrailerCount);
+    if (knowsLocalTrailers && localTrailerCount > 0) {
+      appendTrailerButton({ Url: "local-trailer", Name: "", IsLocal: true });
+    }
+
     // Fork ParticularFlix: itens que so tem trailer LOCAL (sem URL remota no item) nao
     // ganhavam o botao, mesmo com o trailer tocando no card. A checagem agora roda sozinha,
     // em fila (uma por vez, espacada), para o botao ficar sempre visivel como os demais e sem
     // rajada de requisicoes na criacao dos slides. Reaproveita o cache de trailer local.
-    if (config.showTrailerButton && !trailerButtonMounted && (item?.Id || itemId)) {
+    if (config.showTrailerButton && !trailerButtonMounted && !knowsLocalTrailers && (item?.Id || itemId)) {
       enqueueLocalTrailerCheck(async () => {
         if (trailerButtonMounted || !slide?.isConnected) return;
         try {

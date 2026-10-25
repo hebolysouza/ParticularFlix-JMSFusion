@@ -22,14 +22,31 @@
     var CSS = [
         ROOT + " a[href=\"#/\"]:not(.pf-logo-modern){display:none !important;}",
         STACK + " a[href=\"#/\"]:not(.pf-logo-modern):not(.pf-nav-home){display:none !important;}",
-        "html.pf-modern-active .skinHeader{visibility:hidden !important;opacity:0 !important;pointer-events:none !important;transition:none !important;}",
+        // O cabecalho do player (.osdHeader) fica de fora: e nele que o JMSFusion poe logo do filme, estrelas e classificacao.
+        "html.pf-modern-active .skinHeader:not(.osdHeader){visibility:hidden !important;opacity:0 !important;pointer-events:none !important;transition:none !important;}",
+        // No player a barra de paginas nao aparece (igual ao layout Legado): fica so o cabecalho do player.
+        "html.pf-route-video header.MuiAppBar-root{display:none !important;}",
+        // Cabecalho do player igual ao Legado: voltar, logo ParticularFlix, logo do filme e avaliacoes, alinhados a esquerda.
+        ".videoOsd-appBar > .MuiIconButton-root:first-child{order:-2;}",
+        ".videoOsd-appBar > .pf-logo-osd{order:-1;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;margin:0 6px 0 2px;line-height:1;pointer-events:none;user-select:none;}",
+        ".videoOsd-appBar > .pf-logo-osd .pf-badge-wrap{position:relative;display:inline-flex;width:26px;height:26px;overflow:hidden;border-radius:6px;}",
+        ".videoOsd-appBar > .pf-logo-osd .pf-badge{width:26px;height:26px;display:block;}",
+        ".videoOsd-appBar > .pf-logo-osd .pf-badge-sheen{display:none;}",
+        ".videoOsd-appBar > .pf-logo-osd .pf-wm{font-size:20px;font-weight:700;letter-spacing:0.02em;white-space:nowrap;}",
+        ".videoOsd-appBar > .pf-logo-osd .pf-wm-p{color:#FFFFFF;}",
+        ".videoOsd-appBar > .pf-logo-osd .pf-wm-f{color:#E50914;}",
+        // Com o logo do filme na tela, o titulo em texto do Jellyfin sai (no Legado so aparece o logo).
+        ".videoOsd-appBar:has(#jms-osd-header-ratings-v4 img[src]:not([src=\"\"])) > p.MuiTypography-root{display:none !important;}",
         ROOT + " .MuiToolbar-root{position:relative;}",
+        // Os botoes de icone nascem com 52 px e so caem para 48 px quando o resto do CSS entra; isso mudava a
+        // altura da barra e o slider (que se posiciona abaixo dela) pulava na primeira carga.
+        ROOT + " .MuiToolbar-root .MuiIconButton-root{max-height:48px;box-sizing:border-box;}",
         "html.pf-modern-on:not(.pf-nav-flow) " + HDR + "{position:absolute !important;left:50%;top:50%;transform:translate(-50%,-50%);width:max-content;display:flex !important;align-items:center;gap:8px;}",
         "html.pf-modern-on.pf-nav-flow " + HDR + "{position:static !important;transform:none;margin-left:12px;display:flex !important;align-items:center;gap:6px;}",
         STACK + " a:not(.pf-logo-modern){display:inline-flex !important;align-items:center;gap:6px;border-radius:999px !important;padding:6px 16px !important;min-width:0;background:rgba(255,255,255,0.06);color:#F2F2F2 !important;text-transform:none !important;text-decoration:none;font-size:14px;line-height:1.2;transition:background-color 200ms ease,box-shadow 200ms ease,color 200ms ease;}",
         "html.pf-modern-on.pf-nav-flow " + HDR + " a:not(.pf-logo-modern){padding:6px 12px !important;font-size:13px;}",
         // Modo compacto: sem icones nas pilulas e sem quebra de linha, para o perfil/icones da direita nao cairem para a linha de baixo.
-        "html.pf-modern-on.pf-nav-flow " + HDR + " a:not(.pf-logo-modern) svg{display:none !important;}",
+        "html.pf-modern-on.pf-nav-flow " + HDR + " a:not(.pf-logo-modern):not(.pf-nav-iconic) svg{display:none !important;}",
         // Modo reduzido (passo 1): pilulas menores, com icone e texto, ainda centralizadas.
         "html.pf-modern-on.pf-nav-compact " + HDR + "{gap:4px;}",
         "html.pf-modern-on.pf-nav-compact " + HDR + " a:not(.pf-logo-modern){padding:6px 10px !important;font-size:13px;gap:5px;}",
@@ -43,6 +60,10 @@
         STACK + " a:not(.pf-logo-modern):hover{background:rgba(229,9,20,0.38);}",
         STACK + " a.pf-nav-active{background:#E50914 !important;color:#FFFFFF !important;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
         STACK + " a.pf-nav-hidden{display:none !important;}",
+        // Abas nativas (com icone): so o icone, redondo, com o nome na dica. As abas personalizadas continuam com texto.
+        STACK + " a.pf-nav-iconic{font-size:0 !important;gap:0 !important;padding:8px !important;min-width:36px;justify-content:center;}",
+        STACK + " a.pf-nav-iconic .MuiButton-startIcon{margin:0 !important;}",
+        STACK + " a.pf-nav-iconic svg,"+ STACK + " a.pf-nav-iconic img{display:inline-block !important;width:20px;height:20px;}",
         // Seta do chip do usuario: no layout Legado ela sobe 2px de proposito; no Modern fica centralizada com o nome.
         "html.pf-modern-on header.MuiAppBar-root .jf-profile-header-caret{top:0 !important;display:inline-flex;align-items:center;align-self:center;line-height:1;transform:translateY(1px);}",
         ".pf-logo-modern{display:inline-flex !important;align-items:center;gap:10px;flex:0 0 auto;margin-left:4px;padding:4px 14px 4px 4px;line-height:1;text-decoration:none;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
@@ -66,6 +87,10 @@
         "@keyframes pfBellRing{0%{transform:rotate(0)}15%{transform:rotate(16deg)}30%{transform:rotate(-14deg)}45%{transform:rotate(10deg)}60%{transform:rotate(-8deg)}75%{transform:rotate(4deg)}100%{transform:rotate(0)}}",
         "html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover .jf-notif-icon,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover svg,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover i,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:focus-visible .jf-notif-icon,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:focus-visible svg,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:focus-visible i{transform-origin:50% 12%;animation:pfBellRing 650ms ease-in-out 1;}",
         "@media (prefers-reduced-motion:reduce){html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover svg,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover i,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover .jf-notif-icon{animation:none;}}",
+        // Layout Legado: o mesmo sino do Modern (hover sem fundo e balanco ao passar o mouse).
+        "html:not(.pf-modern-on) .skinHeader #jfNotifBtn:hover,html:not(.pf-modern-on) .skinHeader #jfNotifBtn:focus,html:not(.pf-modern-on) .skinHeader #jfNotifBtn:focus-visible,html:not(.pf-modern-on) .skinHeader #jfNotifBtn:active{background:transparent !important;box-shadow:none !important;outline:none;color:#FFFFFF;}",
+        "html:not(.pf-modern-on) .skinHeader #jfNotifBtn:hover .jf-notif-icon,html:not(.pf-modern-on) .skinHeader #jfNotifBtn:hover svg,html:not(.pf-modern-on) .skinHeader #jfNotifBtn:hover i,html:not(.pf-modern-on) .skinHeader #jfNotifBtn:focus-visible .jf-notif-icon,html:not(.pf-modern-on) .skinHeader #jfNotifBtn:focus-visible svg,html:not(.pf-modern-on) .skinHeader #jfNotifBtn:focus-visible i{transform-origin:50% 12%;animation:pfBellRing 650ms ease-in-out 1;}",
+        "@media (prefers-reduced-motion:reduce){html:not(.pf-modern-on) .skinHeader #jfNotifBtn:hover svg,html:not(.pf-modern-on) .skinHeader #jfNotifBtn:hover i,html:not(.pf-modern-on) .skinHeader #jfNotifBtn:hover .jf-notif-icon{animation:none;}}",
         "html.pf-modern-on header.MuiAppBar-root #jfNotifBtn .jf-notif-badge{top:3px !important;right:2px !important;}",
         // Secao Administracao na gaveta do hamburguer (o Jellyfin 12 so tem o Painel no menu do avatar).
         ".pf-admin-sec{border-top:1px solid rgba(255,255,255,0.12);margin-top:8px;padding-top:8px;}",
@@ -86,7 +111,7 @@
         '</svg><span class="pf-badge-sheen" aria-hidden="true"></span></span>';
     var WORDMARK =
         '<span class="pf-wm"><span class="pf-wm-p">PARTICULAR</span><span class="pf-wm-f">FLIX</span></span>';
-    var HOME_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
+    var HOME_ICON = '<svg class="pf-home-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
 
     function norm(t) {
         return String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
@@ -172,6 +197,31 @@
         agendarAbaInicio();
     }
 
+    var homeEl = null;
+
+    // Alguns plugins criam as suas abas (Catalogo, Solicitacoes, Calendario...) copiando a primeira pilula da barra.
+    // Se a copia vier da nossa pilula Inicio, ela herda o icone, o texto "Inicio" e a classe que a deixa vermelha.
+    // Aqui a copia volta a ser uma aba comum: sai a nossa marca, o nosso icone e o nosso texto (se ainda for "Inicio").
+    function limparCloneHome(a) {
+        a.classList.remove("pf-nav-home", "pf-nav-active");
+        a.removeAttribute("data-pf-home");
+        var ico = a.querySelectorAll(".pf-home-ico");
+        for (var i = 0; i < ico.length; i++) ico[i].remove();
+        var lbl = a.querySelectorAll(".pf-home-lbl");
+        for (var j = 0; j < lbl.length; j++) {
+            if (norm(lbl[j].textContent) === norm(homeLabel()) && norm(a.textContent) !== norm(homeLabel())) lbl[j].remove();
+            else lbl[j].classList.remove("pf-home-lbl");
+        }
+        if (a.getAttribute("title") && norm(a.getAttribute("title")) === norm(homeLabel()) && norm(a.textContent) !== norm(homeLabel())) a.removeAttribute("title");
+    }
+
+    // Aba nativa do Jellyfin (Favoritos, Filmes, Series, Colecoes...) ou de plugin que traz icone proprio:
+    // tem o icone inicial do botao MUI. As abas das paginas personalizadas chegam so com texto.
+    function temIcone(a) {
+        var ic = a.querySelector(".MuiButton-startIcon");
+        return !!(ic && ic.querySelector("svg,img,i,.material-icons,[class*=\"fa-\"]"));
+    }
+
     function syncLinks(stack) {
         var cur = (window.location.hash || "#/").replace(/^#/, "");
         var parts = cur.split("?");
@@ -181,6 +231,13 @@
         var links = stack.querySelectorAll("a:not(.pf-logo-modern)");
         for (var i = 0; i < links.length; i++) {
             var a = links[i];
+            if (a !== homeEl && (a.classList.contains("pf-nav-home") || a.hasAttribute("data-pf-home"))) limparCloneHome(a);
+            var iconic = a !== homeEl && temIcone(a);
+            if (iconic !== a.classList.contains("pf-nav-iconic")) a.classList.toggle("pf-nav-iconic", iconic);
+            if (iconic && !a.getAttribute("aria-label")) {
+                var nmI = (a.getAttribute("title") || a.textContent || "").trim();
+                if (nmI) a.setAttribute("aria-label", nmI);
+            }
             var hid = hide.indexOf(norm(a.textContent)) >= 0;
             if (hid !== a.classList.contains("pf-nav-hidden")) a.classList.toggle("pf-nav-hidden", hid);
             var active = false;
@@ -375,7 +432,7 @@
         ".pf-dr .pluginMenuOptions a:hover,.pf-dr .pluginMenuOptions a:focus-visible{background:rgba(229,9,20,0.28);outline:none;}",
         ".pf-dr .pluginMenuOptions .navMenuOptionIcon,.pf-dr .pluginMenuOptions .material-icons{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;width:24px;height:24px;margin:0 !important;font-size:22px;}",
         ".pf-dr .pluginMenuOptions .navMenuOptionText{flex:1 1 auto;margin:0 !important;text-align:left;}",
-        ".mainAnimatedPage[id^=\"je-\"]:not(.hide),#je-recommendations-category-page:not(.hide){position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;height:auto !important;opacity:1 !important;overflow-y:auto !important;z-index:1095 !important;isolation:isolate !important;background:#0a0a0e !important;contain:none !important;padding-top:70px !important;}",
+        "html.pf-modern-on .mainAnimatedPage[id^=\"je-\"]:not(.hide),html.pf-modern-on #je-recommendations-category-page:not(.hide){position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;height:auto !important;opacity:1 !important;overflow-y:auto !important;z-index:1095 !important;isolation:isolate !important;background:#0a0a0e !important;contain:none !important;padding-top:70px !important;}",
         "@media (prefers-reduced-motion:reduce){.pf-dr-panel,.pf-dr-back{transition:none;}}"
     ].join("\n");
 
@@ -576,8 +633,31 @@
     function drOnHash() { drClose(); drSync(); }
     window.addEventListener("hashchange", drOnHash);
 
+    function isVideoRoute() {
+        var p = (window.location.hash || "").replace(/^#/, "").split("?")[0];
+        return p === "/video" || p === "/video.html";
+    }
+
+    // Player: marca a rota no <html> e coloca o logo ParticularFlix logo depois do botao voltar do cabecalho do player.
+    function syncVideo() {
+        var root = document.documentElement;
+        var vid = isVideoRoute();
+        if (vid !== root.classList.contains("pf-route-video")) root.classList.toggle("pf-route-video", vid);
+        if (!vid) return;
+        ensureStyle();
+        var bar = document.querySelector(".videoOsd-appBar");
+        if (!bar || bar.querySelector(":scope > .pf-logo-osd")) return;
+        var back = bar.querySelector(":scope > .MuiIconButton-root");
+        var logo = document.createElement("span");
+        logo.className = "pf-logo-osd";
+        logo.setAttribute("aria-hidden", "true");
+        logo.innerHTML = BADGE + WORDMARK;
+        if (back && back.parentNode === bar) back.insertAdjacentElement("afterend", logo); else bar.insertBefore(logo, bar.firstChild);
+    }
+
     var lastFitSig = "";
     function place() {
+        syncVideo();
         var header = document.querySelector("header.MuiAppBar-root");
         if (!header) return;
         ensureAdminLinks();
@@ -600,13 +680,16 @@
         }
         if (logo.nextElementSibling !== stack) toolbar.insertBefore(logo, stack);
 
-        var home = stack.querySelector("a.pf-nav-home");
+        // A nossa pilula e sempre o mesmo elemento: se o React recriar a barra, ela so volta para o lugar.
+        var home = homeEl;
         if (!home) {
             home = document.createElement("a");
             home.className = "pf-nav-home";
             home.href = "#/home";
             home.addEventListener("click", onHomePillClick);
-            home.innerHTML = HOME_ICON + "<span>" + homeLabel() + "</span>";
+            home.setAttribute("data-pf-home", "1");
+            home.innerHTML = HOME_ICON + '<span class="pf-home-lbl">' + homeLabel() + "</span>";
+            homeEl = home;
         }
         if (stack.firstElementChild !== home) stack.insertBefore(home, stack.firstElementChild);
 
@@ -666,6 +749,8 @@
     window.__pfStop = pfStop;
 
     function start() {
+        // O CSS entra tambem no Legado (sino); as regras do Modern dependem da classe pf-modern-on.
+        try { ensureStyle(); } catch (e) {}
         safePlace();
         window.addEventListener("hashchange", schedule);
         window.addEventListener("popstate", schedule);
@@ -675,7 +760,9 @@
         var lastUrl = location.href;
         pfPoll = setInterval(function () {
             if (location.href !== lastUrl) { lastUrl = location.href; schedule(); }
-            try {
+            if (isVideoRoute()) { try { syncVideo(); } catch (e) {} }
+            // So no Modern: no Legado as paginas do Enhanced ficam onde o Jellyfin as coloca.
+            if (document.documentElement.classList.contains("pf-modern-on")) try {
                 var pgs = document.querySelectorAll('.mainAnimatedPage[id^="je-"]:not(.hide), #je-recommendations-category-page:not(.hide)');
                 for (var i = 0; i < pgs.length; i++) { if (pgs[i].parentNode !== document.body) document.body.appendChild(pgs[i]); }
             } catch (e) {}

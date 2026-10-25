@@ -990,6 +990,18 @@ function clearPreviewPlaybackFlag() {
     } catch {}
   };
 
+  // Fork ParticularFlix: no layout Cinema com trailer automatico o slide mostra so o trailer. O backdrop
+  // aparecia ate o trailer comecar (e de novo no slide que estava saindo), um flash da imagem a cada troca.
+  // Enquanto o slide ainda pode tocar trailer ele fica com a classe jms-cinema-hold (o CSS em layouts.css
+  // esconde o backdrop); a classe so sai quando o item nao tem trailer tocavel, e esses mantem a imagem.
+  let cinemaNoTrailer = false;
+  const syncCinemaHold = () => {
+    try {
+      const want = allowAutoTrailer && !cinemaNoTrailer && isCinemaLayout() && isSliderAutoTrailerEnabled();
+      if (slide.classList.contains("jms-cinema-hold") !== want) slide.classList.toggle("jms-cinema-hold", want);
+    } catch {}
+  };
+
   const isAudioLikeItem = (it) => {
     const type = String(it?.Type || "");
     const mediaType = String(it?.MediaType || "");
@@ -1671,6 +1683,8 @@ function clearPreviewPlaybackFlag() {
 
   function finishAutoPreviewWithoutPlayback() {
     const shouldAdvance = autoAdvanceWaiting;
+    cinemaNoTrailer = true;
+    syncCinemaHold();
     autoPreviewEnded = true;
     autoPreviewActive = false;
     autoTrailerPaused = false;
@@ -2183,6 +2197,7 @@ function clearPreviewPlaybackFlag() {
   };
 
   const maybeStartAutoTrailer = () => {
+    syncCinemaHold();
     if (isActiveSlide() && isSliderAutoTrailerEnabled()) prefetchActiveAndNeighbors();
     if (!isSliderAutoTrailerEnabled() || !isActiveSlide()) return;
     if (autoTrailerPlaybackBlocked || isAutoTrailerPlaybackBlocked()) return;
@@ -2465,6 +2480,7 @@ function clearPreviewPlaybackFlag() {
   };
   window.addEventListener(PLAYBACK_START_REQUESTED_EVENT, onPlaybackStartRequested, { passive: true });
 
+  syncCinemaHold();
   if (isActiveSlide()) {
     setTimeout(() => maybeStartAutoTrailer(), 0);
   }

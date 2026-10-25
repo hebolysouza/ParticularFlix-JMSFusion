@@ -5,6 +5,27 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 4.0.0.1 (fork build, Jellyfin 12)
+
+Fixes found after the 4.0.0.0 rollout. Same requirements as 4.0.0.0 (Jellyfin 12.x, net10.0). Settings are kept; no setting is renamed or reset.
+
+### Fixes
+- **Player header (modern layout)**: the movie logo, stars, tomato score and age rating were hidden while playing. The modern header script hid every legacy header, including the player's own header. The player header now shows: back, ParticularFlix logo, movie logo and ratings, like the legacy layout, and the page navigation bar is hidden during playback.
+- **Custom tabs on the modern header**: on first load, Custom Tabs could copy the ParticularFlix "Home" pill to build its tabs, so Catalog, Requests and Calendar showed "Home" before their name and stayed red. Those copies are now cleaned up.
+- **Legacy layout, plugin tabs** (Catalog, Requests, Calendar): they opened blank on the first click and only worked after a reload. Every Home visit mounts a new page and the plugin panels stayed in the hidden one; Jellyfin also picks tabs and panels by position, and the Watchlist button and the reversed panel order shifted them. The panels are now moved to the visible page in order, the Watchlist button stays last, and the requested tab is selected.
+- **Slider buttons on first load**: the slider moved down about 36 px once the modern header became visible, and the Trailer button arrived later than the others (after a queued check) and pushed them sideways. The header is measured from the start, its icon buttons no longer change height while the page loads, and the Trailer button is created with the other buttons when the item reports a local trailer.
+- **Cinema**: the backdrop no longer flashes before the trailer or on the slide that is leaving. Items without a playable trailer still show their image.
+- **Coverflow 3D with side-bar arrows**: a click on a lit side bar could jump to the card under it (several slides at once), and fast clicks could leave two cards marked as active. Side bars now always move one slide, and only the latest slide change marks the active card (applies to every slider style).
+- **Legacy layout parity**: the notification bell has the same hover (no background) and ringing animation as the modern layout. Jellyfin Enhanced pages are only moved by the header script in the modern layout.
+
+### Performance
+- The slider asks the server for `LocalTrailerCount` together with the other item fields, so it no longer runs one local-trailer lookup per slide to place the Trailer button. On a home page with 8 slides this cut the trailer lookups from 8 to 2 and the `PlaybackInfo` calls from 7 to 2; with 55 slides the saving is proportionally larger.
+- Measured on a test server with 60 ms of simulated latency: first slide visible on a cold load went from 4.5 s to 4.1 s, on a warm load from 1.4 to 1.7 s down to 1.3 s, and all slides ready from 2.5 to 3.0 s down to 1.5 to 2.3 s.
+
+### Known limitations
+- Jellyfin 12 itself downloads about 4.5 MB from `/Playback/BitrateTest` a few seconds after the web client opens (it happens without JMSFusion too). It does not block the slider, but it competes for bandwidth on slow remote connections.
+- The limitations listed for 4.0.0.0 still apply.
+
 ## 4.0.0.0 (fork build, Jellyfin 12)
 
 First build for **Jellyfin 12.x** (net10.0, validated on 12.3). Same plugin GUID. Does not load on Jellyfin 10.11.x: stay on 3.8.2.45 there.

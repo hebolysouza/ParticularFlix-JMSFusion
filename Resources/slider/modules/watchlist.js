@@ -7441,6 +7441,24 @@ function createMuiTabsSliderButton() {
   return link;
 }
 
+// The Jellyfin tab strip picks a tab by its POSITION among the .emby-tab-button elements
+// (selectedIndex(n) clicks the n-th button), and Home opens ?tab=n that way. Our button has no
+// tab index, so if Custom Tabs/Enhanced append their tabs after it, ?tab=2 lands on ours and
+// every later tab is shifted by one (blank page on the first open). Keep ours always last.
+function keepLegacyButtonLast(slider, button) {
+  if (slider.lastElementChild !== button) slider.appendChild(button);
+  if (slider.__monwuiKeepLastObserver) return;
+  const observer = new MutationObserver(() => {
+    const own = slider.querySelector(`.${WATCHLIST_NAV_BUTTON_CLASS}[${WATCHLIST_NAV_KIND_ATTR}="legacy"]`);
+    if (!own) return;
+    if (slider.lastElementChild !== own) slider.appendChild(own);
+  });
+  try {
+    observer.observe(slider, { childList: true });
+    slider.__monwuiKeepLastObserver = observer;
+  } catch {}
+}
+
 function refreshTabsSliderButton() {
   tabsSliderRefreshQueued = false;
   ensureStyles();
@@ -7465,6 +7483,7 @@ function refreshTabsSliderButton() {
       button = createTabsSliderButton();
       slider.appendChild(button);
     }
+    keepLegacyButtonLast(slider, button);
 
     if (button.innerHTML !== legacyMarkup) {
       button.innerHTML = legacyMarkup;
