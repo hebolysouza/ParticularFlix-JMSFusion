@@ -59,7 +59,7 @@ html[data-button-style=pills] .monwui-btn-container:has(.monwui-watch-btn){
 html[data-button-style=pills] .monwui-btn-container:has(.monwui-watch-btn) .monwui-btn-text{opacity:1!important;font-weight:700}
 html[data-button-style=pills] .monwui-btn-container:has(.monwui-watch-btn):hover{background:#f6eeee!important;border-color:var(--pf-red);box-shadow:0 0 0 2px var(--pf-red),0 8px 18px rgba(0,0,0,.35)!important}
 html[data-button-style=pills] .monwui-btn-container:has(.monwui-watch-btn):hover i{transform:translateX(2px) scale(1.08)}
-html[data-button-style=pills] .monwui-btn-container:has(.monwui-trailer-btn):hover i{animation:pf-btn-wiggle .55s ease}
+html[data-button-style=pills] .monwui-btn-container:has(.monwui-trailer-btn):hover i,html[data-button-style=pills] .monwui-btn-container:has(.monwui-details-btn):hover i{animation:pf-btn-wiggle .55s ease}
 html[data-button-style=pills] .monwui-btn-container:has(.monwui-favorite-btn):hover i,
 html[data-button-style=pills] .monwui-btn-container:has(.monwui-played-btn):hover i{transform:scale(1.18)}
 html[data-button-style=pills] .monwui-btn-container:has(button.played),html[data-button-style=pills] .monwui-btn-container:has(button.favorited){
@@ -97,7 +97,7 @@ html[data-button-style=orbs] .monwui-btn-container:has(.monwui-watch-btn):hover{
 html[data-button-style=orbs] .monwui-btn-container:has(.monwui-watch-btn) button i{font-size:calc(var(--pf-orb) * .52);transform:none!important}
 html[data-button-style=orbs] .monwui-btn-container:has(.monwui-watch-btn):hover button i{transform:scale(1.08)!important}
 html[data-button-style=orbs] .monwui-btn-container:has(.monwui-watch-btn) .monwui-icon-wrapper{width:100%;display:flex;align-items:center;justify-content:center;margin:0;padding:0}
-html[data-button-style=orbs] .monwui-btn-container:has(.monwui-trailer-btn):hover i{animation:pf-btn-wiggle .55s ease}
+html[data-button-style=orbs] .monwui-btn-container:has(.monwui-trailer-btn):hover i,html[data-button-style=orbs] .monwui-btn-container:has(.monwui-details-btn):hover i{animation:pf-btn-wiggle .55s ease}
 html[data-button-style=orbs] .monwui-btn-container:has(button.played),html[data-button-style=orbs] .monwui-btn-container:has(button.favorited){
   background:linear-gradient(#242730,#242730) padding-box,linear-gradient(#b3151d,#b3151d) border-box!important}
 
