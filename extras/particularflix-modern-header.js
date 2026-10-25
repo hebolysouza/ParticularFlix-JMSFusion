@@ -112,7 +112,7 @@
         if (document.getElementById(STYLE_ID)) return;
         var s = document.createElement("style");
         s.id = STYLE_ID;
-        s.textContent = CSS;
+        s.textContent = CSS + DR_CSS;
         (document.head || document.documentElement).appendChild(s);
     }
 
@@ -122,8 +122,9 @@
         var raw = (window.location.hash || "#/").replace(/^#/, "").split("?");
         var cur = raw[0];
         if (!(cur === "/home" || cur === "/home.html" || cur === "/" || cur === "")) return;
-        var tab = new URLSearchParams(raw[1] || "").get("tab");
-        if (tab !== null && tab !== "0") return;
+        var qs0 = new URLSearchParams(raw[1] || "");
+        var tab = qs0.get("tab");
+        if ((tab !== null && tab !== "0") || qs0.get("seerrfinTab")) return;
         var tabs = document.querySelector('.headerTabs [is="emby-tabs"]') || document.querySelector('[is="emby-tabs"]') || document.querySelector(".headerTabs .emby-tabs");
         if (!tabs) return;
         try {
@@ -146,8 +147,9 @@
     function onLogoClick(ev) {
         var raw = (window.location.hash || "#/").replace(/^#/, "").split("?");
         var cur = raw[0];
-        var tab = new URLSearchParams(raw[1] || "").get("tab");
-        var naPrimeiraAba = tab === null || tab === "0";
+        var qs1 = new URLSearchParams(raw[1] || "");
+        var tab = qs1.get("tab");
+        var naPrimeiraAba = (tab === null || tab === "0") && !qs1.get("seerrfinTab");
         var tabs = document.querySelector('.headerTabs [is="emby-tabs"]') || document.querySelector('[is="emby-tabs"]');
         var abaAtual = null;
         try { if (tabs && typeof tabs.selectedIndex === "function") abaAtual = tabs.selectedIndex(); } catch (e) {}
@@ -183,14 +185,16 @@
             if (hid !== a.classList.contains("pf-nav-hidden")) a.classList.toggle("pf-nav-hidden", hid);
             var active = false;
             if (a.classList.contains("pf-nav-home")) {
-                active = (curPath === "/home" || curPath === "/home.html" || curPath === "/" || curPath === "") && (curTab === null || curTab === "0");
+                active = (curPath === "/home" || curPath === "/home.html" || curPath === "/" || curPath === "") && (curTab === null || curTab === "0") && !new URLSearchParams(parts[1] || "").get("seerrfinTab");
             } else {
                 var href = (a.getAttribute("href") || "").replace(/^#/, "");
                 if (href === "/" || href === "") continue;
                 var hp = href.split("?");
                 if (hp[0] === "/home") {
-                    var want = new URLSearchParams(hp[1] || "").get("tab");
-                    active = curPath === "/home" && want !== null && want === curTab;
+                    var wantH = new URLSearchParams(hp[1] || "");
+                    var haveH = new URLSearchParams(parts[1] || "");
+                    active = curPath === "/home" && Array.from(wantH.keys()).length > 0;
+                    if (active) wantH.forEach(function (v, k) { if (haveH.get(k) !== v) active = false; });
                 } else {
                     active = curPath === hp[0];
                     // Paginas de plugin usam o mesmo caminho (ex.: /configurationpage?name=X): so e ativa se os parametros do link tambem batem.
@@ -283,6 +287,7 @@
             logo.addEventListener("click", onLogoClick);
             toolbar.insertBefore(logo, toolbar.firstChild);
         }
+        drRemove();
         syncModernFlag(header);
     }
 
@@ -330,6 +335,254 @@
         holder.appendChild(sec);
     }
 
+
+    // ------------------------------------------------------------------------------------------------
+    // Hamburguer + menu lateral na janela LARGA (o Jellyfin 12 so desenha a gaveta em janela estreita).
+    // O menu usa a classe "mainDrawer-scrollContainer" e a secao "libraryMenuOptions" do menu antigo: e onde o
+    // Jellyfin Enhanced procura para colocar sozinho Enhanced Panel, Bookmarks e Conteudo oculto.
+    // Em janela estreita o Jellyfin ja tem a gaveta nativa: nesse caso o nosso botao e o nosso menu somem.
+    // ------------------------------------------------------------------------------------------------
+    var DR_TXT = {
+        pt: { menu: "Menu", home: "Início", fav: "Favoritos", media: "Mídia", adm: "Administração", dash: "Painel", meta: "Gerenciador de Metadados", usr: "Usuário", cfg: "Configurações", out: "Sair", close: "Fechar" },
+        es: { menu: "Menú", home: "Inicio", fav: "Favoritos", media: "Medios", adm: "Administración", dash: "Panel de control", meta: "Gestor de metadatos", usr: "Usuario", cfg: "Configuración", out: "Cerrar sesión", close: "Cerrar" },
+        en: { menu: "Menu", home: "Home", fav: "Favorites", media: "Media", adm: "Administration", dash: "Dashboard", meta: "Metadata Manager", usr: "User", cfg: "Settings", out: "Sign out", close: "Close" }
+    };
+    var DR_CSS = [
+        ".pf-dr-btn{order:-3;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;margin:0 2px 0 6px;padding:0;border:0;border-radius:50%;background:transparent;color:inherit;cursor:pointer;flex:0 0 auto;transition:background-color 160ms ease;}",
+        ".pf-dr-btn svg{width:24px;height:24px;fill:currentColor;display:block;}",
+        ".pf-dr-btn:hover,.pf-dr-btn:focus-visible{background:rgba(255,255,255,0.12);outline:none;}",
+        ".pf-dr{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1400;visibility:hidden;pointer-events:none;transition:visibility 0s linear 260ms;}",
+        ".pf-dr.pf-dr-open{visibility:visible;pointer-events:auto;transition-delay:0s;}",
+        ".pf-dr-back{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);opacity:0;transition:opacity 240ms ease;}",
+        ".pf-dr-open .pf-dr-back{opacity:1;}",
+        ".pf-dr-panel{position:absolute;top:0;left:0;bottom:0;width:min(320px,86vw);display:flex;flex-direction:column;background:linear-gradient(180deg,#15151b 0%,#0a0a0e 100%);border-right:1px solid rgba(255,255,255,0.08);box-shadow:8px 0 32px rgba(0,0,0,0.6);color:#fff;transform:translateX(-104%);transition:transform 250ms cubic-bezier(.2,.8,.2,1);}",
+        ".pf-dr-open .pf-dr-panel{transform:none;}",
+        ".pf-dr-head{display:flex;align-items:center;justify-content:space-between;padding:12px 10px 10px 14px;border-bottom:1px solid rgba(229,9,20,0.45);flex:0 0 auto;}",
+        ".pf-dr-brand{display:inline-flex;align-items:center;gap:10px;line-height:1;}",
+        ".pf-dr-close{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:0;border-radius:50%;background:transparent;color:#fff;cursor:pointer;}",
+        ".pf-dr-close:hover,.pf-dr-close:focus-visible{background:rgba(255,255,255,0.12);outline:none;}",
+        ".pf-dr-close svg{width:22px;height:22px;fill:currentColor;}",
+        ".pf-dr-scroll{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding:8px 8px 28px;position:relative;}",
+        ".pf-dr .sidebarHeader,.pf-dr .pf-dr-title{display:block;margin:18px 12px 6px;font-size:12px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.55);}",
+        ".pf-dr .jellyfinEnhancedSection,.pf-dr .libraryMenuOptions,.pf-dr .pf-dr-sec{display:block;}",
+        ".pf-dr a.navMenuOption{display:flex;align-items:center;gap:14px;padding:10px 14px;margin:2px 0;border-radius:10px;color:#fff;text-decoration:none;font-size:15px;line-height:1.2;cursor:pointer;transition:background-color 140ms ease;}",
+        ".pf-dr a.navMenuOption:hover,.pf-dr a.navMenuOption:focus-visible{background:rgba(229,9,20,0.28);outline:none;}",
+        ".pf-dr a.navMenuOption.pf-dr-active{background:#E50914;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
+        ".pf-dr .navMenuOptionIcon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:24px;height:24px;font-size:22px;color:inherit;}",
+        ".pf-dr .navMenuOptionText{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
+        "@media (prefers-reduced-motion:reduce){.pf-dr-panel,.pf-dr-back{transition:none;}}"
+    ].join("\n");
+
+    var drEl = null;
+    var drPages = null;
+    var drPagesAsked = false;
+
+    function drT() {
+        var l = ((document.documentElement.lang || navigator.language || "") + "").toLowerCase().slice(0, 2);
+        return DR_TXT[l] || DR_TXT.en;
+    }
+
+    function drLink(href, icon, label, cls) {
+        var a = document.createElement("a");
+        a.className = "navMenuOption lnkMediaFolder pf-dr-link" + (cls ? " " + cls : "");
+        a.href = href;
+        var i = document.createElement("span");
+        i.className = "material-icons navMenuOptionIcon";
+        i.setAttribute("aria-hidden", "true");
+        i.textContent = icon;
+        var t = document.createElement("span");
+        t.className = "navMenuOptionText";
+        t.textContent = label;
+        a.appendChild(i);
+        a.appendChild(t);
+        return a;
+    }
+
+    function drSection(cls, title) {
+        var d = document.createElement("div");
+        d.className = cls;
+        if (title) {
+            var h = document.createElement("h3");
+            h.className = "sidebarHeader";
+            h.textContent = title;
+            d.appendChild(h);
+        }
+        return d;
+    }
+
+    function drAskPages() {
+        if (drPagesAsked) return;
+        drPagesAsked = true;
+        try {
+            var api = window.ApiClient;
+            api.getJSON(api.getUrl("web/ConfigurationPages", { EnableInMainMenu: true })).then(function (list) {
+                drPages = (list || []).filter(function (p) { return /modular/i.test((p.DisplayName || "") + " " + (p.Name || "")); });
+                drFill();
+            }, function () { drPages = []; });
+        } catch (e) { drPages = []; }
+    }
+
+    // (Re)monta so as partes que NAO sao do Enhanced: principal, midia, administracao e usuario.
+    function drFill() {
+        if (!drEl) return;
+        var T = drT();
+        var scroll = drEl.querySelector(".pf-dr-scroll");
+
+        var main = scroll.querySelector(".pf-dr-main");
+        if (!main) {
+            main = drSection("pf-dr-sec pf-dr-main");
+            main.appendChild(drLink("#/home", "home", T.home, "pf-dr-home"));
+            main.appendChild(drLink("#/home?tab=1", "favorite", T.fav));
+            scroll.insertBefore(main, scroll.firstChild);
+        }
+
+        var media = scroll.querySelector(".libraryMenuOptions");
+        if (!media) {
+            media = drSection("libraryMenuOptions pf-dr-sec", T.media);
+            scroll.appendChild(media);
+        }
+        [].forEach.call(media.querySelectorAll("a.pf-dr-lib"), function (x) { x.remove(); });
+        var stack = document.querySelector("header.MuiAppBar-root .MuiToolbar-root > .MuiStack-root");
+        var re = /^#\/(tv|movies|boxsets|music|livetv|books|homevideos|musicvideos|playlists|list)(\?|$)/;
+        var seen = {};
+        if (stack) {
+            [].forEach.call(stack.querySelectorAll("a:not(.pf-logo-modern)"), function (a) {
+                var h = a.getAttribute("href") || "";
+                if (!re.test(h) && h.indexOf("topParentId=") < 0) return;
+                var name = ((a.getAttribute("title") || a.textContent) + "").trim();
+                if (!name || seen[h]) return;
+                seen[h] = 1;
+                var icon = /^#\/tv/.test(h) ? "tv" : /^#\/movies/.test(h) ? "movie" : /^#\/boxsets/.test(h) ? "collections_bookmark" : /^#\/music/.test(h) ? "library_music" : /^#\/livetv/.test(h) ? "live_tv" : "folder";
+                media.appendChild(drLink(h, icon, name, "pf-dr-lib"));
+            });
+        }
+
+        var adm = scroll.querySelector(".pf-dr-admin");
+        if (adminState === null) askAdmin();
+        if (adminState && !adm) {
+            adm = drSection("pf-dr-sec pf-dr-admin", T.adm);
+            adm.appendChild(drLink("#/dashboard", "dashboard", T.dash));
+            adm.appendChild(drLink("#/metadata", "edit", T.meta));
+            scroll.appendChild(adm);
+        } else if (!adminState && adm) { adm.remove(); }
+
+        var usr = scroll.querySelector(".pf-dr-user");
+        if (usr) usr.remove();
+        usr = drSection("pf-dr-sec pf-dr-user", T.usr);
+        usr.appendChild(drLink("#/mypreferencesmenu", "settings", T.cfg));
+        drAskPages();
+        (drPages || []).forEach(function (pg) {
+            usr.appendChild(drLink("#/configurationpage?name=" + encodeURIComponent(pg.Name), "home_work", pg.DisplayName || pg.Name));
+        });
+        var out = drLink("#", "exit_to_app", T.out, "pf-dr-out");
+        out.addEventListener("click", function (ev) {
+            ev.preventDefault();
+            try { if (window.Dashboard && typeof window.Dashboard.logout === "function") { window.Dashboard.logout(); return; } } catch (e) {}
+            try { window.ApiClient.logout().then(function () { window.location.hash = "#/login"; }); } catch (e2) {}
+        });
+        usr.appendChild(out);
+        scroll.appendChild(usr);
+        drSync();
+    }
+
+    function drSync() {
+        if (!drEl) return;
+        var cur = (window.location.hash || "#/").replace(/^#/, "");
+        var cp = cur.split("?");
+        var have = new URLSearchParams(cp[1] || "");
+        [].forEach.call(drEl.querySelectorAll("a.navMenuOption"), function (a) {
+            var h = (a.getAttribute("href") || "").replace(/^#/, "");
+            var on = false;
+            if (h && h !== "/" && h !== "") {
+                var hp = h.split("?");
+                if (a.classList.contains("pf-dr-home")) {
+                    var tb = have.get("tab");
+                    on = (cp[0] === "/home" || cp[0] === "/home.html") && (tb === null || tb === "0") && !have.get("seerrfinTab");
+                } else if (hp[0] === cp[0]) {
+                    on = true;
+                    new URLSearchParams(hp[1] || "").forEach(function (v, k) { if (have.get(k) !== v) on = false; });
+                }
+            }
+            if (on !== a.classList.contains("pf-dr-active")) a.classList.toggle("pf-dr-active", on);
+        });
+    }
+
+    function drOpen() {
+        if (!drEl) return;
+        drFill();
+        drEl.classList.add("pf-dr-open");
+        drEl.setAttribute("aria-hidden", "false");
+        var b = document.querySelector(".pf-dr-btn");
+        if (b) b.setAttribute("aria-expanded", "true");
+        var first = drEl.querySelector("a.navMenuOption");
+        if (first) { try { first.focus({ preventScroll: true }); } catch (e) {} }
+    }
+
+    function drClose() {
+        if (!drEl) return;
+        drEl.classList.remove("pf-dr-open");
+        drEl.setAttribute("aria-hidden", "true");
+        var b = document.querySelector(".pf-dr-btn");
+        if (b) b.setAttribute("aria-expanded", "false");
+    }
+
+    function drWanted() {
+        try {
+            if (!window.ApiClient || typeof window.ApiClient.getCurrentUserId !== "function" || !window.ApiClient.getCurrentUserId()) return false;
+        } catch (e) { return false; }
+        if (document.body.classList.contains("dashboardDocument")) return false;
+        var nat = document.querySelectorAll(".MuiDrawer-paper");
+        for (var i = 0; i < nat.length; i++) { if (!nat[i].closest("#pf-dr")) return false; }
+        return true;
+    }
+
+    function drRemove() {
+        var b = document.querySelector(".pf-dr-btn");
+        if (b) b.remove();
+        if (drEl) { drEl.remove(); drEl = null; }
+    }
+
+    function drEnsure(toolbar) {
+        var T = drT();
+        var b = toolbar.querySelector(":scope > .pf-dr-btn");
+        if (!b) {
+            b = document.createElement("button");
+            b.type = "button";
+            b.className = "pf-dr-btn";
+            b.setAttribute("aria-label", T.menu);
+            b.setAttribute("aria-haspopup", "dialog");
+            b.setAttribute("aria-expanded", "false");
+            b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>';
+            b.addEventListener("click", function () { if (drEl && drEl.classList.contains("pf-dr-open")) drClose(); else drOpen(); });
+        }
+        if (toolbar.firstChild !== b) toolbar.insertBefore(b, toolbar.firstChild);
+
+        if (!drEl || !drEl.isConnected) {
+            drEl = document.createElement("div");
+            drEl.id = "pf-dr";
+            drEl.className = "pf-dr";
+            drEl.setAttribute("aria-hidden", "true");
+            drEl.innerHTML =
+                '<div class="pf-dr-back"></div>' +
+                '<aside class="pf-dr-panel" role="dialog" aria-label="' + T.menu + '">' +
+                '<div class="pf-dr-head"><div class="pf-dr-brand">' + BADGE + WORDMARK + '</div>' +
+                '<button type="button" class="pf-dr-close" aria-label="' + T.close + '"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>' +
+                '<div class="mainDrawer-scrollContainer pf-dr-scroll"></div></aside>';
+            document.body.appendChild(drEl);
+            drEl.querySelector(".pf-dr-back").addEventListener("click", drClose);
+            drEl.querySelector(".pf-dr-close").addEventListener("click", drClose);
+            drEl.addEventListener("click", function (ev) {
+                var a = ev.target && ev.target.closest ? ev.target.closest("a") : null;
+                if (a && drEl.contains(a)) setTimeout(drClose, 0);
+            });
+            drFill();
+        }
+    }
+
+    document.addEventListener("keydown", function (ev) { if (ev.key === "Escape" && drEl && drEl.classList.contains("pf-dr-open")) drClose(); });
+    window.addEventListener("hashchange", function () { drClose(); drSync(); });
+
+    var lastFitSig = "";
     function place() {
         var header = document.querySelector("header.MuiAppBar-root");
         if (!header) return;
@@ -364,7 +617,10 @@
         if (stack.firstElementChild !== home) stack.insertBefore(home, stack.firstElementChild);
 
         syncLinks(stack);
-        fitNav(toolbar, stack, logo);
+        if (drWanted()) drEnsure(toolbar); else drRemove();
+        drSync();
+        var sig = toolbar.clientWidth + "|" + window.innerWidth + "|" + stack.children.length + "|" + stack.textContent.length + "|" + (document.getElementById("jfNotifBtn") ? 1 : 0) + "|" + toolbar.children.length;
+        if (sig !== lastFitSig) { lastFitSig = sig; fitNav(toolbar, stack, logo); }
         syncModernFlag(header);
     }
 
@@ -387,17 +643,9 @@
         window.addEventListener("hashchange", schedule);
         window.addEventListener("popstate", schedule);
         window.addEventListener("resize", schedule);
-        // Troca de aba/pagina feita pelo proprio app usa pushState, que nao dispara hashchange: acompanha o endereco.
-        try {
-            ["pushState", "replaceState"].forEach(function (fn) {
-                var orig = history[fn];
-                history[fn] = function () {
-                    var r = orig.apply(this, arguments);
-                    schedule();
-                    return r;
-                };
-            });
-        } catch (e) {}
+        // Troca de aba/pagina pelo proprio app (pushState nao dispara hashchange): acompanhada pelo monitor de endereco abaixo.
+        // Nao interceptamos history.pushState: isso quebrava navegacoes do Enhanced (Catalogo: Em alta, Filmes populares...).
+        try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { lastFitSig = ""; schedule(); }); } catch (e) {}
         var lastUrl = location.href;
         setInterval(function () {
             if (location.href !== lastUrl) { lastUrl = location.href; schedule(); }
