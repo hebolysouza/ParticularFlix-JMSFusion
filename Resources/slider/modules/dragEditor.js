@@ -87,7 +87,7 @@ export function startDragEditor({ labels, hideMain, showMain, onSaved }) {
   const getBlocks = () => {
     const out = [];
     BLOCKS.forEach((b) => {
-      const el = slide.querySelector(b.sel);
+      const el = slide.querySelector(b.sel) || document.querySelector(b.sel);
       const r = visibleRect(el);
       if (r) out.push({ ...b, el, rect: r });
     });

@@ -848,6 +848,7 @@ const USER_ONLY_KEYS = [
             showWatchButton: formData.get('showWatchButton') === 'on',
             watchBackgroundImageType: formData.get('watchBackgroundImageType'),
             showFavoriteButton: formData.get('showFavoriteButton') === 'on',
+            showInfoButton: formData.get('showInfoButton') === 'on',
             favoriteBackgroundImageType: formData.get('favoriteBackgroundImageType'),
             watchlistTabsSliderEnabled: formData.get('watchlistTabsSliderEnabled') === 'on',
             watchlistSharingEnabled: formData.get('watchlistSharingEnabled') === 'on',

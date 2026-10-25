@@ -66,6 +66,10 @@ export function createButtonsPanel(config, labels) {
 
     bindCheckboxKontrol('#showWatchButton', '.watch-bg-container', 0.6, [watchBgSelect]);
 
+    const infoButtonDiv = document.createElement('div');
+    infoButtonDiv.appendChild(createCheckbox('showInfoButton', labels.showInfoButton || 'Show details button (i)', config.showInfoButton !== false));
+    section.appendChild(infoButtonDiv);
+
     const favoriteButtonDiv = document.createElement('div');
     favoriteButtonDiv.appendChild(createCheckbox('showFavoriteButton', labels.showFavoriteButton || 'Favori Butonunu Göster', config.showFavoriteButton));
     section.appendChild(favoriteButtonDiv);

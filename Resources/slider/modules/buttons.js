@@ -4,6 +4,7 @@ import { openSettings } from "./settingsLoader.js";
 import { getProviderUrl, prefetchLocalTrailer } from './utils.js';
 import { applyContainerStyles } from './positionUtils.js';
 import { withServer } from "./jfUrl.js";
+import { openDetailsModal } from "./detailsModalLoader.js";
 import { ensureWatchlistLoaded, getCachedWatchlistMembership, getWatchlistButtonText } from "./watchlist.js";
 
 // Fork ParticularFlix: fila das checagens de trailer local (uma por vez, espacada).
@@ -472,6 +473,25 @@ if (config.showFavoriteButton) {
 
     buttonContainer.appendChild(favoriteBtnContainer);
 }
+
+    // Fork ParticularFlix: botao "i" que abre o modulo de detalhes (o texto do slide deixou de ser clicavel)
+    if (config.showInfoButton !== false && itemId) {
+        const infoBtnContainer = createButtonWithBackground(
+            "details",
+            '<i class="fa-solid fa-circle-info"></i>',
+            config.languageLabels.detailsButton || "Detalhes",
+            async () => {
+                const preferBackdropIndex = localStorage.getItem("jms_backdrop_index") || "0";
+                const serverId = getSessionInfo?.()?.serverId || "";
+                try {
+                    await openDetailsModal({ itemId, serverId, preferBackdropIndex, originEl: slide });
+                } catch (err) {
+                    console.warn("openDetailsModal failed (info button):", err);
+                }
+            }
+        );
+        buttonContainer.appendChild(infoBtnContainer);
+    }
 
     mainButtonContainer.appendChild(mainButton);
     const mainOverlay = buttonGradientOverlay.cloneNode(true);

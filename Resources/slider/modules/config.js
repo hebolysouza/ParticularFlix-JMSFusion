@@ -824,6 +824,7 @@ function computeConfig() {
     manualBackdropSelection: localStorage.getItem('manualBackdropSelection') === 'true',
     indexZeroSelection: localStorage.getItem('indexZeroSelection') !== 'false',
     showFavoriteButton: localStorage.getItem('showFavoriteButton') !== 'false',
+    showInfoButton: localStorage.getItem('showInfoButton') !== 'false',
     watchlistTabsSliderEnabled: localStorage.getItem('watchlistTabsSliderEnabled') !== 'false',
     watchlistSharingEnabled: localStorage.getItem('watchlistSharingEnabled') !== 'false',
     watchlistAutoRemovePlayed: localStorage.getItem('watchlistAutoRemovePlayed') === 'true',

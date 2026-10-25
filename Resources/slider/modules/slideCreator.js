@@ -738,6 +738,19 @@ async function createSlide(item, options = {}) {
       return;
     }
 
+    // Fork ParticularFlix: nos layouts Cinema e Mosaico a area dos textos nao abre mais o modulo de detalhes
+    // (ele abre pelo botao "i" da linha de botoes).
+    const layoutMode = document.documentElement.dataset.sliderLayout;
+    if (layoutMode === 'cinema' || layoutMode === 'mosaic') {
+      const hit = slideEl && Array.from(slideEl.querySelectorAll(
+        '.monwui-format-container,.monwui-logo-container,.monwui-title-container,.monwui-meta-container,.monwui-plot-container,.monwui-director-container,.monwui-info-container'
+      )).some((n) => {
+        const r = n.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+      });
+      if (hit) { ev.preventDefault(); ev.stopPropagation(); return; }
+    }
+
     ev.preventDefault();
     ev.stopPropagation();
 

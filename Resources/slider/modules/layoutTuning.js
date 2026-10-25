@@ -28,6 +28,11 @@ export const TUNING_FIELDS = {
 /* Blocos que podem ser deslocados de forma independente (arrastar e soltar ou campos X/Y). Valores em px. */
 export const BLOCKS = [
   { id: "fmt",  sel: ".monwui-format-container",   label: "Selos do topo" },
+  { id: "title", sel: ".monwui-title-container",   label: "Frase e título original" },
+  { id: "prov", sel: ".monwui-provider-container", label: "Ícone de configuração e links" },
+  { id: "vol",  sel: ".monwui-preview-volume-control", label: "Volume do trailer" },
+  { id: "full", sel: ".monwui-preview-fullscreen-toggle", label: "Tela cheia do trailer" },
+  { id: "next", sel: ".jms-nextup", label: "Cartão Próximo" },
   { id: "logo", sel: ".monwui-logo-container",     label: "Logo" },
   { id: "meta", sel: ".monwui-meta-container",     label: "Selos de informação (nota, duração)" },
   { id: "plot", sel: ".monwui-plot-container",     label: "Sinopse" },
@@ -65,10 +70,8 @@ html[data-jms-plot=hidden] .monwui-plot-container:not(:has(.monwui-playing-progr
 /* alinhamento horizontal, separado para os botoes e para a linha de genero/ano/pais */
 ${ALIGN_CSS("data-jms-btnalign", ".monwui-main-button-container")}
 ${ALIGN_CSS("data-jms-infoalign", ".monwui-info-container")}
-html[data-slider-layout][data-jms-btnalign=bottom] .monwui-slide>.monwui-main-button-container{align-self:center!important;justify-content:center!important;margin-top:auto!important}
-/* centralizado embaixo: o grupo botoes + info desce mais, rente a borda de baixo */
-html[data-slider-layout][data-jms-btnalign=bottom] .monwui-slide>.monwui-main-button-container,html[data-slider-layout][data-jms-btnalign=bottom] .monwui-slide>.monwui-info-container{top:clamp(14px,3.2vh,34px)!important}
-html[data-slider-layout][data-jms-btnalign=bottom] .monwui-slide>.monwui-info-container{align-self:center!important;justify-content:center!important}
+/* centralizado embaixo: so os botoes ficam centralizados e descem um pouco mais; a linha de info nao e tocada */
+html[data-slider-layout][data-jms-btnalign=bottom] .monwui-slide>.monwui-main-button-container{align-self:center!important;justify-content:center!important;top:clamp(10px,2.4vh,26px)!important}
 /* botoes e info nao dependem da largura do texto */
 html[data-slider-layout] .monwui-slide>.monwui-main-button-container,html[data-slider-layout] .monwui-slide>.monwui-info-container{max-width:100%!important}
 /* cantos do slider */
@@ -76,7 +79,7 @@ html[data-slider-layout][data-jms-corners=left] .monwui-slide{border-radius:0 va
 html[data-slider-layout][data-jms-corners=right] .monwui-slide{border-radius:var(--lay-radius,24px) 0 0 var(--lay-radius,24px)!important}
 html[data-slider-layout][data-jms-corners=top] .monwui-slide{border-radius:0 0 var(--lay-radius,24px) var(--lay-radius,24px)!important}
 html[data-slider-layout][data-jms-corners=none] .monwui-slide{border-radius:0!important}
-${BLOCKS.map((b) => `html[data-slider-layout][data-jms-moved~=${b.id}] .monwui-slide ${b.sel}{translate:var(--lay-${b.id}-x,0px) var(--lay-${b.id}-y,0px)}`).join("\n")}
+${BLOCKS.map((b) => `html[data-slider-layout][data-jms-moved~=${b.id}] ${b.sel}{translate:var(--lay-${b.id}-x,0px) var(--lay-${b.id}-y,0px)}`).join("\n")}
 html[data-slider-layout=cinema][data-jms-plot=full] .monwui-plot-container .monwui-plot,
 html[data-slider-layout=mosaic][data-jms-plot=full] .monwui-plot-container .monwui-plot{display:block!important;-webkit-line-clamp:unset!important;overflow:visible!important}
 `;

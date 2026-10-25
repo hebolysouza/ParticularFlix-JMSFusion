@@ -35,10 +35,10 @@ html[data-button-style=pills] .monwui-btn-container .monwui-btn-text,html[data-b
 html[data-button-style=pills] .monwui-btn-container:focus-visible,html[data-button-style=orbs] .monwui-btn-container:focus-visible,
 html[data-button-style=pills] .monwui-btn-container button:focus-visible,html[data-button-style=orbs] .monwui-btn-container button:focus-visible{outline:2px solid #fff;outline-offset:2px}
 
-/* ---- active states keep the plugin colors (watched and favorite icons come with an inline yellow) ---- */
-html[data-button-style=pills] .monwui-btn-container button.played i,html[data-button-style=orbs] .monwui-btn-container button.played i,
+/* ---- active states: watched keeps the white check and only gets a red outline; the favorite heart turns red ---- */
 html[data-button-style=pills] .monwui-btn-container button.favorited i,html[data-button-style=orbs] .monwui-btn-container button.favorited i{
   color:var(--pf-btn-accent)!important;filter:drop-shadow(0 0 8px color-mix(in srgb,var(--pf-btn-accent) 55%,transparent))}
+html[data-button-style=pills] .monwui-btn-container button.played i,html[data-button-style=orbs] .monwui-btn-container button.played i{color:#fff!important;filter:none!important}
 html[data-button-style=pills] .monwui-btn-container button.favorited .monwui-icon-wrapper,
 html[data-button-style=orbs] .monwui-btn-container button.favorited .monwui-icon-wrapper{animation:pf-btn-pop .5s var(--pf-btn-ease)}
 html[data-button-style=pills] .monwui-btn-container button.played .monwui-icon-wrapper,
