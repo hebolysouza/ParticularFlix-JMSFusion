@@ -433,7 +433,7 @@ function setPopoverContent(studioName, items) {
   items.slice(0, 5).forEach(item => {
     const itemEl = document.createElement('div');
     itemEl.className = 'hub-preview-item';
-    const posterUrl = buildPosterUrl(item, 300, 95);
+    const posterUrl = buildPosterUrl(item, PREVIEW_POSTER_H, PREVIEW_POSTER_Q);
     let ratingVal = item.CommunityRating || item.CriticRating;
     let rating = (typeof ratingVal === "number") ? ratingVal.toFixed(1) : (config.languageLabels.noRating || 'N/A');
     let isFavorite = getCachedWatchlistMembership(item.Id, item.UserData?.IsFavorite);
@@ -442,7 +442,7 @@ function setPopoverContent(studioName, items) {
     const favAddText = getWatchlistButtonText(item, false);
     const favRemoveText = getWatchlistButtonText(item, true);
     itemEl.innerHTML = `
-      <img class="hub-preview-poster" src="${posterUrl || PLACEHOLDER_URL}" alt="${item.Name}" loading="lazy">
+      <img class="hub-preview-poster" src="${posterUrl || PLACEHOLDER_URL}" alt="${item.Name}" decoding="async">
       <div class="hub-preview-info">
         <div class="hub-preview-item-title">${item.Name}</div>
         <div class="hub-preview-rating">
@@ -636,6 +636,19 @@ function showPreviewPopover(anchorEl, studioName, items) {
 }
 
 const STUDIO_PREVIEW_TTL_MS = 10 * 60 * 1000;
+const PREVIEW_POSTER_H = 300;
+const PREVIEW_POSTER_Q = 90;
+
+// Posters start downloading when the mouse reaches the card (they used to wait for the popover to open).
+function preloadPreviewPosters(items) {
+  (items || []).slice(0, 5).forEach((it) => {
+    if (!it || it.__jmsPosterWarm) return;
+    const url = buildPosterUrl(it, PREVIEW_POSTER_H, PREVIEW_POSTER_Q);
+    if (!url) return;
+    it.__jmsPosterWarm = true;
+    try { const img = new Image(); img.decoding = "async"; img.src = url; } catch {}
+  });
+}
 const __studioPreviewCache = new Map();
 
 // Uma consulta por estudio, ordenada por nota no servidor; escolhe 5 com nota minima e completa com os
@@ -665,6 +678,27 @@ function loadStudioPreviewItems(studioId, studioName, userId) {
   return promise;
 }
 
+// Cards that stay on screen get their preview list fetched while the browser is idle (one small query each,
+// shared cache), so the eye opens at once even when the mouse goes straight to it.
+let __previewWarmObserver = null;
+function warmPreviewWhenVisible(card, load) {
+  if (typeof IntersectionObserver !== "function") return;
+  if (!__previewWarmObserver) {
+    __previewWarmObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target;
+        __previewWarmObserver.unobserve(el);
+        const run = () => { try { el.__jmsWarmPreview?.(); } catch {} };
+        if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 2500 });
+        else setTimeout(run, 400);
+      });
+    }, { rootMargin: "200px 0px" });
+  }
+  card.__jmsWarmPreview = load;
+  __previewWarmObserver.observe(card);
+}
+
 function createPreviewButton(card, studioName, studioId, userId) {
   const btn = document.createElement('button');
   btn.className = 'hub-preview-btn';
@@ -692,9 +726,14 @@ function createPreviewButton(card, studioName, studioId, userId) {
     return studioItems || [];
   }
 
-  card.addEventListener('mouseenter', () => {
-    if (!studioItems) loadStudioPreviewItems(studioId, studioName, userId).then((items) => { studioItems = items; }).catch(() => {});
-  }, { passive: true });
+  const prefetch = (withPosters) => {
+    loadStudioPreviewItems(studioId, studioName, userId).then((items) => {
+      studioItems = items;
+      if (withPosters) preloadPreviewPosters(items);
+    }).catch(() => {});
+  };
+  card.addEventListener('mouseenter', () => prefetch(true), { passive: true });
+  warmPreviewWhenVisible(card, () => prefetch(false));
 
   btn.addEventListener('click', async (e) => {
     e.preventDefault();

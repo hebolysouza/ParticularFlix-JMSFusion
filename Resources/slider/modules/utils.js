@@ -1241,7 +1241,10 @@ function clearPreviewPlaybackFlag() {
   function setPreviewVolumeVisible(visible) {
     if (visible) ensurePreviewVolumeButton();
     const wrap = previewVolumeWrap;
-    const alignWithAutoToggle = autoPreviewActive && isSliderAutoTrailerEnabled();
+    // The column of the pause button is reserved whenever the automatic trailer is enabled, even while a trailer
+    // started by hovering (no pause button yet) is playing: the controls then keep the same place in every state
+    // (first load, hover, automatic), and the offsets saved in the position editor stay valid for all of them.
+    const alignWithAutoToggle = isSliderAutoTrailerEnabled();
     if (wrap) {
       wrap.style.top = "48px";
       wrap.style.right = alignWithAutoToggle ? "64px" : "48px";

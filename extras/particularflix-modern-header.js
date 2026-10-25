@@ -28,13 +28,25 @@
         "html.pf-route-video header.MuiAppBar-root{display:none !important;}",
         // Cabecalho do player igual ao Legado: voltar, logo ParticularFlix, logo do filme e avaliacoes, alinhados a esquerda.
         ".videoOsd-appBar > .MuiIconButton-root:first-child{order:-2;}",
-        ".videoOsd-appBar > .pf-logo-osd{order:-1;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;margin:0 6px 0 2px;line-height:1;pointer-events:none;user-select:none;}",
-        ".videoOsd-appBar > .pf-logo-osd .pf-badge-wrap{position:relative;display:inline-flex;width:26px;height:26px;overflow:hidden;border-radius:6px;}",
+        // O logo do player e um link para a Inicio, com a mesma animacao do logo da barra (estilos proprios: nao depende do CSS do Legado).
+        ".videoOsd-appBar > .pf-logo-osd{order:-1;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;margin:0 6px 0 2px;padding:4px 6px 4px 2px;line-height:1;user-select:none;text-decoration:none;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
+        ".videoOsd-appBar > .pf-logo-osd .pf-badge-wrap{position:relative;display:inline-flex;width:26px;height:26px;overflow:hidden;border-radius:6px;transition:transform 220ms ease;}",
         ".videoOsd-appBar > .pf-logo-osd .pf-badge{width:26px;height:26px;display:block;}",
-        ".videoOsd-appBar > .pf-logo-osd .pf-badge-sheen{display:none;}",
-        ".videoOsd-appBar > .pf-logo-osd .pf-wm{font-size:20px;font-weight:700;letter-spacing:0.02em;white-space:nowrap;}",
+        ".videoOsd-appBar > .pf-logo-osd .pf-bar{transform-box:fill-box;transform-origin:50% 100%;transition:transform 260ms cubic-bezier(.3,1.4,.5,1);}",
+        ".videoOsd-appBar > .pf-logo-osd .pf-badge-sheen{position:absolute;inset:0;pointer-events:none;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,0.35) 50%,transparent 70%);transform:translateX(-130%);}",
+        ".videoOsd-appBar > .pf-logo-osd .pf-wm{display:inline-flex;align-items:baseline;font-size:20px;font-weight:700;letter-spacing:0.02em;white-space:nowrap;line-height:1;}",
         ".videoOsd-appBar > .pf-logo-osd .pf-wm-p{color:#FFFFFF;}",
-        ".videoOsd-appBar > .pf-logo-osd .pf-wm-f{color:#E50914;}",
+        ".videoOsd-appBar > .pf-logo-osd .pf-wm-f{position:relative;color:#E50914;transition:color 200ms ease,text-shadow 200ms ease;}",
+        ".videoOsd-appBar > .pf-logo-osd .pf-wm-f::after{content:\"\";position:absolute;left:0;right:0;bottom:-3px;height:2px;background:#E50914;transform:scaleX(0);transform-origin:left;transition:transform 260ms ease;}",
+        ".videoOsd-appBar > .pf-logo-osd:hover .pf-badge-wrap{transform:scale(1.08);}",
+        ".videoOsd-appBar > .pf-logo-osd:hover .pf-bar-1{transform:scaleY(1.16);}",
+        ".videoOsd-appBar > .pf-logo-osd:hover .pf-bar-2{transform:scaleY(1.28);transition-delay:55ms;}",
+        ".videoOsd-appBar > .pf-logo-osd:hover .pf-bar-3{transform:scaleY(1.5);transition-delay:110ms;}",
+        ".videoOsd-appBar > .pf-logo-osd:hover .pf-badge-sheen{transform:translateX(130%);transition:transform 620ms ease;}",
+        ".videoOsd-appBar > .pf-logo-osd:hover .pf-wm-f::after,.videoOsd-appBar > .pf-logo-osd:focus-visible .pf-wm-f::after{transform:scaleX(1);}",
+        ".videoOsd-appBar > .pf-logo-osd:hover .pf-wm-f,.videoOsd-appBar > .pf-logo-osd:focus-visible .pf-wm-f{color:#FF3B47;text-shadow:0 0 7px rgba(229,9,20,0.6);}",
+        ".videoOsd-appBar > .pf-logo-osd:focus-visible{outline:2px solid #FF3B47;outline-offset:4px;border-radius:4px;}",
+        "@media (prefers-reduced-motion:reduce){.videoOsd-appBar > .pf-logo-osd *{transition:none !important;}}",
         // Com o logo do filme na tela, o titulo em texto do Jellyfin sai (no Legado so aparece o logo).
         ".videoOsd-appBar:has(#jms-osd-header-ratings-v4 img[src]:not([src=\"\"])) > p.MuiTypography-root{display:none !important;}",
         ROOT + " .MuiToolbar-root{position:relative;}",
@@ -648,10 +660,18 @@
         var bar = document.querySelector(".videoOsd-appBar");
         if (!bar || bar.querySelector(":scope > .pf-logo-osd")) return;
         var back = bar.querySelector(":scope > .MuiIconButton-root");
-        var logo = document.createElement("span");
+        var logo = document.createElement("a");
         logo.className = "pf-logo-osd";
-        logo.setAttribute("aria-hidden", "true");
+        logo.href = "#/home";
+        logo.setAttribute("aria-label", "ParticularFlix");
         logo.innerHTML = BADGE + WORDMARK;
+        // Sai do player e vai para a Inicio (o Jellyfin encerra a reproducao ao trocar de pagina).
+        logo.addEventListener("click", function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            window.location.hash = "#/home";
+            agendarAbaInicio();
+        });
         if (back && back.parentNode === bar) back.insertAdjacentElement("afterend", logo); else bar.insertBefore(logo, bar.firstChild);
     }
 

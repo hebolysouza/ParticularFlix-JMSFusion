@@ -95,8 +95,52 @@ function adoptPluginPanels(home) {
   });
 }
 
+function hasContent(el) {
+  return !!el && el.childElementCount > 0;
+}
+
+function swapNodes(a, b) {
+  const mark = document.createComment("");
+  a.replaceWith(mark);
+  b.replaceWith(a);
+  mark.replaceWith(b);
+}
+
+// With Custom Tabs installed, every Home page Jellyfin mounts gets its OWN empty panels (customTab_0, 1, 2...)
+// from the served template, so the ids repeat. Custom Tabs fills the panel it finds by id, which is the one of
+// the FIRST page in the document, often the hidden one: the visible page kept an empty panel (black page).
+// An empty panel of the visible page is swapped with the filled one of the hidden page; when no copy is filled
+// yet, it is filled from the Custom Tabs config the same way the plugin does it.
+function fillPluginPanels(home) {
+  home.page.querySelectorAll(".tabContent").forEach((panel) => {
+    const idx = indexOf(panel);
+    if (!(idx >= 2) || hasContent(panel)) return;
+    let filled = null;
+    document.querySelectorAll(`.tabContent[data-index="${idx}"]`).forEach((el) => {
+      if (filled || el === panel || home.page.contains(el) || !hasContent(el)) return;
+      if (panel.id && el.id && el.id !== panel.id) return;
+      filled = el;
+    });
+    if (filled) {
+      const wasActive = panel.classList.contains("is-active");
+      swapNodes(panel, filled);
+      panel.classList.remove("is-active");
+      filled.classList.toggle("is-active", wasActive);
+      return;
+    }
+    const plugin = window.customTabsPlugin;
+    const config = plugin?.tabConfigs?.[panel.id] || plugin?.configs?.[idx - 2];
+    if (!config || typeof plugin.setInnerHTMLWithScripts !== "function") return;
+    try {
+      plugin.setInnerHTMLWithScripts(panel, config.ContentHtml || "");
+      plugin.renderedTabs?.add?.(panel);
+    } catch {}
+  });
+}
+
 function prepare(home) {
   adoptPluginPanels(home);
+  fillPluginPanels(home);
   sortPluginPanels(home.fav);
 }
 
@@ -104,18 +148,36 @@ function prepare(home) {
 // shown can be applied to the panels of the other (hidden) one, which then comes back on the next
 // visit to Home with no active panel (blank page). For Home (0) and Favorites (1) the panel of the
 // visible page is simply made active again; their content is already loaded by Jellyfin.
-function ensureNativePanel(tabs, home, index) {
+function ensureNativePanel(tabs, home, index, force) {
   const panel = home.page.querySelector(`.tabContent[data-index="${index}"]`);
   if (!panel) return false;
+  const button = tabs.querySelector(`.emby-tabs-slider .emby-tab-button[data-index="${index}"]`);
+  if (force && button && !button.classList.contains("emby-tab-button-active")) {
+    // The address asks for Home/Favorites but the strip is still on another tab (same route, so Jellyfin kept
+    // it): a real click lets the strip and Jellyfin's tab controller do the switch.
+    try { button.click(); } catch {}
+  }
   if (panel.classList.contains("is-active")) return true;
-  if (home.page.querySelector(".tabContent.is-active:not([data-index='" + index + "'])")) {
+  const other = home.page.querySelector(".tabContent.is-active:not([data-index='" + index + "'])");
+  if (!force && other && indexOf(other) >= 2) {
+    // Back/forward to a Home page that was left on a plugin tab: Jellyfin shows that panel again but marks
+    // the first button. Keep the tab the user was on and mark its button.
+    const own = tabs.querySelector(`.emby-tabs-slider .emby-tab-button[data-index="${indexOf(other)}"]`);
+    if (own && !own.classList.contains("emby-tab-button-active")) {
+      tabs.querySelectorAll(".emby-tabs-slider .emby-tab-button-active").forEach((el) => el.classList.remove("emby-tab-button-active"));
+      own.classList.add("emby-tab-button-active");
+      try { tabs.selectedTabIndex = indexOf(other); } catch {}
+    }
+    fillPluginPanels(home);
+    return true;
+  }
+  if (!force && other) {
     // Another panel is legitimately active (the user is on that tab): leave it.
     const btnActive = tabs.querySelector(".emby-tabs-slider .emby-tab-button-active");
     if (btnActive && btnActive.getAttribute("data-index") !== String(index)) return true;
   }
   home.page.querySelectorAll(".tabContent.is-active").forEach((el) => el.classList.remove("is-active"));
   panel.classList.add("is-active");
-  const button = tabs.querySelector(`.emby-tabs-slider .emby-tab-button[data-index="${index}"]`);
   if (button && !button.classList.contains("emby-tab-button-active")) {
     tabs.querySelectorAll(".emby-tabs-slider .emby-tab-button-active").forEach((el) => el.classList.remove("emby-tab-button-active"));
     button.classList.add("emby-tab-button-active");
@@ -124,11 +186,11 @@ function ensureNativePanel(tabs, home, index) {
   return true;
 }
 
-function trySelect(index) {
+function trySelect(index, force) {
   const tabs = visibleTabsStrip();
   const home = activeHomePage();
   if (!tabs || !home) return false;
-  if (index < 2) return ensureNativePanel(tabs, home, index);
+  if (index < 2) return ensureNativePanel(tabs, home, index, force);
   prepare(home);
   const button = tabs.querySelector(`.emby-tabs-slider .emby-tab-button[data-index="${index}"]`);
   const panel = home.page.querySelector(`.tabContent[data-index="${index}"]`);
@@ -161,7 +223,8 @@ function trySelect(index) {
   return true;
 }
 
-function schedule() {
+function schedule(opts) {
+  const forceNative = opts?.force !== false;
   try { stopWatch?.(); } catch {}
   stopWatch = null;
   if (isModernLayout()) return;
@@ -172,6 +235,8 @@ function schedule() {
   let queued = false;
   let observer = null;
   let tick = 0;
+  // Only the first successful pass may force Home/Favorites; after that a tab the user picks is respected.
+  let forced = !forceNative;
   const stop = () => {
     queued = true;
     try { observer?.disconnect(); } catch {}
@@ -187,7 +252,9 @@ function schedule() {
     }
     // Success is only final once the panel stayed active; keep watching briefly in case the page is
     // swapped again right after (Jellyfin remounts Home on some transitions).
-    if (trySelect(index) && Date.now() - startedAt > 1500) stop();
+    const ok = trySelect(index, !forced);
+    if (ok) forced = true;
+    if (ok && Date.now() - startedAt > 1500) stop();
   };
   const queue = () => {
     if (queued) return;
@@ -203,20 +270,46 @@ function schedule() {
 
 // A click on a tab button is resolved by the strip right after this (bubbling phase): order the
 // panels first, in the capture phase, so the click shows the panel of the tab that was clicked.
+// "#/home", "#/home.html", "#/home?..." without a plugin tab, or "#/" (a bare "#" is a button, not Home).
+function isHomeHref(href) {
+  const i = href.indexOf("#");
+  if (i < 0) return false;
+  const [path, query = ""] = href.slice(i + 1).split("?");
+  if (path !== "/" && path !== "/home" && path !== "/home.html") return false;
+  const tab = new URLSearchParams(query).get("tab");
+  return tab == null || tab === "" || tab === "0";
+}
+
 function onTabClickCapture(event) {
   if (isModernLayout()) return;
-  const button = event.target?.closest?.(".emby-tabs-slider .emby-tab-button");
-  if (!button) return;
-  const home = activeHomePage();
-  if (home) prepare(home);
+  const target = event.target;
+  const button = target?.closest?.(".emby-tabs-slider .emby-tab-button");
+  if (button) {
+    const home = activeHomePage();
+    if (home) prepare(home);
+    // The strip shows the panel, but Custom Tabs may fill it a moment later: check again shortly.
+    if (indexOf(button) >= 2) setTimeout(() => { const h = activeHomePage(); if (h) fillPluginPanels(h); }, 120);
+    return;
+  }
+  // A link to Home clicked while the address already is #/home (the logo, a Home link) changes nothing in the
+  // address, so no hashchange arrives and Jellyfin stays on the current tab: select Home here.
+  const link = target?.closest?.("a[href], .headerHomeButton, .pageTitleWithLogo, .pf-logo, .pf-logo-modern");
+  if (!link) return;
+  const href = link.getAttribute?.("href");
+  if (href != null && !isHomeHref(href)) return;
+  setTimeout(() => { if (requestedTab() === 0) schedule(); }, 0);
 }
 
 export function installLegacyHomeTabsFix() {
   if (installed) return;
   installed = true;
-  window.addEventListener("hashchange", schedule);
-  window.addEventListener("popstate", schedule);
+  // Back/forward (popstate, followed by a hashchange) returns to the tab the user was on: never forced.
+  // A new address without ?tab= (link, typed address) means Home.
+  let lastPopAt = 0;
+  window.addEventListener("popstate", () => { lastPopAt = Date.now(); schedule({ force: false }); });
+  window.addEventListener("hashchange", () => schedule({ force: Date.now() - lastPopAt > 150 }));
   document.addEventListener("click", onTabClickCapture, true);
   try { window.__jmsLegacyHomeTabs = { installedAt: Date.now(), run: schedule }; } catch {}
-  schedule();
+  // First load: Jellyfin already selected the tab of the address; nothing to force.
+  schedule({ force: false });
 }

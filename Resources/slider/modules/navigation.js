@@ -1575,6 +1575,20 @@ async function preloadGenreData(itemIds) {
 // ao mesmo tempo (cards do Peak/Coverflow fora da selecao). So o quadro da chamada mais recente roda.
 let displaySlideSeq = 0;
 
+let cinemaSwitchResetBound = false;
+function markCinemaSwitched() {
+  const root = document.documentElement;
+  if (!root.classList.contains("jms-cinema-switched")) root.classList.add("jms-cinema-switched");
+  if (cinemaSwitchResetBound) return;
+  cinemaSwitchResetBound = true;
+  // Any page shown again (Home after details, player or another page) resets it: the slide shown on the way
+  // back is a "first" one.
+  const reset = () => root.classList.remove("jms-cinema-switched");
+  document.addEventListener("viewshow", reset, { passive: true });
+  window.addEventListener("popstate", reset, { passive: true });
+  window.addEventListener("hashchange", reset, { passive: true });
+}
+
 export function displaySlide(index) {
   ensureFlickerFixCSS();
   const seq = ++displaySlideSeq;
@@ -1598,6 +1612,10 @@ export function displaySlide(index) {
 
   let prevIndex = activeSlide ? slidesArr.indexOf(activeSlide) : -1;
   if (prevIndex < 0) prevIndex = (index - 1 + len) % len;
+  // Cinema: from the first slide change on, the backdrop stays hidden until the trailer plays (layouts.css).
+  // The first slide shown after a reload or a return to Home keeps its backdrop, so the screen is not dark
+  // while that trailer loads.
+  if (activeSlide && activeSlide !== currentSlide) markCinemaSwitched();
 
   let delta = index - prevIndex;
   if (delta >  len / 2)  delta -= len;

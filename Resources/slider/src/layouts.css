@@ -80,8 +80,8 @@ html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-bckdrp-cntn
   min-width:0!important;min-height:100%!important;aspect-ratio:16/9;transform:translateY(-50%)!important;clip-path:none!important;-webkit-clip-path:none!important;
   -webkit-mask-image:none!important;mask-image:none!important;border-radius:0!important}
 html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-backdrop,html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-backdrop{opacity:0!important}
-/* Cinema with automatic trailers: only the trailer is shown, never the backdrop (not before the trailer starts, not on the slide that is leaving). utils.js removes jms-cinema-hold when the item has no playable trailer. */
-html[data-slider-layout=cinema] .monwui-slide.jms-cinema-hold .monwui-backdrop{opacity:0!important;transition:none!important}
+/* Cinema with automatic trailers: after the first slide change only the trailer is shown, never the backdrop (not before the trailer starts, not on the slide that is leaving). The first slide after a reload or a return to Home keeps its backdrop while its trailer loads (navigation.js adds jms-cinema-switched). utils.js removes jms-cinema-hold when the item has no playable trailer. */
+html.jms-cinema-switched[data-slider-layout=cinema] .monwui-slide.jms-cinema-hold .monwui-backdrop{opacity:0!important;transition:none!important}
 /* the blurred logo ghost only existed while the trailer plays; drop it */
 html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-logo,html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-logo,
 html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-no-logo-container,html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-no-logo-container{filter:none;opacity:1;transform:none}
