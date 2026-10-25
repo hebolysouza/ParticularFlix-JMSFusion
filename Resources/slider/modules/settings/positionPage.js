@@ -1,6 +1,7 @@
 import { applySettings } from "./applySettings.js";
 import { getActivePositionProfile, readProfilePositions, POSITION_KEYS } from "../positionProfiles.js";
-import { TUNING_FIELDS, readTuning, applyLayoutTuning, isFlowProfile, revertTuningWhenSettingsCloses } from "../layoutTuning.js";
+import { TUNING_FIELDS, readTuning, saveTuning, applyLayoutTuning, isFlowProfile, revertTuningWhenSettingsCloses, setLivePreview } from "../layoutTuning.js";
+import { startDragEditor } from "../dragEditor.js";
 import {
   markPositionEditing,
   writeAnchorRelease,
@@ -353,6 +354,15 @@ export function createPositionEditor(config, labels, section) {
     [['position', 'fixed'], ['transform', 'none'], ['margin', '0'], ['pointer-events', 'auto'], ['z-index', '2147483000'],
       ['width', 'min(340px, calc(100vw - 24px))'], ['max-width', 'calc(100vw - 24px)'], ['padding', '14px'],
       ['gap', '10px'], ['border-radius', '16px'], ['opacity', '0.97']].forEach(([k, v]) => imp(content, k, v));
+
+    // botao de fechar: canto superior direito, sem sobrepor titulo nem campos
+    const closeEl = content.querySelector('.position-close');
+    if (closeEl) {
+      [['position', 'absolute'], ['top', '10px'], ['right', '10px'], ['left', 'auto'], ['bottom', 'auto'], ['width', '30px'], ['height', '30px'],
+        ['margin', '0'], ['padding', '0'], ['display', 'flex'], ['align-items', 'center'], ['justify-content', 'center'], ['float', 'none'],
+        ['transform', 'none'], ['border-radius', '50%'], ['background', 'rgba(255,255,255,.1)'], ['font-size', '20px'], ['line-height', '1'], ['z-index', '3']].forEach(([k, v]) => imp(closeEl, k, v));
+    }
+    handle.style.paddingRight = '40px';
 
     const marked = tuningMode ? [] : Array.from(document.querySelectorAll(selector));
     marked.forEach((el) => el.classList.add('jms-pos-target'));
@@ -827,7 +837,9 @@ export function createPositionEditor(config, labels, section) {
 
   function previewTuning() {
     revertTuningWhenSettingsCloses();
-    applyLayoutTuning(collectTuning());
+    const v = collectTuning();
+    setLivePreview(v);
+    applyLayoutTuning(v);
   }
 
   /* Caixinha flutuante para os ajustes globais: a janela de configuracoes some e a tela de tras fica visivel. */
@@ -845,6 +857,7 @@ export function createPositionEditor(config, labels, section) {
       if (floating) floating.dispose();
       modal.remove();
       showMainModal(mainModal);
+      previewTuning();
     };
     const onKey = (e) => {
       if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); closeModal(); }
@@ -863,6 +876,12 @@ export function createPositionEditor(config, labels, section) {
     hint.textContent = hintText || '';
     content.append(closeBtn, title, hint);
 
+    const name = el.dataset.jmsLay;
+    const f = TUNING_FIELDS[name] || {};
+    const saved = document.createElement('p');
+    saved.className = 'position-modal-status';
+    saved.style.minHeight = '1.2em';
+
     if (el.tagName === 'SELECT') {
       const box = document.createElement('div');
       box.className = 'position-modal-options';
@@ -877,37 +896,51 @@ export function createPositionEditor(config, labels, section) {
           box.querySelectorAll('.position-modal-option').forEach((x) => x.classList.remove('active'));
           b.classList.add('active');
           previewTuning();
+          saved.textContent = '';
         };
         box.appendChild(b);
       });
       content.appendChild(box);
     } else {
-      const f = TUNING_FIELDS[el.dataset.jmsLay] || {};
+      const def = Number.isFinite(f.def) ? f.def : f.min;
       const row = document.createElement('div');
       row.className = 'position-modal-input-container';
       const num = document.createElement('input');
       num.type = 'number';
       num.className = 'position-modal-input';
       num.min = f.min; num.max = f.max; num.step = f.step;
+      num.placeholder = `${def} (${L('posDefaultShort', 'padrão')})`;
       num.value = el.value;
       const range = document.createElement('input');
       range.type = 'range';
       range.min = f.min; range.max = f.max; range.step = f.step;
-      range.value = el.value === '' ? String(f.min) : el.value;
+      range.value = el.value === '' ? String(def) : el.value;
       range.style.cssText = 'width:100%;margin-top:8px';
-      const push = (v) => { el.value = v; previewTuning(); };
+      const push = (v) => { el.value = v; previewTuning(); saved.textContent = ''; };
       num.addEventListener('input', () => { if (num.value !== '') range.value = num.value; push(num.value); });
       range.addEventListener('input', () => { num.value = range.value; push(range.value); });
-      const def = document.createElement('button');
-      def.type = 'button';
-      def.className = 'reset-button';
-      def.textContent = L('resetButton', 'Padrão');
-      def.style.marginTop = '8px';
-      def.onclick = () => { num.value = ''; range.value = String(f.min); push(''); };
-      row.append(num, range, def);
+      const def2 = document.createElement('button');
+      def2.type = 'button';
+      def2.className = 'reset-button';
+      def2.textContent = L('resetButton', 'Padrão');
+      def2.style.marginTop = '8px';
+      def2.onclick = () => { num.value = ''; range.value = String(def); push(''); };
+      row.append(num, range, def2);
       content.appendChild(row);
       setTimeout(() => { num.focus(); num.select?.(); }, 60);
     }
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'position-modal-apply';
+    saveBtn.textContent = L('posSaveHere', 'Salvar esta mudança');
+    saveBtn.onclick = () => {
+      const v = el.value === '' ? '' : (el.tagName === 'SELECT' ? el.value : Number(el.value));
+      saveTuning(getActivePositionProfile(), { [name]: v });
+      previewTuning();
+      saved.textContent = L('posSavedHere', 'Salvo neste estilo.');
+    };
+    content.append(saveBtn, saved);
     modal.appendChild(content);
     document.body.appendChild(modal);
     floating = setupFloatingEditor(modal, content, title, '__tuning__', 'slides');
@@ -936,7 +969,7 @@ export function createPositionEditor(config, labels, section) {
     input.dataset.jmsLay = name;
     input.min = f.min; input.max = f.max; input.step = f.step;
     input.value = stored[name] === '' ? '' : String(stored[name]);
-    input.placeholder = L('placeholderText', 'Digite um valor');
+    input.placeholder = Number.isFinite(f.def) ? `${f.def} (${L('posDefaultShort', 'padrão')})` : L('placeholderText', 'Digite um valor');
     input.title = hintText;
     label.htmlFor = input.id;
     input.addEventListener('input', previewTuning);
@@ -954,25 +987,24 @@ export function createPositionEditor(config, labels, section) {
     return input;
   }
 
-  function appendAlignSelect(stored) {
+  function appendStringSelect(name, labelText, hintText, options, stored) {
     const row = document.createElement('div');
     row.className = 'position-item';
     const label = document.createElement('label');
-    label.textContent = L('posAlign', 'Alinhar botões e gênero/ano/país');
+    label.textContent = labelText;
     const sel = document.createElement('select');
-    sel.name = 'jmsLay:align';
-    sel.id = 'input-jmsLay-align';
-    sel.dataset.jmsLay = 'align';
+    sel.name = `jmsLay:${name}`;
+    sel.id = `input-jmsLay-${name}`;
+    sel.dataset.jmsLay = name;
     label.htmlFor = sel.id;
-    [['', L('posAlignDefault', 'Padrão do estilo')], ['left', L('posAlignLeft', 'Esquerda')], ['center', L('posAlignCenter', 'Centralizado')], ['right', L('posAlignRight', 'Direita')]].forEach(([v, t]) => {
+    options.forEach(([v, t]) => {
       const o = document.createElement('option');
       o.value = v; o.textContent = t;
-      if (stored.align === v) o.selected = true;
+      if (stored[name] === v) o.selected = true;
       sel.appendChild(o);
     });
     sel.addEventListener('change', previewTuning);
-    const hintText = L('posAlignHint', 'Move a linha de botões (Assistir, Trailer, Assistido, Favoritos) e a linha de gênero, ano e país juntas. Centralizado deixa como na produção.');
-    bindTuningEditor(sel, label.textContent, hintText);
+    bindTuningEditor(sel, labelText, hintText);
     const hint = document.createElement('p');
     hint.className = 'position-block-desc';
     hint.textContent = hintText;
@@ -1023,7 +1055,34 @@ export function createPositionEditor(config, labels, section) {
       createTuningNumber('gap', L('posTuneGap', 'Espaço entre blocos (px)'), L('posTuneGapHint', 'Espaço vertical entre logo, selos, sinopse, botões e gênero.'), stored);
       createTuningNumber('fmtTop', L('posTuneFmtTop', 'Selos do topo: distância do topo (px)'), L('posTuneFmtTopHint', 'Posição vertical dos selos de Filme/Série e qualidade. Aumente para descer, diminua para subir. Vazio = padrão do estilo.'), stored);
       createTuningNumber('fmtLeft', L('posTuneFmtLeft', 'Selos do topo: distância da esquerda (px)'), L('posTuneFmtLeftHint', 'Posição horizontal dos selos. Vazio = acompanha a margem lateral.'), stored);
-      appendAlignSelect(stored);
+      appendStringSelect('align', L('posAlignBtn', 'Botões (Assistir, Trailer...): alinhamento'), L('posAlignBtnHint', 'Alinha só a linha de botões. Centralizado embaixo deixa os botões centralizados e colados na parte de baixo da tela, como na produção.'), [['', L('posAlignDefault', 'Padrão do estilo')], ['left', L('posAlignLeft', 'Esquerda')], ['center', L('posAlignCenter', 'Centralizado')], ['bottom', L('posAlignBottom', 'Centralizado embaixo')], ['right', L('posAlignRight', 'Direita')]], stored);
+      createTuningNumber('btnX', L('posBtnX', 'Botões: mover na horizontal (px)'), L('posBtnXHint', 'Positivo move para a direita, negativo para a esquerda. Independente do resto.'), stored);
+      createTuningNumber('btnY', L('posBtnY', 'Botões: mover na vertical (px)'), L('posBtnYHint', 'Positivo move para baixo, negativo para cima. Independente do resto.'), stored);
+      appendStringSelect('alignInfo', L('posAlignInfo', 'Gênero, ano e país: alinhamento'), L('posAlignInfoHint', 'Alinha só a linha de gênero, ano e país. Não mexe nos botões.'), [['', L('posAlignDefault', 'Padrão do estilo')], ['left', L('posAlignLeft', 'Esquerda')], ['center', L('posAlignCenter', 'Centralizado')], ['right', L('posAlignRight', 'Direita')]], stored);
+      createTuningNumber('infoX', L('posInfoX', 'Gênero, ano e país: mover na horizontal (px)'), L('posInfoXHint', 'Positivo move para a direita, negativo para a esquerda. Independente dos botões.'), stored);
+      createTuningNumber('infoY', L('posInfoY', 'Gênero, ano e país: mover na vertical (px)'), L('posInfoYHint', 'Positivo move para baixo, negativo para cima. Independente dos botões.'), stored);
+      appendStringSelect('corners', L('posCorners', 'Cantos arredondados do slider'), L('posCornersHint', 'Padrão: os 4 cantos arredondados. Os cantos cortam o que estiver fora da moldura, então tire o arredondamento se for mover selos para as bordas.'), [['', L('posCornersDefault', 'Padrão (4 cantos)')], ['right', L('posCornersRight', 'Sem arredondar à direita')], ['top', L('posCornersTop', 'Sem arredondar em cima')], ['none', L('posCornersNone', 'Nenhum canto arredondado')]], stored);
+      const dragRow = document.createElement('div');
+      dragRow.className = 'position-item';
+      const dragBtn = document.createElement('button');
+      dragBtn.type = 'button';
+      dragBtn.className = 'position-modal-apply';
+      dragBtn.textContent = L('posDragButton', 'Arrastar elementos na tela');
+      dragBtn.addEventListener('click', () => startDragEditor({
+        labels: L,
+        hideMain: hideMainModal,
+        showMain: showMainModal,
+        onSaved: () => {
+          const st = readTuning(getActivePositionProfile());
+          section.querySelectorAll('[data-jms-lay]').forEach((el) => { if (el.tagName !== 'SELECT' && st[el.dataset.jmsLay] !== undefined) el.value = st[el.dataset.jmsLay] === '' ? '' : String(st[el.dataset.jmsLay]); });
+          previewTuning();
+        }
+      }));
+      const dragHint = document.createElement('p');
+      dragHint.className = 'position-block-desc';
+      dragHint.textContent = L('posDragHint', 'Arraste selos, logo, informações, sinopse, diretor, botões e a linha de gênero direto na tela. Linhas-guia mostram o alinhamento com o centro, as margens e os outros blocos. Segure Alt para soltar sem imã.');
+      dragRow.append(dragBtn);
+      section.append(dragRow, dragHint);
       if (profile === 'cinema') createTuningNumber('zoneGap', L('posTuneZoneGap', 'Espaço entre a sinopse e os selos (vh), só em Duas zonas'), L('posTuneZoneGapHint', 'Distância entre o último bloco de texto (sinopse, barra de progresso, diretor) e a linha de selos. Vazio = automático.'), stored);
     }
 
