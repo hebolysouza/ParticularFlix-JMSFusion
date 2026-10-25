@@ -117,6 +117,21 @@ function getVideoQualityInfo(videoStream) {
   };
 }
 
+function getVideoResolutionLabel(videoStream) {
+  const width = getNormalizedDimension(videoStream?.Width);
+  const height = getNormalizedDimension(videoStream?.Height);
+  const longerEdge = Math.max(width, height);
+  const shorterEdge = Math.min(width, height);
+  if (!longerEdge) return "";
+  if (longerEdge >= 3800 || shorterEdge >= 2160) return "2160p";
+  if (longerEdge >= 2500 || shorterEdge >= 1440) return "1440p";
+  if (longerEdge >= 1900 || shorterEdge >= 1080) return "1080p";
+  if (longerEdge >= 1200 || shorterEdge >= 720) return "720p";
+  if (shorterEdge >= 540) return "576p";
+  if (shorterEdge >= 400) return "480p";
+  return "360p";
+}
+
 function getVideoRangeLabel(videoStream) {
   const range = String(videoStream?.VideoRangeType || "").toUpperCase();
   if (!range) return "SDR";
@@ -206,12 +221,13 @@ function getAudioLayoutLabel(audioStream) {
   return "";
 }
 
-function buildQualitySegment(label, part) {
+function buildQualitySegment(label, part, extra = "") {
   const safeLabel = escapeMetaHtml(String(label || "").trim());
   if (!safeLabel) return "";
   const safePart = escapeMetaHtml(part);
+  const extraAttr = extra ? ` data-pf-extra="${escapeMetaHtml(extra)}"` : "";
   return `
-    <span class="monwui-quality-segment monwui-quality-segment--${safePart}" data-quality-part="${safePart}">
+    <span class="monwui-quality-segment monwui-quality-segment--${safePart}" data-quality-part="${safePart}"${extraAttr}>
       ${safeLabel}
     </span>
   `.trim();
@@ -221,9 +237,21 @@ export function ensureVideoQualityBadgeStyles() {
   if (typeof document === "undefined") return;
   if (document.getElementById("monwui-video-quality-style")) return;
 
+  // Interruptor de emergencia: localStorage.setItem("pf:qualityExtras","off") volta ao rotulo antigo (FHD) e esconde o audio na linha de formato.
+  try {
+    if (window.localStorage.getItem("pf:qualityExtras") === "off") document.documentElement.setAttribute("data-pf-quality-extras", "off");
+  } catch {}
+
   const style = document.createElement("style");
   style.id = "monwui-video-quality-style";
   style.textContent = `
+    html:not([data-pf-quality-extras="off"]) .monwui-format-container .video-quality .monwui-quality-group[data-quality-group="audio"] {
+      display: inline-flex;
+    }
+    html:not([data-pf-quality-extras="off"]) .monwui-quality-segment[data-pf-extra="lvl"],
+    html[data-pf-quality-extras="off"] .monwui-quality-segment[data-pf-extra="res"] {
+      display: none;
+    }
     .monwui-quality-group {
       --monwui-quality-size: 24px;
       --monwui-quality-gap: 2px;
@@ -1223,7 +1251,8 @@ export function getVideoQualityText(videoStream, mediaStreams = null) {
   const bitDepthLabel = getVideoBitDepthLabel(videoStream);
 
   const videoParts = [
-    buildQualitySegment(qualityLabel, "level"),
+    buildQualitySegment(qualityLabel, "level", "lvl"),
+    buildQualitySegment(getVideoResolutionLabel(videoStream), "level", "res"),
     buildQualitySegment(rangeLabel, "range"),
     buildQualitySegment(codecLabel, "codec"),
     buildQualitySegment(bitDepthLabel, "bitdepth")
