@@ -2160,7 +2160,7 @@ async function tmdbFetchJson(path, { signal } = {}) {
   if (!apiKey) throw new Error("TMDb API key missing");
 
   const url = new URL(`https://api.themoviedb.org/3${path}`);
-  url.searchParams.set("ApiKey", apiKey);
+  url.searchParams.set("api_key", apiKey);
 
   const res = await fetch(url.toString(), {
     method: "GET",

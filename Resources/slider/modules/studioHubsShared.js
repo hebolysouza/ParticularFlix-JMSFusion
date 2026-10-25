@@ -687,7 +687,7 @@ export async function fetchTmdbCompanyResults(studioName) {
 
     for (const query of queries) {
       const url = new URL(`${TMDB_API_BASE}/search/company`);
-      url.searchParams.set("ApiKey", apiKey);
+      url.searchParams.set("api_key", apiKey);
       url.searchParams.set("query", query);
       url.searchParams.set("page", "1");
 
