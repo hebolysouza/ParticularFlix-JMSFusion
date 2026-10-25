@@ -24,12 +24,19 @@
         STACK + " a[href=\"#/\"]:not(.pf-logo-modern):not(.pf-nav-home){display:none !important;}",
         "html.pf-modern-active .skinHeader{visibility:hidden !important;opacity:0 !important;pointer-events:none !important;transition:none !important;}",
         ROOT + " .MuiToolbar-root{position:relative;}",
-        "html.pf-modern-on:not(.pf-nav-flow) " + HDR + "{position:absolute !important;left:50%;top:50%;transform:translate(-50%,-50%);display:flex !important;align-items:center;gap:8px;}",
+        "html.pf-modern-on:not(.pf-nav-flow) " + HDR + "{position:absolute !important;left:50%;top:50%;transform:translate(-50%,-50%);width:max-content;display:flex !important;align-items:center;gap:8px;}",
         "html.pf-modern-on.pf-nav-flow " + HDR + "{position:static !important;transform:none;margin-left:12px;display:flex !important;align-items:center;gap:6px;}",
         STACK + " a:not(.pf-logo-modern){display:inline-flex !important;align-items:center;gap:6px;border-radius:999px !important;padding:6px 16px !important;min-width:0;background:rgba(255,255,255,0.06);color:#F2F2F2 !important;text-transform:none !important;text-decoration:none;font-size:14px;line-height:1.2;transition:background-color 200ms ease,box-shadow 200ms ease,color 200ms ease;}",
         "html.pf-modern-on.pf-nav-flow " + HDR + " a:not(.pf-logo-modern){padding:6px 12px !important;font-size:13px;}",
         // Modo compacto: sem icones nas pilulas e sem quebra de linha, para o perfil/icones da direita nao cairem para a linha de baixo.
         "html.pf-modern-on.pf-nav-flow " + HDR + " a:not(.pf-logo-modern) svg{display:none !important;}",
+        // Modo reduzido (passo 1): pilulas menores, com icone e texto, ainda centralizadas.
+        "html.pf-modern-on.pf-nav-compact " + HDR + "{gap:4px;}",
+        "html.pf-modern-on.pf-nav-compact " + HDR + " a:not(.pf-logo-modern){padding:6px 10px !important;font-size:13px;gap:5px;}",
+        "html.pf-modern-on.pf-nav-compact " + HDR + " a:not(.pf-logo-modern) svg{width:16px;height:16px;}",
+        // Modo so icones (ultimo recurso): o texto some e fica como dica ao passar o mouse.
+        "html.pf-modern-on.pf-nav-icons " + HDR + " a:not(.pf-logo-modern){font-size:0 !important;gap:0 !important;padding:8px 10px !important;}",
+        "html.pf-modern-on.pf-nav-icons " + HDR + " a:not(.pf-logo-modern) svg{display:inline-block !important;width:20px;height:20px;}",
         "html.pf-modern-on.pf-nav-flow header.MuiAppBar-root .MuiToolbar-root{flex-wrap:nowrap !important;}",
         "html.pf-modern-on.pf-nav-flow header.MuiAppBar-root .MuiToolbar-root > :not(.MuiStack-root):not(.pf-logo-modern){flex-shrink:0;}",
         STACK + " a:not(.pf-logo-modern) svg{width:18px;height:18px;fill:currentColor;}",
@@ -140,10 +147,19 @@
 
     function fitNav(toolbar, stack, logo) {
         var root = document.documentElement;
-        root.classList.remove("pf-nav-flow");
+        var CLS = ["pf-nav-compact", "pf-nav-flow", "pf-nav-icons"];
+        CLS.forEach(function (c) { root.classList.remove(c); });
         var t = toolbar.getBoundingClientRect();
         if (!t.width) return;
         var center = t.left + t.width / 2;
+        // Dica (tooltip) com o nome de cada pilula, usada quando so os icones cabem.
+        var links = stack.querySelectorAll("a:not(.pf-logo-modern)");
+        for (var q = 0; q < links.length; q++) {
+            if (!links[q].getAttribute("title")) {
+                var nm = (links[q].textContent || "").trim();
+                if (nm) links[q].setAttribute("title", nm);
+            }
+        }
         // Borda esquerda do primeiro controle real que fica na METADE DIREITA da barra (ignora espacadores e itens ocultos).
         var rightLeft = t.right;
         var kids = toolbar.children;
@@ -156,14 +172,23 @@
                 if (r.width > 0 && r.height > 0 && r.left > center && r.left < rightLeft) rightLeft = r.left;
             }
         }
-        var sw = stack.getBoundingClientRect().width;
-        var left = center - sw / 2;
-        var right = left + sw;
         var logoRight = logo.getBoundingClientRect().right;
-        // Em telas largas (1400px ou mais) as pilulas sempre cabem centralizadas; a medicao so decide em telas menores.
-        var flow = window.innerWidth < 1400 && (left < logoRight + 12 || right > rightLeft - 12);
-        window.__pfNavDebug = { toolbarW: Math.round(t.width), center: Math.round(center), stackW: Math.round(sw), left: Math.round(left), right: Math.round(right), logoRight: Math.round(logoRight), rightLeft: Math.round(rightLeft), flow: flow };
-        if (flow) root.classList.add("pf-nav-flow");
+        function sobrepoe() {
+            var sr = stack.getBoundingClientRect();
+            if (!sr.width) return false;
+            return sr.left < logoRight + 12 || sr.right > rightLeft - 12;
+        }
+        // Escada: normal centralizado, depois pilulas menores, depois logo apos o logo, por fim so icones.
+        var passos = [[], ["pf-nav-compact"], ["pf-nav-compact", "pf-nav-flow"], ["pf-nav-compact", "pf-nav-flow", "pf-nav-icons"]];
+        var usado = 0;
+        for (var n = 0; n < passos.length; n++) {
+            CLS.forEach(function (c) { root.classList.remove(c); });
+            passos[n].forEach(function (c) { root.classList.add(c); });
+            usado = n;
+            if (!sobrepoe()) break;
+        }
+        var sr2 = stack.getBoundingClientRect();
+        window.__pfNavDebug = { toolbarW: Math.round(t.width), center: Math.round(center), stackW: Math.round(sr2.width), left: Math.round(sr2.left), right: Math.round(sr2.right), logoRight: Math.round(logoRight), rightLeft: Math.round(rightLeft), passo: usado, classes: passos[usado].join(" ") };
     }
 
     function syncModernFlag(header) {
