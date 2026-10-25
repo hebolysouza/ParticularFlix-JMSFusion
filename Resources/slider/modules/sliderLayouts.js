@@ -64,7 +64,11 @@ html[data-next-style=dots] .monwui-dot-navigation-container{display:none!importa
   box-shadow:0 8px 22px rgba(0,0,0,.35);max-width:calc(100% - 24px)}
 .jms-dots-track{display:flex;align-items:center;gap:7px}
 .jms-dot{appearance:none;border:0;padding:0;margin:0;cursor:pointer;width:7px;height:7px;border-radius:999px;background:rgba(255,255,255,.34);transition:width .35s cubic-bezier(.2,.8,.2,1),background .25s ease,transform .25s ease,opacity .25s ease;flex:none}
-.jms-dot:hover{background:rgba(255,255,255,.8);transform:scale(1.35)}
+.jms-dot:hover,.jms-dot.hover{background:rgba(255,255,255,.85);transform:scale(1.4)}
+.jms-dot.active.hover{transform:none;filter:brightness(1.15)}
+.jms-dots-tip{position:absolute;bottom:calc(100% + 10px);left:0;transform:translateX(-50%) translateY(4px);max-width:260px;padding:6px 10px;border-radius:9px;background:rgba(10,14,22,.92);border:1px solid rgba(255,255,255,.12);color:#fff;font:600 12px/1.25 system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;opacity:0;transition:opacity .15s ease,transform .15s ease}
+.jms-dots-tip.show{opacity:1;transform:translateX(-50%) translateY(0)}
+html.jms-dots-hot,html.jms-dots-hot *{cursor:pointer!important}
 .jms-dot.edge{transform:scale(.62);opacity:.55}
 .jms-dot.near{background:rgba(255,255,255,.5)}
 .jms-dot.active{width:30px;background:linear-gradient(90deg,#b3151d,#d4343c);box-shadow:0 0 10px rgba(179,21,29,.6);transform:none;opacity:1;cursor:default}
@@ -279,9 +283,10 @@ function renderDots(container) {
     d.type = "button";
     d.className = "jms-dot";
     d.setAttribute("role", "tab");
+    d.dataset.idx = String(i);
     const title = tileTitle(slides[i]);
+    d.dataset.title = title || `${i + 1}`;
     d.setAttribute("aria-label", title ? `${i + 1}: ${title}` : String(i + 1));
-    if (title) d.title = title;
     if (i === active) { d.classList.add("active"); d.setAttribute("aria-selected", "true"); }
     else if (Math.abs(i - active) === 1) d.classList.add("near");
     if (win < n && ((i === start && start > 0) || (i === start + win - 1 && start + win < n))) d.classList.add("edge");
@@ -295,7 +300,71 @@ function renderDots(container) {
   const count = document.createElement("span");
   count.className = "jms-dots-count";
   count.textContent = `${active + 1} / ${n}`;
-  box.append(track, count);
+  const tip = document.createElement("div");
+  tip.className = "jms-dots-tip";
+  box.dataset.active = String(active);
+  box.append(track, count, tip);
+  installDotsPointer();
+}
+
+/* The dots answer to the mouse by position, in the capture phase of the window, so nothing layered above them can swallow the hover or the click. */
+let dotsPointerInstalled = false;
+const DOTS_BLOCK = ".position-modal,#settings-modal,#jms-drag-layer,.jms-drag-bar,[role=dialog],.monwui-details-modal,.monwui-castmodal,.monwui-now-playing-modal,.monwui-trailer-modal-overlay";
+function dotUnder(x, y) {
+  const box = document.querySelector(`#monwui-slides-container > .${DOTS_CLASS}`);
+  if (!box) return null;
+  const r = box.getBoundingClientRect();
+  if (x < r.left || x > r.right || y < r.top || y > r.bottom) return null;
+  let best = null;
+  let bestDist = 1e9;
+  box.querySelectorAll(".jms-dot").forEach((d) => {
+    const q = d.getBoundingClientRect();
+    const cx = q.left + q.width / 2;
+    const dist = Math.abs(x - cx);
+    if (dist <= Math.max(10, q.width / 2 + 3) && y >= q.top - 8 && y <= q.bottom + 8 && dist < bestDist) { best = d; bestDist = dist; }
+  });
+  return best;
+}
+function setDotHover(dot) {
+  const box = document.querySelector(`#monwui-slides-container > .${DOTS_CLASS}`);
+  if (!box) { document.documentElement.classList.remove("jms-dots-hot"); return; }
+  box.querySelectorAll(".jms-dot.hover").forEach((d) => { if (d !== dot) d.classList.remove("hover"); });
+  const tip = box.querySelector(".jms-dots-tip");
+  if (!dot) { tip?.classList.remove("show"); document.documentElement.classList.remove("jms-dots-hot"); return; }
+  dot.classList.add("hover");
+  document.documentElement.classList.add("jms-dots-hot");
+  if (tip) {
+    tip.textContent = dot.dataset.title || "";
+    const b = box.getBoundingClientRect();
+    const q = dot.getBoundingClientRect();
+    tip.style.left = `${q.left + q.width / 2 - b.left}px`;
+    tip.classList.add("show");
+  }
+}
+function installDotsPointer() {
+  if (dotsPointerInstalled) return;
+  dotsPointerInstalled = true;
+  const blocked = (t) => !!(t && t.closest && t.closest(DOTS_BLOCK));
+  window.addEventListener("pointermove", (e) => {
+    if (e.pointerType === "touch") return;
+    setDotHover(blocked(e.target) ? null : dotUnder(e.clientX, e.clientY));
+  }, { capture: true, passive: true });
+  const swallow = (e, act) => {
+    if (blocked(e.target)) return;
+    const d = dotUnder(e.clientX, e.clientY);
+    if (!d) return;
+    e.stopPropagation();
+    if (act) {
+      e.preventDefault();
+      const box = d.closest(`.${DOTS_CLASS}`);
+      const active = Number(box?.dataset.active);
+      const idx = Number(d.dataset.idx);
+      if (Number.isFinite(active) && Number.isFinite(idx) && idx !== active) { try { changeSlide(idx - active); } catch {} }
+    }
+  };
+  window.addEventListener("pointerdown", (e) => swallow(e, false), true);
+  window.addEventListener("mousedown", (e) => swallow(e, false), true);
+  window.addEventListener("click", (e) => swallow(e, true), true);
 }
 
 function currentLayout() {
