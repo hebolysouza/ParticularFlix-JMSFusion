@@ -1418,6 +1418,7 @@ function computeConfig() {
     smartAutoPause: readSmartAutoPause(),
 
     slideTransitionType: localStorage.getItem('slideTransitionType') || 'flip',
+    buttonStyle: (() => { const v = localStorage.getItem('buttonStyle'); return ['classic', 'pills', 'orbs'].includes(v) ? v : 'classic'; })(),
     badgeStyle: (() => { const v = localStorage.getItem('badgeStyle'); return ['classic', 'minimal', 'tinted', 'outline'].includes(v) ? v : 'minimal'; })(),
     slideTransitionTypeLayout: localStorage.getItem('slideTransitionTypeLayout') || '',
     dotPosterTransitionType: localStorage.getItem('dotPosterTransitionType') || 'scale',

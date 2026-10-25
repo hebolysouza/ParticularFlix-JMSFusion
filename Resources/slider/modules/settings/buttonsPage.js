@@ -9,6 +9,32 @@ export function createButtonsPanel(config, labels) {
 
     const section = createSection(labels.buttons || 'Buton Ayarları');
 
+    // Fork ParticularFlix: aparencia dos botoes de acao do slide (Assistir, Trailer, Assistido, Minha lista)
+    const styleDiv = document.createElement('div');
+    styleDiv.className = 'setting-item';
+    const styleLabel = document.createElement('label');
+    styleLabel.textContent = labels.buttonStyle || 'Button style:';
+    styleLabel.htmlFor = 'buttonStyleSelect';
+    const styleSelect = document.createElement('select');
+    styleSelect.name = 'buttonStyle';
+    styleSelect.id = 'buttonStyleSelect';
+    [
+        { value: 'classic', label: labels.buttonStyleClassic || 'Original' },
+        { value: 'pills', label: labels.buttonStylePills || 'Glass pills (icon and text)' },
+        { value: 'orbs', label: labels.buttonStyleOrbs || 'Round orbs (text on hover)' }
+    ].forEach((o) => {
+        const opt = document.createElement('option');
+        opt.value = o.value;
+        opt.textContent = o.label;
+        if (o.value === (config.buttonStyle || 'classic')) opt.selected = true;
+        styleSelect.appendChild(opt);
+    });
+    const styleDesc = document.createElement('p');
+    styleDesc.className = 'description-text';
+    styleDesc.textContent = labels.buttonStyleDesc || 'Look of the slide action buttons. Original: the plugin look (hover motion, photo background). Glass pills: frosted pills with icon and text always visible, Play in solid white. Round orbs: round glass icons that open into a pill with the text on hover, Play with a soft pulse. The two new looks ignore the button photo background, opacity and blur options below.';
+    styleDiv.append(styleLabel, styleSelect, styleDesc);
+    section.appendChild(styleDiv);
+
     const trailerButtonDiv = document.createElement('div');
     trailerButtonDiv.appendChild(createCheckbox('showTrailerButton', labels.showTrailerButton || 'Fragman Butonunu Göster', config.showTrailerButton));
     section.appendChild(trailerButtonDiv);

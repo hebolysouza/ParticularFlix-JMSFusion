@@ -399,6 +399,7 @@ const USER_ONLY_KEYS = [
             sliderAutoTrailerPlayback: formData.get('sliderAutoTrailerPlayback') === 'on',
             cssVariant: formData.get('cssVariant'),
             badgeStyle: formData.get('badgeStyle') || 'minimal',
+            buttonStyle: ['classic', 'pills', 'orbs'].includes(formData.get('buttonStyle')) ? formData.get('buttonStyle') : 'classic',
             useAlbumArtAsBackground: formData.get('useAlbumArtAsBackground') === 'on',
             albumArtBackgroundBlur: parseInt(formData.get('albumArtBackgroundBlur')),
             albumArtBackgroundOpacity: parseFloat(formData.get('albumArtBackgroundOpacity')),

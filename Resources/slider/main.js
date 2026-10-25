@@ -3114,6 +3114,7 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     const sliderLayout = sliderCssEnabled ? readSliderLayout(cfg) : '';
     syncCSS('/slider/src/layouts.css', 'jms-css-layout', !!sliderLayout);
     syncCSS('/slider/src/badges.css', 'jms-css-badges', sliderCssEnabled);
+    syncCSS('/slider/src/buttons.css', 'jms-css-buttons', sliderCssEnabled && (cfg.buttonStyle || 'classic') !== 'classic');
 
     if (!notificationsCssEnabled) {
       removeCssByHref([
@@ -3154,7 +3155,8 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
         'slider/src/slider.css',
         'slider/src/auroraSlider.css',
         'slider/src/layouts.css',
-        'slider/src/badges.css'
+        'slider/src/badges.css',
+        'slider/src/buttons.css'
       ]);
     }
 
@@ -3164,6 +3166,7 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     if (sliderLayout) document.documentElement.dataset.sliderLayout = sliderLayout;
     else delete document.documentElement.dataset.sliderLayout;
     document.documentElement.dataset.badgeStyle = sliderCssEnabled ? (cfg.badgeStyle || 'minimal') : 'classic';
+    document.documentElement.dataset.buttonStyle = sliderCssEnabled ? (cfg.buttonStyle || 'classic') : 'classic';
     try { installSliderLayouts(); } catch {}
     document.documentElement.setAttribute('data-jms-notif', cfg.enableNotifications ? '1' : '0');
   }
