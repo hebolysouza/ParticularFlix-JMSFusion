@@ -34,6 +34,29 @@ export function createButtonsPanel(config, labels) {
     styleDiv.append(styleLabel, styleSelect, styleDesc);
     section.appendChild(styleDiv);
 
+    const arrowDiv = document.createElement('div');
+    arrowDiv.className = 'fsetting-item';
+    const arrowLabel = document.createElement('h3');
+    arrowLabel.textContent = labels.arrowStyle || 'Navigation arrow style:';
+    const arrowSelect = document.createElement('select');
+    arrowSelect.name = 'arrowStyle';
+    arrowSelect.id = 'arrowStyleSelect';
+    [
+        { value: 'round', label: labels.arrowStyleRound || 'Round buttons (default)' },
+        { value: 'bar', label: labels.arrowStyleBar || 'Translucent side bar (Netflix style)' }
+    ].forEach((o) => {
+        const opt = document.createElement('option');
+        opt.value = o.value;
+        opt.textContent = o.label;
+        if (o.value === (config.arrowStyle === 'bar' ? 'bar' : 'round')) opt.selected = true;
+        arrowSelect.appendChild(opt);
+    });
+    const arrowDesc = document.createElement('p');
+    arrowDesc.className = 'description-text';
+    arrowDesc.textContent = labels.arrowStyleDesc || 'How you go to the previous or next slide.';
+    arrowDiv.append(arrowLabel, arrowSelect, arrowDesc);
+    section.appendChild(arrowDiv);
+
     const trailerButtonDiv = document.createElement('div');
     trailerButtonDiv.appendChild(createCheckbox('showTrailerButton', labels.showTrailerButton || 'Fragman Butonunu Göster', config.showTrailerButton));
     section.appendChild(trailerButtonDiv);

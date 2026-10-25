@@ -44,10 +44,19 @@ const NAV_CSS = `
 /* the brand script row arrows (.pf-row-arrow) must not double the slider arrows */
 #monwui-slides-container .pf-row-arrow,.pf-slider-arrow,.emby-scroller:has(#monwui-slides-container)>.pf-row-arrow,.pf-row-arrow:has(~ #monwui-slides-container){display:none!important}
 html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-nav-arrow.next{right:calc(var(--jms-rail-w, 27%) + var(--lay-inset, 12px) + 22px)}
-/* Cinema and Mosaic: smaller arrows tucked into the side margin and raised above the text block (the text is bottom aligned), so they never sit on top of it */
-html[data-slider-layout=cinema] #${ARROWS_ID} .jms-nav-arrow,html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-nav-arrow{width:32px;height:32px;margin-top:-16px;top:34%;font-size:16px}
-html[data-slider-layout=cinema] #${ARROWS_ID} .jms-nav-arrow.prev,html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-nav-arrow.prev{left:clamp(4px,calc(var(--lay-pad-x,56px) - 40px),16px)}
-html[data-slider-layout=cinema] #${ARROWS_ID} .jms-nav-arrow.next{right:clamp(4px,calc(var(--lay-pad-x,56px) - 40px),16px)}
+/* Side bar style (Netflix like): no visible button; the hovered side gets a translucent bar over the full slide height and any click on it changes the slide */
+#${ARROWS_ID} .jms-bar{position:absolute;top:0;bottom:0;width:clamp(48px,4.6vw,88px);display:none;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .22s ease;color:#fff}
+html[data-arrow-style=bar] #${ARROWS_ID} .jms-bar{display:flex}
+html[data-arrow-style=bar] #${ARROWS_ID} .jms-nav-arrow{display:none!important}
+#${ARROWS_ID} .jms-bar.prev{left:0;border-radius:var(--lay-radius,24px) 0 0 var(--lay-radius,24px);background:linear-gradient(90deg,rgba(6,9,15,.66),rgba(6,9,15,.3) 55%,rgba(6,9,15,0))}
+#${ARROWS_ID} .jms-bar.next{right:0;border-radius:0 var(--lay-radius,24px) var(--lay-radius,24px) 0;background:linear-gradient(270deg,rgba(6,9,15,.66),rgba(6,9,15,.3) 55%,rgba(6,9,15,0))}
+html[data-jms-corners=none] #${ARROWS_ID} .jms-bar{border-radius:0}
+html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-bar.next{right:calc(var(--jms-rail-w, 27%) + var(--lay-inset, 12px) + 22px);border-radius:0}
+#${ARROWS_ID} .jms-bar.hot{opacity:1}
+#${ARROWS_ID} .jms-bar svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 2px 6px rgba(0,0,0,.65));transition:transform .2s ease}
+#${ARROWS_ID} .jms-bar.hot svg{transform:scale(1.2)}
+html.jms-bar-hot #monwui-slides-container,html.jms-bar-hot #monwui-slides-container *{cursor:pointer!important}
+@media (hover:none){#${ARROWS_ID} .jms-bar{display:none!important}}
 html[data-slider-layout=coverflow] #${ARROWS_ID} .jms-nav-arrow{width:46px;height:46px;margin-top:-23px}
 `;
 
@@ -82,8 +91,50 @@ function ensureArrows(container) {
     return b;
   };
   wrap.append(mk("prev", "Previous slide", "‹", -1), mk("next", "Next slide", "›", 1));
+  const bar = (cls, d) => {
+    const el = document.createElement("div");
+    el.className = `jms-bar ${cls}`;
+    el.setAttribute("aria-hidden", "true");
+    el.innerHTML = `<svg viewBox="0 0 24 24"><path d="${d}"/></svg>`;
+    return el;
+  };
+  wrap.append(bar("prev", "M15 4 7 12l8 8"), bar("next", "M9 4l8 8-8 8"));
   container.appendChild(wrap);
+  installBarHandlers(container, wrap);
   return wrap;
+}
+
+/* Side bar arrows: the bars never take the mouse (pointer-events:none), so buttons, links and trailer controls under them keep working.
+   The container decides by position which bar is hot and turns a click on it into previous/next. */
+const BAR_SKIP = "button,a,input,select,textarea,label,[role=button],.monwui-main-button-container,.monwui-provider-container,.monwui-preview-volume-control,.monwui-preview-fullscreen-toggle,.monwui-auto-trailer-toggle,.jms-nextup,.jms-mosaic-tile,.jms-mosaic-rail,.monwui-dot-navigation-container,.monwui-artist-popover-body";
+function barAt(wrap, ev) {
+  if (document.documentElement.dataset.arrowStyle !== "bar") return null;
+  if (ev.pointerType === "touch") return null;
+  const t = ev.target;
+  if (t && t.closest && t.closest(BAR_SKIP)) return null;
+  const bars = wrap.querySelectorAll(".jms-bar");
+  for (const b of bars) {
+    const r = b.getBoundingClientRect();
+    if (r.width && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) return b;
+  }
+  return null;
+}
+function installBarHandlers(container, wrap) {
+  if (container.__jmsBarInstalled) return;
+  container.__jmsBarInstalled = true;
+  const setHot = (hot) => {
+    wrap.querySelectorAll(".jms-bar").forEach((b) => b.classList.toggle("hot", b === hot));
+    document.documentElement.classList.toggle("jms-bar-hot", !!hot);
+  };
+  container.addEventListener("pointermove", (ev) => setHot(barAt(wrap, ev)), { passive: true });
+  container.addEventListener("pointerleave", () => setHot(null), { passive: true });
+  container.addEventListener("click", (ev) => {
+    const hot = barAt(wrap, ev);
+    if (!hot) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    try { changeSlide(hot.classList.contains("prev") ? -1 : 1); } catch {}
+  }, true);
 }
 
 function tileTitle(slide) {
