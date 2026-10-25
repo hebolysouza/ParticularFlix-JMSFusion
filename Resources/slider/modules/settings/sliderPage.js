@@ -583,7 +583,9 @@ export function createSliderPanel(config, labels) {
   minQualityLabel.htmlFor = 'minHighQualityWidthInput';
   minQualityInput.id = 'minHighQualityWidthInput';
   minQualityDiv.append(minQualityLabel, minQualityDesc, minQualityInput);
-  sliderDiv.appendChild(minQualityDiv);
+  // Fork ParticularFlix: "Largura minima" e "Pixels minimos" nao tinham efeito (a escolha do backdrop e feita
+  // pelo tamanho do arquivo, ver getHighestQualityBackdropIndex). Medir cada imagem custaria requisicoes a
+  // mais, entao as duas opcoes saem da tela.
 
   bindCheckboxKontrol('#manualBackdropSelection', '.backdrop-container', 0.6, [backdropSelect]);
   bindTersCheckboxKontrol('#manualBackdropSelection', '.min-quality-container', 0.6, [minQualityInput]);
@@ -628,7 +630,6 @@ export function createSliderPanel(config, labels) {
   minPixelLabel.htmlFor = 'minPixelInput';
   minPixelInput.id = 'minPixelInput';
   minPixelDiv.append(minPixelLabel, minPixelDesc, minPixelInput);
-  sliderDiv.appendChild(minPixelDiv);
 
   const sizeFilterToggleDiv = document.createElement('div');
   sizeFilterToggleDiv.className = 'fsetting-item min-quality-container';

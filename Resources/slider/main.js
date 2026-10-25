@@ -2777,12 +2777,29 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .monwui-dot-navigation-container {
       display: none !important;
     }
+    html.jms-access-blocked #monwui-slides-container,
+    html.jms-access-blocked #studio-hubs,
+    html.jms-access-blocked #homeTab > :not(#jms-accu-empty),
+    html.jms-access-blocked .monwui-slide-progress-bar,
+    html.jms-access-blocked .monwui-dot-navigation-container {
+      display: none !important;
+    }
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .jms-slider,
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .homeSlider,
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] #monwui-slides-container {
       display: none !important;
     }
   `;
+  // Fork ParticularFlix: perfil de acesso que bloqueia tudo (lembrado por usuario pelo accessUnlock.js).
+  // A classe entra antes de qualquer secao ser desenhada, entao nada aparece e some na tela.
+  try {
+    const blockedUid = localStorage.getItem('jms:accessBlockedUser');
+    if (blockedUid) {
+      const cred = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}');
+      const uids = (cred.Servers || []).map((sv) => String(sv?.UserId || '').replace(/-/g, '').toLowerCase());
+      if (uids.includes(blockedUid)) D.documentElement.classList.add('jms-access-blocked');
+    }
+  } catch {}
   if (!D.getElementById('jms-critical-css')) {
     const s = D.createElement('style');
     s.id = 'jms-critical-css';
@@ -5602,6 +5619,9 @@ export async function slidesInit() {
     try { primeQualityFromItems(items); } catch {}
     if (!items.length) {
     console.warn("Hiçbir slayt verisi elde edilemedi.");
+    // Fork ParticularFlix: sem nenhum slide (perfil bloqueado, biblioteca vazia) a tela de abertura ficava
+    // esperando o limite de 12 s antes de mostrar a pagina. Nao ha o que esperar: libera na hora.
+    try { hideCustomSplash("no-slides"); } catch {}
     return;
   }
   window.__totalSlidesPlanned = items.length;
@@ -7100,6 +7120,13 @@ function observeWhenHomeReady(cb, maxMs = 20000) {
     const fastIndex = isHomeRouteActive()
       ? document.querySelector("#indexPage:not(.hide), #homePage:not(.hide)")
       : null;
+    // Fork ParticularFlix: o controle de acesso sai do "idle": um perfil bloqueado precisa ser reconhecido
+    // logo na abertura (aviso e bloqueio de uma vez), e nao depois que as secoes ja apareceram.
+    try {
+      import("./modules/accessUnlock.js")
+        .then((m) => m.initAccessUnlock())
+        .catch((e) => console.warn("accessUnlock init hata:", e));
+    } catch {}
     if (fastIndex && isHomeVisible()) {
       startPauseOverlayOnce();
       initializeSliderOnHome({ forceManagedSectionsBoot: true });
@@ -7124,11 +7151,6 @@ function observeWhenHomeReady(cb, maxMs = 20000) {
         });
       } catch {}
       runNonCriticalUiBootOnce();
-      try {
-        import("./modules/accessUnlock.js")
-          .then((m) => m.initAccessUnlock())
-          .catch((e) => console.warn("accessUnlock init hata:", e));
-      } catch {}
     });
 
     setupNavigationObserver();

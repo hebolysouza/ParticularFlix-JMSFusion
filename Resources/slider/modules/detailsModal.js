@@ -1,5 +1,6 @@
 import { makeApiRequest, fetchItemDetailsFull, getDetailsUrl, playNow, fetchLocalTrailers, pickBestLocalTrailer, getVideoStreamUrl, updateFavoriteStatus, getEmbyHeaders, getSessionInfo } from "../../Plugins/JMSFusion/runtime/api.js";
 import { withServer } from "./jfUrl.js";
+import { getPageOverflowElement } from "./pageScrollLock.js";
 import { getConfig, getDetailsModalRuntimeConfig } from "./config.js";
 import { getLanguageLabels } from "../language/index.js";
 import { CollectionCacheDB } from "./collectionCacheDb.js";
@@ -1798,7 +1799,10 @@ function lockScroll(lock) {
       docEl.style.scrollbarGutter = "stable";
       if (scrollbarW > 0) document.body.style.paddingRight = `${scrollbarW}px`;
 
-      docEl.style.overflow = "hidden";
+      // Fork ParticularFlix: so o elemento que controla a rolagem da janela (o body no Jellyfin 12) e
+      // travado. Travar tambem o html jogava a pagina para o topo enquanto o modal estava aberto.
+      _scrollSnap.lockHtml = getPageOverflowElement() === docEl;
+      if (_scrollSnap.lockHtml) docEl.style.overflow = "hidden";
       document.body.style.overflow = "hidden";
 
       const ios = isIOSLike();
@@ -1842,7 +1846,7 @@ function lockScroll(lock) {
 
       document.body.style.paddingRight = "";
       document.body.style.overflow = "";
-      docEl.style.overflow = "";
+      if (_scrollSnap.lockHtml) docEl.style.overflow = "";
       docEl.style.scrollbarGutter = "";
 
       _scrollSnap = null;

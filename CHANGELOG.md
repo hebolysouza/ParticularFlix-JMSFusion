@@ -17,6 +17,18 @@ Fixes found after the 4.0.0.0 rollout. Same requirements as 4.0.0.0 (Jellyfin 12
 - **Cinema**: the backdrop no longer flashes before the trailer or on the slide that is leaving. Items without a playable trailer still show their image.
 - **Coverflow 3D with side-bar arrows**: a click on a lit side bar could jump to the card under it (several slides at once), and fast clicks could leave two cards marked as active. Side bars now always move one slide, and only the latest slide change marks the active card (applies to every slider style).
 - **Legacy layout parity**: the notification bell has the same hover (no background) and ringing animation as the modern layout. Jellyfin Enhanced pages are only moved by the header script in the modern layout.
+- **Legacy layout, back to Home**: Jellyfin keeps two Home pages and alternates between them; a tab change could leave the other page without an active panel, so going back to Home or Favorites showed a blank page. The visible page now always gets its panel back. The plugin-tab watcher also waits for slow Home mounts on large libraries (up to 12 s) instead of a fixed set of retries.
+- **Details button (i) in the original look**: it had no background setting of its own and fell back to the blurred backdrop with a gradient, so it looked different from its neighbours. It now follows the "Played" button background setting.
+- **Scroll jumped to the top** when opening the details modal from any card (and when opening the settings or the music player): the page was locked by setting `overflow:hidden` on both `html` and `body`, and on Jellyfin 12 that collapses the page to the window height. Only the element that controls the page scroll is locked now, so the page stays where it was.
+- **Country flags on Windows**: the info bar showed the letters ("US") instead of the flag, because Windows browsers do not draw flag emoji. When the browser cannot draw them, a small flag-only font is loaded (Twemoji Country Flags, about 78 KB, used only for flag characters). Phones and macOS keep their system emoji.
+- **Studio collections**: the preview (eye) button fetched its titles only when hovered, in up to two requests in a row, and only then started its open delay. Now it is one request sorted by rating on the server, cached per studio for 10 minutes, prefetched when the mouse enters the card, and the open delay runs in parallel (120 ms by default). The collection settings requests start when the section starts mounting instead of when its turn comes.
+- **Access control**: a profile that blocks every library now blocks the home at once. The status endpoint reports `blocksAll`, the home hides the slider, collections and every section together and shows the notice immediately; the state is remembered per user, so the next visit starts blocked. The notice was redesigned and the lock icon is centred in a badge above the text. The access module now starts at boot instead of after idle.
+- **Boot splash**: when the slider has no items (blocked profile, empty library) the "MonWui is starting" screen waited for its 12 s timeout. It is released immediately now.
+- **Modern header script**: it re-ran its layout measurements on every change directly under `body` (popovers, dialogs, tooltips of any plugin), forcing a full-page layout each time (about 175 ms on a busy Home). It now reacts only when the header or the drawer actually changes.
+- **"Other" settings master switches**: "Show status information", "Genre, year and country" and "Quality detail" only greyed out their sub-options; the slider ignored them. They now hide the status and format badges, the info bar, and the extra quality details (HDR, codec, audio), respectively.
+
+### Removed
+- "Minimum width" and "Minimum pixel count" (Slider settings, backdrop quality): they had no effect, since the backdrop is chosen by file size, and measuring every image would cost extra requests. Both inputs were removed from the settings screen.
 
 ### Performance
 - The slider asks the server for `LocalTrailerCount` together with the other item fields, so it no longer runs one local-trailer lookup per slide to place the Trailer button. On a home page with 8 slides this cut the trailer lookups from 8 to 2 and the `PlaybackInfo` calls from 7 to 2; with 55 slides the saving is proportionally larger.
@@ -24,7 +36,11 @@ Fixes found after the 4.0.0.0 rollout. Same requirements as 4.0.0.0 (Jellyfin 12
 
 ### Known limitations
 - Jellyfin 12 itself downloads about 4.5 MB from `/Playback/BitrateTest` a few seconds after the web client opens (it happens without JMSFusion too). It does not block the slider, but it competes for bandwidth on slow remote connections.
-- The limitations listed for 4.0.0.0 still apply.
+- Legacy layout: if you leave a details page for a plugin tab within a fraction of a second, Jellyfin may not rebuild the tab strip; the tab content is shown, the strip comes back on the next navigation.
+- The details (i) limitation listed for 4.0.0.0 is fixed; the others still apply.
+
+### Third-party asset
+- `Resources/slider/src/fonts/TwemojiCountryFlags.woff2` from the `country-flag-emoji-polyfill` package (code MIT, TalkJS; flag art from Twemoji under CC-BY 4.0). License text in `TwemojiCountryFlags-LICENSE.md` next to the font.
 
 ## 4.0.0.0 (fork build, Jellyfin 12)
 

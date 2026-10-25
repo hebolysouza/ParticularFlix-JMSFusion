@@ -400,7 +400,7 @@ function ensurePreviewPopover() {
   return pop;
 }
 
- const OPEN_INTENT_MS   = Number(config.studioHubsOpenIntentMs ?? 180);
+ const OPEN_INTENT_MS   = Number(config.studioHubsOpenIntentMs ?? 120);
  const CLOSE_GRACE_MS   = Number(config.studioHubsCloseGraceMs ?? 300);
  function scheduleHidePopover(delay = CLOSE_GRACE_MS) {
   if (__hubPreviewCloseTimer) clearTimeout(__hubPreviewCloseTimer);
@@ -635,42 +635,66 @@ function showPreviewPopover(anchorEl, studioName, items) {
   pop.__cleanup = cleanup;
 }
 
+const STUDIO_PREVIEW_TTL_MS = 10 * 60 * 1000;
+const __studioPreviewCache = new Map();
+
+// Uma consulta por estudio, ordenada por nota no servidor; escolhe 5 com nota minima e completa com os
+// melhores restantes (itens sem nota tambem entram). Pedidos simultaneos compartilham a mesma promessa.
+function loadStudioPreviewItems(studioId, studioName, userId) {
+  const key = String(studioId || studioName || "");
+  const hit = __studioPreviewCache.get(key);
+  if (hit && (Date.now() - hit.ts) < STUDIO_PREVIEW_TTL_MS) return hit.promise;
+  const promise = (async () => {
+    const all = await fetchStudioItemsViaUsers(studioId, studioName, userId, null, {
+      ignoreMinRating: true,
+      sortBy: "CommunityRating,SortName",
+      limit: STUDIO_ITEMS_LIMIT,
+    });
+    let picked = selectTopNWithMinRating(all, MIN_RATING, 5);
+    if (picked.length < 5) {
+      const have = new Set(picked.map((it) => it?.Id));
+      const rest = (all || [])
+        .filter((it) => it?.Id && !have.has(it.Id))
+        .sort((a, b) => (Number(getRating(b)) || 0) - (Number(getRating(a)) || 0));
+      picked = picked.concat(rest).slice(0, 5);
+    }
+    return picked;
+  })();
+  __studioPreviewCache.set(key, { ts: Date.now(), promise });
+  promise.catch(() => __studioPreviewCache.delete(key));
+  return promise;
+}
+
 function createPreviewButton(card, studioName, studioId, userId) {
   const btn = document.createElement('button');
   btn.className = 'hub-preview-btn';
   btn.setAttribute('aria-label', `${studioName} ${(config.languageLabels.previewButtonLabel || "Önizleme")}`);
   btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
 
-  let isFetching = false;
   let studioItems = null;
   let hoverOpenTimer = null;
 
+  // Fork ParticularFlix: o "olhinho" demorava ~0,6 s (mais no acesso remoto): so comecava a buscar os
+  // titulos ao passar o mouse nele, em ate duas consultas seguidas, e so depois contava a intencao de
+  // abrir. Agora: uma consulta so (ja ordenada por nota no servidor), guardada por estudio por 10 min,
+  // pre-carregada quando o mouse entra no card, e a contagem de intencao corre junto com a busca.
   async function ensureItems() {
-    if (studioItems || isFetching) return;
-    isFetching = true;
+    if (studioItems) return studioItems;
     btn.style.opacity = '0.5';
     try {
-      const signal = __fetchAbort ? __fetchAbort.signal : null;
-      const fetched = await fetchStudioItemsViaUsers(studioId, studioName, userId, signal);
-      studioItems = selectTopNWithMinRating(fetched, MIN_RATING, 5);
-      // Fork ParticularFlix: itens sem nota ou com nota baixa (ex.: serie nova, filme unico do
-      // estudio) nunca apareciam. Se faltar para 5, completa com os melhores restantes.
-      if (studioItems.length < 5) {
-        const all = await fetchStudioItemsViaUsers(studioId, studioName, userId, signal, { ignoreMinRating: true });
-        const have = new Set(studioItems.map((it) => it?.Id));
-        const rest = (all || [])
-          .filter((it) => it?.Id && !have.has(it.Id))
-          .sort((a, b) => (Number(getRating(b)) || 0) - (Number(getRating(a)) || 0));
-        studioItems = studioItems.concat(rest).slice(0, 5);
-      }
+      studioItems = await loadStudioPreviewItems(studioId, studioName, userId);
     } catch (err) {
       console.error('Ön izleme verileri alınamadı:', err);
-      studioItems = [];
+      studioItems = null;
     } finally {
-      isFetching = false;
       btn.style.opacity = '';
     }
+    return studioItems || [];
   }
+
+  card.addEventListener('mouseenter', () => {
+    if (!studioItems) loadStudioPreviewItems(studioId, studioName, userId).then((items) => { studioItems = items; }).catch(() => {});
+  }, { passive: true });
 
   btn.addEventListener('click', async (e) => {
     e.preventDefault();
@@ -679,11 +703,13 @@ function createPreviewButton(card, studioName, studioId, userId) {
     if (studioItems && studioItems.length) { showPreviewPopover(btn, studioName, studioItems); }
   });
 
-  btn.addEventListener('mouseenter', async () => {
+  btn.addEventListener('mouseenter', () => {
     if (!__userInteracted) return;
     if (hoverOpenTimer) clearTimeout(hoverOpenTimer);
-    await ensureItems();
-    hoverOpenTimer = setTimeout(() => {
+    const itemsReady = ensureItems();
+    hoverOpenTimer = setTimeout(async () => {
+      hoverOpenTimer = null;
+      await itemsReady;
       if (btn.matches(':hover') && studioItems && studioItems.length) {
         showPreviewPopover(btn, studioName, studioItems);
       }
@@ -868,7 +894,8 @@ async function fetchStudios(signal) {
 async function fetchStudioItemsViaUsers(studioId, studioName, userId, signal, options = {}) {
   const ratingPart = (Number.isFinite(MIN_RATING) && !options.ignoreMinRating) ? `&MinCommunityRating=${MIN_RATING}` : "";
   const limit = Math.max(1, Math.min(STUDIO_ITEMS_LIMIT, Number(options.limit) || STUDIO_ITEMS_LIMIT));
-  const common = `StartIndex=0&Limit=${limit}&Fields=PrimaryImageAspectRatio,ImageTags,BackdropImageTags,CommunityRating,CriticRating&Recursive=true&SortOrder=Descending${ratingPart}`;
+  const sortPart = options.sortBy ? `&SortBy=${encodeURIComponent(options.sortBy)}` : "";
+  const common = `StartIndex=0&Limit=${limit}&Fields=PrimaryImageAspectRatio,ImageTags,BackdropImageTags,CommunityRating,CriticRating&Recursive=true${sortPart}&SortOrder=Descending${ratingPart}`;
   const urls = [
     `/Users/${userId}/Items?${common}&IncludeItemTypes=Movie,Series&StudioIds=${encodeURIComponent(studioId)}`,
     `/Users/${userId}/Items?${common}&IncludeItemTypes=Movie,Series&Studios=${encodeURIComponent(studioName)}`
@@ -1073,6 +1100,26 @@ export function cleanupStudioHubs() {
   cleanupStudioHubsSection();
 }
 
+// Fork ParticularFlix: as consultas de configuracao das colecoes (manuais, videos e visibilidade) saiam
+// so quando chegava a vez da secao na ordem da home. Elas comecam ja na montagem e o render usa o
+// resultado se ainda estiver fresco (20 s); depois disso volta a consultar normalmente.
+const HUB_CONFIG_WARM_MS = 20000;
+let __hubConfigWarm = null;
+function warmHubConfig() {
+  if (__hubConfigWarm && (Date.now() - __hubConfigWarm.ts) < HUB_CONFIG_WARM_MS) return;
+  __hubConfigWarm = {
+    ts: Date.now(),
+    manual: fetchStudioHubManualEntries().catch(() => []),
+    video: config.studioHubsHoverVideo ? fetchStudioHubVideoEntries().catch(() => []) : null,
+    visibility: getConfig()?.forceGlobalUserSettings ? null : fetchStudioHubVisibility({ profile: getDeviceProfileAuto() }).catch(() => null),
+  };
+}
+function takeHubConfigWarm() {
+  const w = __hubConfigWarm;
+  __hubConfigWarm = null;
+  return w && (Date.now() - w.ts) < HUB_CONFIG_WARM_MS ? w : null;
+}
+
 export async function renderStudioHubs() {
   const runtimeConfig = getConfig?.() || config || {};
   const homeSectionsConfig = getHomeSectionsRuntimeConfig(runtimeConfig);
@@ -1108,13 +1155,14 @@ export async function renderStudioHubs() {
 
     // Fork ParticularFlix: as 3 consultas ao servidor (colecoes manuais, visibilidade e videos de hover)
     // sao independentes; antes saiam uma depois da outra. A visibilidade fica no cache em memoria.
+    const warm = takeHubConfigWarm();
     const visibilityWarm = getConfig()?.forceGlobalUserSettings
       ? null
-      : fetchStudioHubVisibility({ profile: getDeviceProfileAuto() }).catch(() => null);
+      : (warm?.visibility || fetchStudioHubVisibility({ profile: getDeviceProfileAuto() }).catch(() => null));
     const videoWarm = config.studioHubsHoverVideo
-      ? fetchStudioHubVideoEntries().catch(() => [])
+      ? (warm?.video || fetchStudioHubVideoEntries().catch(() => []))
       : null;
-    const manualEntries = await fetchStudioHubManualEntries().catch(() => []);
+    const manualEntries = await (warm?.manual || fetchStudioHubManualEntries().catch(() => []));
     if (visibilityWarm) await visibilityWarm;
     const hiddenNames = await getHiddenStudioNameSet(manualEntries);
     const userOrder = await getStudioOrderList(manualEntries);
@@ -1489,6 +1537,7 @@ export function ensureStudioHubsMounted({ eager=false, force=false } = {}) {
   const kick = async () => {
     if (__studioHubsMounting) return;
     __studioHubsMounting = true;
+    try { warmHubConfig(); } catch {}
     try {
       const host = await waitForVisibleHomeSections({
         timeout: eager ? 4000 : 12000

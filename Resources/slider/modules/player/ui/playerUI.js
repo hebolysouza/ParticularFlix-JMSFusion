@@ -10,6 +10,7 @@ import { updateConfig } from "../../configPersistence.js";
 import { showJellyfinPlaylistsModal } from "../core/jellyfinPlaylists.js";
 import { togglePlayerVisibility } from "../utils/mainIndex.js";
 import { readID3Tags } from "../lyrics/id3Reader.js";
+import { getPageOverflowElement } from "../../pageScrollLock.js";
 import { toggleArtistModal, setupArtistClickHandler } from "./artistModal.js";
 import { showGenreFilterModal } from "./genreFilterModal.js";
 import { showTopTracksModal } from "./topModal.js";
@@ -52,7 +53,7 @@ function setPageScrollLocked(lock) {
     if (!html.dataset._prevOverflow) html.dataset._prevOverflow = html.style.overflow || '';
 
     body.style.overflow = 'hidden';
-    html.style.overflow = 'hidden';
+    if (getPageOverflowElement() === html) html.style.overflow = 'hidden';
   } else {
     body.style.overflow = body.dataset._prevOverflow || '';
     html.style.overflow = html.dataset._prevOverflow || '';

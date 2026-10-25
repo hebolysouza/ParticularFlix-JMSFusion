@@ -25,9 +25,14 @@ function injectStyle() {
 #${BTN_ID}{position:fixed;left:14px;bottom:14px;z-index:9990;display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:99px;border:1px solid rgba(255,255,255,.25);background:rgba(20,20,24,.82);color:#fff;font-size:.85em;cursor:pointer;backdrop-filter:blur(6px)}
 #${BTN_ID}.open{background:rgba(180,120,0,.85)}
 body.jms-accu-hide #${BTN_ID}{display:none}
-#${EMPTY_ID}{margin:12vh auto 0;max-width:560px;padding:28px 24px;text-align:center;color:#fff;opacity:.92}
-#${EMPTY_ID} i{font-size:2.4em;margin-bottom:12px;display:block;opacity:.8}
-#${EMPTY_ID} p{margin:6px 0;font-size:1.05em;line-height:1.5}
+#${EMPTY_ID}{margin:14vh auto 0;max-width:520px;padding:34px 28px 30px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;color:#fff;border-radius:18px;background:rgba(18,18,24,.72);border:1px solid rgba(255,255,255,.08);box-shadow:0 18px 50px rgba(0,0,0,.45);animation:jmsAccuIn .22s ease-out both}
+#${EMPTY_ID} .jms-accu-ico{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(229,9,20,.14);border:1px solid rgba(229,9,20,.45);color:#ff4d57;margin-bottom:6px;flex:none}
+#${EMPTY_ID} .jms-accu-ico i{font-size:26px;line-height:1;display:block;margin:0}
+#${EMPTY_ID} p{margin:0;line-height:1.5}
+#${EMPTY_ID} p.jms-accu-title{font-size:1.15em;font-weight:600}
+#${EMPTY_ID} p.jms-accu-hint{font-size:.95em;opacity:.72}
+@keyframes jmsAccuIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#${EMPTY_ID}{animation:none}}
 #${DLG_ID}{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6)}
 #${DLG_ID} .box{background:#1b1b20;color:#fff;border-radius:14px;padding:22px;width:min(92vw,340px);box-shadow:0 10px 40px rgba(0,0,0,.6)}
 #${DLG_ID} h3{margin:0 0 10px}
@@ -189,12 +194,57 @@ function clearEmptyNotice() {
   document.getElementById(EMPTY_ID)?.remove();
 }
 
+// Fork ParticularFlix: perfil que bloqueia todas as bibliotecas (status.blocksAll). A home fica marcada com a
+// classe jms-access-blocked (o CSS critico do main.js esconde slider, colecoes e todas as secoes de uma vez)
+// e o usuario fica lembrado no localStorage, para a proxima abertura ja comecar bloqueada.
+const BLOCKED_USER_KEY = "jms:accessBlockedUser";
+function isBlockedStatus(status) {
+  return !!status && status.blocksAll === true && status.isUnlocked !== true;
+}
+function applyBlockedState(status) {
+  const blocked = isBlockedStatus(status);
+  document.documentElement.classList.toggle("jms-access-blocked", blocked);
+  try {
+    const uid = String(status?.userId || "").replace(/-/g, "").toLowerCase();
+    if (blocked && uid) localStorage.setItem(BLOCKED_USER_KEY, uid);
+    else if (status) localStorage.removeItem(BLOCKED_USER_KEY);
+  } catch {}
+}
+
+function buildEmptyNotice() {
+  const box = document.createElement("div");
+  box.id = EMPTY_ID;
+  box.setAttribute("role", "status");
+  const badge = document.createElement("span");
+  badge.className = "jms-accu-ico";
+  badge.setAttribute("aria-hidden", "true");
+  const icon = document.createElement("i");
+  icon.className = "fas fa-lock";
+  badge.appendChild(icon);
+  const p1 = document.createElement("p");
+  p1.className = "jms-accu-title";
+  p1.textContent = tr("accessEmptyHome", "No content is available for this profile.");
+  const p2 = document.createElement("p");
+  p2.className = "jms-accu-hint";
+  p2.textContent = tr("accessEmptyHomeHint", "Contact the server administrator to request access.");
+  box.append(badge, p1, p2);
+  return box;
+}
+
 function evaluateEmptyHome(status) {
   const locked = !!status && status.hasProfile && status.isUnlocked !== true;
   const page = document.querySelector("#indexPage:not(.hide), #homePage:not(.hide)");
   const existing = document.getElementById(EMPTY_ID);
   if (!locked || !page || !isHomeRoute()) {
     existing?.remove();
+    return;
+  }
+  if (isBlockedStatus(status)) {
+    // Tudo bloqueado: o aviso entra direto, sem esperar as secoes carregarem vazias.
+    const host = page.querySelector("#homeTab") || page;
+    if (existing && existing.isConnected && existing.parentElement === host) return;
+    existing?.remove();
+    host.prepend(buildEmptyNotice());
     return;
   }
   // O Jellyfin nativo ja mostra a propria mensagem (.centerMessage) quando nao ha bibliotecas.
@@ -206,21 +256,13 @@ function evaluateEmptyHome(status) {
   }
   if (existing && existing.isConnected) return;
   const host = page.querySelector(".homeSectionsContainer") || page;
-  const box = document.createElement("div");
-  box.id = EMPTY_ID;
-  const icon = document.createElement("i");
-  icon.className = "fas fa-lock";
-  const p1 = document.createElement("p");
-  p1.textContent = tr("accessEmptyHome", "No content is available for this profile.");
-  const p2 = document.createElement("p");
-  p2.textContent = tr("accessEmptyHomeHint", "Contact the server administrator to request access.");
-  box.append(icon, p1, p2);
-  host.appendChild(box);
+  host.appendChild(buildEmptyNotice());
 }
 
 function scheduleEmptyHomeCheck(status) {
   emptyCheckTimers.forEach((t) => clearTimeout(t));
-  emptyCheckTimers = [2500, 6000, 12000].map((ms) => setTimeout(() => {
+  const delays = isBlockedStatus(status) ? [0, 150, 500, 1200, 3000] : [2500, 6000, 12000];
+  emptyCheckTimers = delays.map((ms) => setTimeout(() => {
     try { evaluateEmptyHome(status); } catch {}
   }, ms));
 }
@@ -281,6 +323,7 @@ async function refresh() {
   try {
     const status = await fetchAccessStatus();
     lastStatus = status;
+    applyBlockedState(status);
     handleGenerationChange(status);
     renderButton(status);
     scheduleExpiry(status);
@@ -309,6 +352,7 @@ export function initAccessUnlock() {
     if (lastStatus) scheduleEmptyHomeCheck(lastStatus);
   });
   document.addEventListener("jms:auth-profile-changed", () => {
+    document.documentElement.classList.remove("jms-access-blocked");
     clearEmptyNotice();
     removeEls();
     lastStatus = null;

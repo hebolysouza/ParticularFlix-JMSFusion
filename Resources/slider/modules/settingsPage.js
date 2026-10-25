@@ -10,6 +10,7 @@ import { applyRawConfig, applySettings } from './settings/applySettings.js';
 import { createSliderPanel } from './settings/sliderPage.js';
 import { createAnimationPanel } from './settings/animationsPage.js';
 import { createMusicPanel } from './settings/musicPage.js';
+import { getPageOverflowElement } from './pageScrollLock.js';
 import { createStatusRatingPanel, createActorPanel, createDirectorPanel, createInfoPanel, createLogoTitlePanel, createAboutPanel, createProviderPanel, createDescriptionPanel } from './settings/otherPage.js';
 import { createQueryPanel } from './settings/apiPage.js';
 import { createPausePanel } from './settings/pausePage.js';
@@ -516,7 +517,8 @@ function setDocumentScrollLocked(lock) {
       html.dataset.jmsPrevOverflow = html.style.overflow || '';
     }
     body.style.overflow = 'hidden';
-    html.style.overflow = 'hidden';
+    // Fork ParticularFlix: travar o html junto jogava a pagina para o topo no Jellyfin 12 (ver pageScrollLock.js).
+    if (getPageOverflowElement() === html) html.style.overflow = 'hidden';
     return;
   }
 

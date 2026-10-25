@@ -8,7 +8,13 @@
 // This watcher brings the plugin panels into the visible Home page in index order, asks Custom Tabs
 // to rebuild missing buttons, and then selects the requested tab the same way a click would.
 
-const RETRY_MS = [0, 150, 400, 800, 1400, 2200, 3200];
+// Home can take several seconds to mount on a big library, so the watcher follows DOM changes (and a slow
+// tick) for up to WATCH_MS instead of a fixed list of retries.
+const WATCH_MS = 12000;
+const TICK_MS = 400;
+const CUSTOM_TABS_INIT_GAP_MS = 900;
+let lastCustomTabsInit = 0;
+let stopWatch = null;
 
 let installed = false;
 let runId = 0;
@@ -22,9 +28,9 @@ function requestedTab() {
   const [path, query = ""] = raw.split("?");
   if (path !== "/home" && path !== "/home.html") return null;
   const tab = new URLSearchParams(query).get("tab");
-  if (tab == null || !/^\d+$/.test(tab)) return null;
-  const n = parseInt(tab, 10);
-  return n >= 2 ? n : null;
+  if (tab == null || tab === "") return 0;
+  if (!/^\d+$/.test(tab)) return null;
+  return parseInt(tab, 10);
 }
 
 function visibleTabsStrip() {
@@ -94,16 +100,46 @@ function prepare(home) {
   sortPluginPanels(home.fav);
 }
 
+// Jellyfin keeps two Home pages and alternates between them. A tab change made while one of them is
+// shown can be applied to the panels of the other (hidden) one, which then comes back on the next
+// visit to Home with no active panel (blank page). For Home (0) and Favorites (1) the panel of the
+// visible page is simply made active again; their content is already loaded by Jellyfin.
+function ensureNativePanel(tabs, home, index) {
+  const panel = home.page.querySelector(`.tabContent[data-index="${index}"]`);
+  if (!panel) return false;
+  if (panel.classList.contains("is-active")) return true;
+  if (home.page.querySelector(".tabContent.is-active:not([data-index='" + index + "'])")) {
+    // Another panel is legitimately active (the user is on that tab): leave it.
+    const btnActive = tabs.querySelector(".emby-tabs-slider .emby-tab-button-active");
+    if (btnActive && btnActive.getAttribute("data-index") !== String(index)) return true;
+  }
+  home.page.querySelectorAll(".tabContent.is-active").forEach((el) => el.classList.remove("is-active"));
+  panel.classList.add("is-active");
+  const button = tabs.querySelector(`.emby-tabs-slider .emby-tab-button[data-index="${index}"]`);
+  if (button && !button.classList.contains("emby-tab-button-active")) {
+    tabs.querySelectorAll(".emby-tabs-slider .emby-tab-button-active").forEach((el) => el.classList.remove("emby-tab-button-active"));
+    button.classList.add("emby-tab-button-active");
+  }
+  try { tabs.selectedTabIndex = index; } catch {}
+  return true;
+}
+
 function trySelect(index) {
   const tabs = visibleTabsStrip();
   const home = activeHomePage();
   if (!tabs || !home) return false;
+  if (index < 2) return ensureNativePanel(tabs, home, index);
   prepare(home);
   const button = tabs.querySelector(`.emby-tabs-slider .emby-tab-button[data-index="${index}"]`);
   const panel = home.page.querySelector(`.tabContent[data-index="${index}"]`);
   if (!button || !panel) {
-    // Custom Tabs exposes its plugin object; init() is idempotent (skips tabs that already exist).
-    try { window.customTabsPlugin?.init?.(); } catch {}
+    // Custom Tabs exposes its plugin object; init() is idempotent (skips tabs that already exist), but each
+    // call may fetch its config, so it is spaced out.
+    const now = Date.now();
+    if (now - lastCustomTabsInit >= CUSTOM_TABS_INIT_GAP_MS) {
+      lastCustomTabsInit = now;
+      try { window.customTabsPlugin?.init?.(); } catch {}
+    }
     return false;
   }
   if (button.classList.contains("emby-tab-button-active") && panel.classList.contains("is-active")) return true;
@@ -126,16 +162,43 @@ function trySelect(index) {
 }
 
 function schedule() {
+  try { stopWatch?.(); } catch {}
+  stopWatch = null;
   if (isModernLayout()) return;
   const index = requestedTab();
   if (index == null) return;
   const id = ++runId;
-  RETRY_MS.forEach((ms) => {
-    setTimeout(() => {
-      if (id !== runId || requestedTab() !== index || isModernLayout()) return;
-      if (trySelect(index)) runId++;
-    }, ms);
-  });
+  const startedAt = Date.now();
+  let queued = false;
+  let observer = null;
+  let tick = 0;
+  const stop = () => {
+    queued = true;
+    try { observer?.disconnect(); } catch {}
+    if (tick) clearInterval(tick);
+    tick = 0;
+    if (stopWatch === stop) stopWatch = null;
+  };
+  const attempt = () => {
+    queued = false;
+    if (id !== runId || requestedTab() !== index || isModernLayout() || Date.now() - startedAt > WATCH_MS) {
+      stop();
+      return;
+    }
+    // Success is only final once the panel stayed active; keep watching briefly in case the page is
+    // swapped again right after (Jellyfin remounts Home on some transitions).
+    if (trySelect(index) && Date.now() - startedAt > 1500) stop();
+  };
+  const queue = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(attempt);
+  };
+  observer = new MutationObserver(queue);
+  try { observer.observe(document.body, { childList: true, subtree: true }); } catch {}
+  tick = setInterval(queue, TICK_MS);
+  stopWatch = stop;
+  attempt();
 }
 
 // A click on a tab button is resolved by the strip right after this (bubbling phase): order the

@@ -390,6 +390,11 @@ public partial class ParentalPinController
             unlockAvailable = entry is not null && entry.UnlockEnabled && HasConfiguredPin(cfg),
             unlockMinutes = entry?.UnlockMinutes ?? 0,
             isUnlocked = unlocked,
+            // Fork ParticularFlix: perfil sem nenhuma biblioteca liberada. O cliente usa para bloquear a
+            // home de uma vez (sem esperar as secoes carregarem vazias) e mostrar o aviso na hora.
+            blocksAll = entry is not null && !unlocked && entry.Restricted is not null
+                && !entry.Restricted.EnableAllFolders
+                && (entry.Restricted.EnabledFolders?.Length ?? 0) == 0,
             unlockedUntilUtc = unlocked && entry is not null ? entry.UnlockedUntilUtc : 0,
             maxAttempts = cfg.ParentalPinMaxAttempts,
             remainingAttempts = access.RemainingAttempts,

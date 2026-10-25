@@ -723,7 +723,10 @@
         for (var i = 0; i < muts.length; i++) {
             var m = muts[i];
             var t = m.target;
-            if (t === document.body || (t.nodeType === 1 && (t.id === "root" || t.classList.contains("skinHeader") || (t.closest && t.closest("header.MuiAppBar-root"))))) return true;
+            // Mudancas diretas no body (popover, modal, dica de qualquer plugin) so contam se trouxerem o cabecalho
+            // ou a gaveta (checado abaixo). Antes qualquer uma rodava place(), que mede a barra e forcava o
+            // layout da pagina inteira (~175 ms na Inicio cheia, a cada popover aberto).
+            if (t.nodeType === 1 && t !== document.body && (t.id === "root" || t.classList.contains("skinHeader") || (t.closest && t.closest("header.MuiAppBar-root")))) return true;
             var nodes = [];
             for (var a = 0; a < m.addedNodes.length; a++) nodes.push(m.addedNodes[a]);
             for (var r = 0; r < m.removedNodes.length; r++) nodes.push(m.removedNodes[r]);

@@ -1,4 +1,5 @@
-import { flagHtmlFor } from "./flags.js";
+import { flagHtmlFor, ensureFlagEmojiFont, FLAG_EMOJI_FONT_STACK } from "./flags.js";
+import { resolveSliderAssetHref } from "./assetLinks.js";
 import { getConfig } from "./config.js";
 import { applyContainerStyles } from "./positionUtils.js";
 import { fetchItemDetailsFromSliderCache } from "./sliderCache.js";
@@ -389,7 +390,8 @@ function createTypeSpan(itemType, config, ChildCount) {
 function createQualitySpan(config, MediaStreams) {
   const videoStream = MediaStreams ? MediaStreams.find(s => s.Type === "Video") : null;
   if (videoStream && config.showQualityInfo) {
-    const qualityHtml = getVideoQualityText(videoStream, MediaStreams);
+    // Fork ParticularFlix: "Detalhe de qualidade" desligado mostra so a resolucao (sem HDR, codec e audio).
+    const qualityHtml = getVideoQualityText(videoStream, MediaStreams, { detail: config.showQualityDetail !== false });
     if (qualityHtml) {
       const qualitySpan = document.createElement("span");
       qualitySpan.className = "video-quality";
@@ -402,6 +404,9 @@ function createQualitySpan(config, MediaStreams) {
 }
 
 export function createFormatContainer(itemType, config, ChildCount, MediaStreams, itemSeed = "") {
+  // Fork ParticularFlix: a chave-mestre "Mostrar informacoes de status" (aba Outros) agora vale de verdade;
+  // antes ela so acinzentava as sub-opcoes na tela de ajustes.
+  if (config.showStatusInfo === false) return null;
   const formatContainer = document.createElement("div");
   formatContainer.className = "monwui-format-container";
   applyContainerStyles(formatContainer, 'format');
@@ -418,6 +423,7 @@ export function createFormatContainer(itemType, config, ChildCount, MediaStreams
 }
 
 export function createStatusContainer(config, UserData, RunTimeTicks) {
+  if (config.showStatusInfo === false) return null;
   const statusContainer = document.createElement("div");
   statusContainer.className = "monwui-status-container";
   applyContainerStyles(statusContainer, 'status');
@@ -717,6 +723,8 @@ export function createInfoContainer({ config, Genres, ProductionYear, Production
   const container = document.createElement("div");
   container.className = "monwui-info-container";
   applyContainerStyles(container, "info");
+  // Fork ParticularFlix: chave-mestre "Genero, ano e pais" (aba Outros) respeitada no slide.
+  if (config.showInfo === false) return null;
 
   const normalizeKey = (str) => str?.toString().toLowerCase().replace(/\s+/g, "");
 
@@ -740,14 +748,13 @@ export function createInfoContainer({ config, Genres, ProductionYear, Production
   }
 
   if (ProductionLocations && config.showCountryInfo) {
-    const getFlagEmoji = (code) =>
-      code
-        ? code
-            .toUpperCase()
-            .split("")
-            .map((char) => String.fromCodePoint(127397 + char.charCodeAt()))
-            .join("")
-        : "";
+    ensureFlagEmojiFont(resolveSliderAssetHref("/slider/src/fonts/TwemojiCountryFlags.woff2"));
+    const getFlagEmoji = (code) => {
+      const cc = String(code || "").toUpperCase();
+      if (!/^[A-Z]{2}$/.test(cc)) return "";
+      const emoji = cc.split("").map((char) => String.fromCodePoint(127397 + char.charCodeAt(0))).join("");
+      return `<span class="jms-flag-emoji" style='font-family:${FLAG_EMOJI_FONT_STACK};font-style:normal'>${emoji}</span>`;
+    };
 
     const getCountryInfo = (countryRaw) => {
       const key = normalizeKey(countryRaw);
@@ -1241,7 +1248,7 @@ export function createTitleContainer({ config, Taglines, title, OriginalTitle, T
   return container;
 }
 
-export function getVideoQualityText(videoStream, mediaStreams = null) {
+export function getVideoQualityText(videoStream, mediaStreams = null, { detail = true } = {}) {
   if (!videoStream) return "";
   ensureVideoQualityBadgeStyles();
 
@@ -1253,12 +1260,12 @@ export function getVideoQualityText(videoStream, mediaStreams = null) {
   const videoParts = [
     buildQualitySegment(qualityLabel, "level", "lvl"),
     buildQualitySegment(getVideoResolutionLabel(videoStream), "level", "res"),
-    buildQualitySegment(rangeLabel, "range"),
-    buildQualitySegment(codecLabel, "codec"),
-    buildQualitySegment(bitDepthLabel, "bitdepth")
+    detail ? buildQualitySegment(rangeLabel, "range") : "",
+    detail ? buildQualitySegment(codecLabel, "codec") : "",
+    detail ? buildQualitySegment(bitDepthLabel, "bitdepth") : ""
   ].filter(Boolean);
 
-  const audioStream = getPrimaryAudioStream(mediaStreams);
+  const audioStream = detail ? getPrimaryAudioStream(mediaStreams) : null;
   const audioParts = [
     buildQualitySegment(getAudioCodecLabel(audioStream), "audio"),
     buildQualitySegment(getAudioLayoutLabel(audioStream), "audio-layout")

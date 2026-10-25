@@ -192,7 +192,10 @@ export function createButtons(slide, config, UserData, itemId, RemoteTrailers, u
     }
 
     const createButtonWithBackground = (buttonType, iconHtml, text, clickHandler, initialClass = '') => {
-    const bgType = config[`${buttonType}BackgroundImageType`] || "backdropUrl";
+    // Fork ParticularFlix: o botao "i" (details) nao tem opcao propria de fundo e caia no padrao
+    // "backdropUrl" (capa borrada + gradiente), diferente dos vizinhos. Ele segue o fundo do botao "Assistido".
+    const bgType = config[`${buttonType}BackgroundImageType`] ||
+      (buttonType === "details" ? (config.playedBackgroundImageType || "playedBgImage") : "backdropUrl");
     let bgImage = "";
     if (bgType !== "none") {
         bgImage = slide.dataset[bgType];

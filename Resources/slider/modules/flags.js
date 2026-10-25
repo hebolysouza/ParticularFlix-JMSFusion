@@ -29,3 +29,45 @@ export function flagHtmlFor(langCode) {
   }
   return cache.get(id);
 }
+
+/* Fork ParticularFlix: bandeiras de PAIS (emoji de indicador regional, ex. 🇺🇸) nao aparecem no Windows,
+   que desenha so as letras ("US"). Quando o navegador nao sabe desenhar a bandeira, entra uma fonte pequena
+   (Twemoji Country Flags, ~78 KB, MIT/CC-BY 4.0, ver src/fonts) que cobre so esses caracteres
+   (unicode-range), usada pela classe jms-flag-emoji. Celulares e macOS continuam com a fonte do sistema. */
+const FLAG_FONT_FAMILY = "Twemoji Country Flags";
+let flagFontChecked = false;
+
+function emojiRendersInColor(text) {
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.textBaseline = "top";
+    ctx.font = '100px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif';
+    ctx.scale(0.01, 0.01);
+    const paint = (color) => {
+      ctx.clearRect(0, 0, 100, 100);
+      ctx.fillStyle = color;
+      ctx.fillText(text, 0, 0);
+      return ctx.getImageData(0, 0, 1, 1).data.join(",");
+    };
+    const white = paint("#fff");
+    const black = paint("#000");
+    return white === black && !black.startsWith("0,0,0,");
+  } catch {
+    return true;
+  }
+}
+
+export function ensureFlagEmojiFont(fontUrl) {
+  if (flagFontChecked) return;
+  flagFontChecked = true;
+  if (typeof document === "undefined") return;
+  if (!emojiRendersInColor("\u{1F60A}") || emojiRendersInColor("\u{1F1E8}\u{1F1ED}")) return;
+  const style = document.createElement("style");
+  style.id = "jms-flag-emoji-font";
+  style.textContent = `@font-face{font-family:"${FLAG_FONT_FAMILY}";unicode-range:U+1F1E6-1F1FF,U+1F3F4,U+E0062-E0063,U+E0065,U+E0067,U+E006C,U+E006E,U+E0073-E0074,U+E0077,U+E007F;src:url("${fontUrl}") format("woff2");font-display:swap}`;
+  document.head.appendChild(style);
+}
+
+export const FLAG_EMOJI_FONT_STACK = `"${FLAG_FONT_FAMILY}","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
