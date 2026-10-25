@@ -819,7 +819,7 @@ export function createPositionEditor(config, labels, section) {
 
   function collectTuning() {
     const out = {};
-    section.querySelectorAll('[data-jms-lay]').forEach((el) => { out[el.dataset.jmsLay] = el.value === '' ? '' : (el.dataset.jmsLay === 'plot' ? el.value : Number(el.value)); });
+    section.querySelectorAll('[data-jms-lay]').forEach((el) => { out[el.dataset.jmsLay] = el.value === '' ? '' : (el.tagName === 'SELECT' ? el.value : Number(el.value)); });
     return out;
   }
 
@@ -870,11 +870,36 @@ export function createPositionEditor(config, labels, section) {
     d.textContent = L('posTuneDesc', 'Estes ajustes mexem no estilo inteiro de uma vez, sem desalinhar os blocos entre si. Cada estilo (Normal, Peak, Compact, Cinema, Mosaico e Coverflow) guarda os seus. Vazio = padrão do estilo. Só valem depois de Salvar.');
     section.append(h, d);
 
+    if (profile === 'cinema') {
+      const lrow = document.createElement('div');
+      lrow.className = 'position-item';
+      const llabel = document.createElement('label');
+      llabel.textContent = L('posLayoutMode', 'Disposição');
+      const lsel = document.createElement('select');
+      lsel.name = 'jmsLay:layout';
+      lsel.id = 'input-jmsLay-layout';
+      lsel.dataset.jmsLay = 'layout';
+      llabel.htmlFor = lsel.id;
+      [['', L('posLayoutStack', 'Pilha única (padrão)')], ['zones', L('posLayoutZones', 'Duas zonas (textos em cima, botões embaixo)')]].forEach(([v, t]) => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = t;
+        if (stored.layout === v) o.selected = true;
+        lsel.appendChild(o);
+      });
+      lsel.addEventListener('change', previewTuning);
+      const lhint = document.createElement('p');
+      lhint.className = 'position-block-desc';
+      lhint.textContent = L('posLayoutHint', 'Pilha única: todos os blocos empilhados na parte de baixo. Duas zonas: logo, título, sinopse (com a barra de progresso do filme) e diretor em cima; selos no meio; botões e gênero centralizados embaixo. Se você já tinha deslocamentos manuais no Cinema, use "Redefinir tudo" ao trocar para Duas zonas.');
+      lrow.append(llabel, lsel);
+      section.append(lrow, lhint);
+    }
+
     if (flow) {
       createTuningNumber('padX', L('posTunePadX', 'Margem lateral (px)'), L('posTunePadXHint', 'Distância entre a coluna de texto e a borda do slide. Também afasta da borda os selos do topo, a caixa de ícones e a navegação.'), stored);
       createTuningNumber('padB', L('posTunePadB', 'Margem inferior (%)'), L('posTunePadBHint', 'Distância entre o último bloco (botões e gênero) e a borda de baixo do slide.'), stored);
       createTuningNumber('textW', L('posTuneTextW', 'Largura do texto (vw)'), L('posTuneTextWHint', 'Largura máxima da coluna de texto (logo, selos, sinopse). Valores menores deixam a sinopse mais estreita.'), stored);
       createTuningNumber('gap', L('posTuneGap', 'Espaço entre blocos (px)'), L('posTuneGapHint', 'Espaço vertical entre logo, selos, sinopse, botões e gênero.'), stored);
+      if (profile === 'cinema') createTuningNumber('zoneGap', L('posTuneZoneGap', 'Espaço entre a sinopse e os selos (vh), só em Duas zonas'), L('posTuneZoneGapHint', 'Distância entre o último bloco de texto (sinopse, barra de progresso, diretor) e a linha de selos. Vazio = automático.'), stored);
     }
 
     const row = document.createElement('div');

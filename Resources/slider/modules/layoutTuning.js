@@ -19,12 +19,16 @@ export const TUNING_FIELDS = {
   padX:  { css: "--lay-pad-x",  unit: "px", min: 16, max: 240, step: 2,   flow: true },
   padB:  { css: "--lay-pad-b",  unit: "%",  min: 1,  max: 20,  step: 0.5, flow: true },
   textW: { css: "--lay-text-w", unit: "vw", min: 25, max: 80,  step: 1,   flow: true },
-  gap:   { css: "--lay-gap",    unit: "px", min: 0,  max: 40,  step: 1,   flow: true }
+  gap:   { css: "--lay-gap",    unit: "px", min: 0,  max: 40,  step: 1,   flow: true },
+  zoneGap: { css: "--lay-zone-gap", unit: "vh", min: 0, max: 40, step: 1,   flow: true, zonesOnly: true }
 };
+export const LAYOUT_MODES = ["", "zones"];
 export const PLOT_MODES = ["", "hidden", "l2", "l3", "l4", "full"];
 
 const CSS = `
-html[data-jms-plot=hidden] .monwui-plot-container{display:none!important}
+/* ocultar a sinopse nao esconde a barra de progresso do filme (ela mora dentro do mesmo bloco) */
+html[data-jms-plot=hidden] .monwui-plot-container .monwui-plot{display:none!important}
+html[data-jms-plot=hidden] .monwui-plot-container:not(:has(.monwui-playing-progress-container)){display:none!important}
 html[data-slider-layout=cinema][data-jms-plot=full] .monwui-plot-container .monwui-plot,
 html[data-slider-layout=mosaic][data-jms-plot=full] .monwui-plot-container .monwui-plot{display:block!important;-webkit-line-clamp:unset!important;overflow:visible!important}
 `;
@@ -42,13 +46,14 @@ function keyOf(profile, name) { return `${NS}${profile}:${name}`; }
 export function isFlowProfile(profile) { return FLOW.has(profile); }
 
 export function readTuning(profile = getActivePositionProfile()) {
-  const out = { plot: "" };
+  const out = { plot: "", layout: "" };
   Object.keys(TUNING_FIELDS).forEach((k) => { out[k] = ""; });
   try {
     Object.keys(out).forEach((k) => {
       const raw = localStorage.getItem(keyOf(profile, k));
       if (raw === null || raw === "") return;
       if (k === "plot") { out.plot = PLOT_MODES.includes(raw) ? raw : ""; return; }
+      if (k === "layout") { out.layout = LAYOUT_MODES.includes(raw) ? raw : ""; return; }
       const n = Number(raw);
       if (Number.isFinite(n)) out[k] = n;
     });
@@ -59,7 +64,7 @@ export function readTuning(profile = getActivePositionProfile()) {
 export function saveTuning(profile, values) {
   try {
     Object.entries(values || {}).forEach(([k, v]) => {
-      if (k !== "plot" && !TUNING_FIELDS[k]) return;
+      if (k !== "plot" && k !== "layout" && !TUNING_FIELDS[k]) return;
       const key = keyOf(profile, k);
       const empty = v === "" || v === null || v === undefined || (typeof v === "number" && !Number.isFinite(v));
       if (empty) { localStorage.removeItem(key); return; }
@@ -90,6 +95,10 @@ export function applyLayoutTuning(preview) {
         root.style.removeProperty(f.css);
       }
     });
+
+    // disposicao em duas zonas: so no Cinema
+    if (profile === "cinema" && values.layout === "zones") { if (root.dataset.jmsZones !== "on") root.dataset.jmsZones = "on"; }
+    else delete root.dataset.jmsZones;
 
     const plot = PLOT_MODES.includes(values.plot) ? values.plot : "";
     const effective = plot === "l2" ? "" : plot;

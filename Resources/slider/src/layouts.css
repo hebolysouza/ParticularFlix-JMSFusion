@@ -145,3 +145,17 @@ html[data-slider-layout=cinema] .monwui-slide.intro-active .monwui-backdrop,
 html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-backdrop{transition:opacity .15s linear!important;transform:none!important;filter:none!important;clip-path:none!important}
 html[data-slider-layout=cinema] .monwui-slide .intro-video-container,
 html[data-slider-layout=cinema] .monwui-slide.trailer-active iframe{transition:opacity .15s linear!important}
+
+/* ======================= CINEMA: "duas zonas" (html[data-jms-zones=on]) =======================
+   Textos em cima (logo, titulo, sinopse com a barra de progresso do filme, diretor), selos logo abaixo,
+   botoes e genero centralizados embaixo. Tudo em fluxo: nada se sobrepoe em nenhuma altura de janela
+   (o espaco que sobra fica entre os selos e os botoes). */
+html[data-slider-layout=cinema][data-jms-zones=on] .monwui-slide:not([style*="display: none"]){
+  justify-content:flex-start;padding-top:clamp(76px,11vh,128px);padding-bottom:clamp(24px,4.2vh,44px)}
+html[data-slider-layout=cinema][data-jms-zones=on] .monwui-slide>*,
+html[data-slider-layout=cinema][data-jms-zones=on] .monwui-main-content-container>*{flex-shrink:0}
+html[data-slider-layout=cinema][data-jms-zones=on] .monwui-director-container{order:4}
+html[data-slider-layout=cinema][data-jms-zones=on] .monwui-slide>.monwui-meta-container{order:5;margin-top:var(--lay-zone-gap,clamp(28px,6vh,72px))!important}
+html[data-slider-layout=cinema][data-jms-zones=on] .monwui-slide>.monwui-main-button-container{order:6;align-self:center;margin-top:auto!important}
+html[data-slider-layout=cinema][data-jms-zones=on] .monwui-slide>.monwui-info-container{order:7;align-self:center;justify-content:center}
+html[data-slider-layout=cinema][data-jms-zones=on] .monwui-playing-progress-container{margin-top:6px}

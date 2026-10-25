@@ -1120,7 +1120,7 @@ const USER_ONLY_KEYS = [
           for (const [k, v] of formData.entries()) {
             if (typeof k === 'string' && k.startsWith('jmsLay:')) {
               const name = k.slice(7);
-              tuning[name] = (name === 'plot' || v === '') ? String(v) : Number(v);
+              tuning[name] = (name === 'plot' || name === 'layout' || v === '') ? String(v) : Number(v);
             }
           }
           if (Object.keys(tuning).length) {
