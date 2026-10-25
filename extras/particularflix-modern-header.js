@@ -1,6 +1,9 @@
-/* ParticularFlix - logo no cabecalho do layout Modern do Jellyfin 12.
+/* ParticularFlix - cabecalho do layout Modern do Jellyfin 12.
    Arquivo ADICIONAL: nao altera o particularflix-logo.js (layout Legado).
-   Para remover: apague este arquivo da pasta custom. */
+   Para remover: apague este arquivo da pasta custom.
+
+   O que faz: logo ParticularFlix, botao de menu (hamburguer), navegacao em pilulas
+   centralizadas no padrao NetFin (item ativo em vermelho) e lista opcional de itens escondidos. */
 (function () {
     "use strict";
     if (window.__pfModernHeader) return;
@@ -11,37 +14,23 @@
     // Tambem vale, sem editar o arquivo: localStorage.setItem("pf:navHide", "Filmes,Colecoes") e recarregar.
     var HIDE = [];
 
+    var ROOT = "html.pf-modern-on header.MuiAppBar-root";
+    var STACK = ROOT + " .MuiToolbar-root > .MuiStack-root";
     var STYLE_ID = "pf-modern-header-style";
-    var MENU_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>';
 
-    function norm(t) {
-        return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-    }
-
-    function hideList() {
-        var l = HIDE.slice();
-        try {
-            var v = window.localStorage.getItem("pf:navHide");
-            if (v) l = l.concat(v.split(","));
-        } catch (e) {}
-        return l.map(norm).filter(Boolean);
-    }
-
-    function onLogoClick(ev) {
-        var cur = (window.location.hash || "#/").replace(/^#/, "").split("?")[0];
-        if (cur === "/home" || cur === "/home.html" || cur === "/" || cur === "") {
-            ev.preventDefault();
-            try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
-        }
-    }
-
-    function onMenuClick(ev) {
-        ev.preventDefault();
-        var b = document.querySelector(".skinHeader .mainDrawerButton");
-        if (b) b.click();
-    }
     var CSS = [
-        "header.MuiAppBar-root.pf-modern-ready a[href=\"#/\"]:not(.pf-logo-modern){display:none !important;}",
+        ROOT + " a[href=\"#/\"]:not(.pf-logo-modern){display:none !important;}",
+        STACK + " a[href=\"#/\"]:not(.pf-logo-modern):not(.pf-nav-home){display:none !important;}",
+        "html.pf-modern-active .skinHeader{visibility:hidden !important;opacity:0 !important;pointer-events:none !important;transition:none !important;}",
+        ROOT + " .MuiToolbar-root{position:relative;}",
+        "html.pf-modern-on:not(.pf-nav-flow) " + STACK + "{position:absolute !important;left:50%;top:50%;transform:translate(-50%,-50%);display:flex !important;align-items:center;gap:8px;}",
+        "html.pf-modern-on.pf-nav-flow " + STACK + "{position:static !important;transform:none;margin-left:12px;display:flex !important;align-items:center;gap:6px;}",
+        STACK + " a:not(.pf-logo-modern){display:inline-flex !important;align-items:center;gap:6px;border-radius:999px !important;padding:6px 16px !important;min-width:0;background:rgba(255,255,255,0.06);color:#F2F2F2 !important;text-transform:none !important;text-decoration:none;font-size:14px;line-height:1.2;transition:background-color 200ms ease,box-shadow 200ms ease,color 200ms ease;}",
+        "html.pf-nav-flow " + STACK + " a:not(.pf-logo-modern){padding:6px 12px !important;font-size:13px;}",
+        STACK + " a:not(.pf-logo-modern) svg{width:18px;height:18px;fill:currentColor;}",
+        STACK + " a:not(.pf-logo-modern):hover{background:rgba(229,9,20,0.38);}",
+        STACK + " a.pf-nav-active{background:#E50914 !important;color:#FFFFFF !important;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
+        STACK + " a.pf-nav-hidden{display:none !important;}",
         ".pf-logo-modern{display:inline-flex !important;align-items:center;gap:10px;flex:0 0 auto;margin-left:4px;padding:4px 14px 4px 4px;line-height:1;text-decoration:none;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
         ".pf-logo-modern:hover .pf-badge-wrap{transform:scale(1.08);}",
         ".pf-logo-modern:hover .pf-bar-1{transform:scaleY(1.16);}",
@@ -51,24 +40,6 @@
         ".pf-logo-modern:hover .pf-wm-f::after,.pf-logo-modern:focus-visible .pf-wm-f::after{transform:scaleX(1);}",
         ".pf-logo-modern:hover .pf-wm-f,.pf-logo-modern:focus-visible .pf-wm-f{color:#FF3B47;text-shadow:0 0 7px rgba(229,9,20,0.6);}",
         ".pf-logo-modern:focus-visible{outline:2px solid #FF3B47;outline-offset:4px;border-radius:4px;}",
-        "header.MuiAppBar-root.pf-modern-ready .pf-nav-center{flex:1 1 auto;min-width:0;display:flex !important;align-items:center;justify-content:center;flex-wrap:nowrap;gap:8px;}",
-        "@media (min-width:1500px){",
-        "header.MuiAppBar-root.pf-modern-ready .MuiToolbar-root{position:relative;}",
-        "header.MuiAppBar-root.pf-modern-ready .pf-nav-center{position:absolute !important;left:50%;top:50%;transform:translate(-50%,-50%);flex:none;}",
-        "}",
-        "@media (max-width:1250px){",
-        "header.MuiAppBar-root .pf-nav-center a:not(.pf-logo-modern){padding:6px 10px !important;font-size:13px;gap:4px;}",
-        "header.MuiAppBar-root .pf-nav-center{gap:4px;}",
-        "}",
-        "@media (max-width:1000px){",
-        "header.MuiAppBar-root .pf-nav-center a:not(.pf-logo-modern) svg{display:none;}",
-        "}",
-        "header.MuiAppBar-root .pf-nav-center a:not(.pf-logo-modern){display:inline-flex !important;align-items:center;gap:6px;border-radius:999px !important;padding:6px 16px !important;min-width:0;background:rgba(255,255,255,0.06);color:#F2F2F2 !important;text-transform:none !important;text-decoration:none;font-size:14px;line-height:1.2;transition:background-color 200ms ease,box-shadow 200ms ease,color 200ms ease;}",
-        "header.MuiAppBar-root .pf-nav-center a:not(.pf-logo-modern) svg{width:18px;height:18px;fill:currentColor;}",
-        "header.MuiAppBar-root .pf-nav-center a:not(.pf-logo-modern):hover{background:rgba(229,9,20,0.38);}",
-        "header.MuiAppBar-root .pf-nav-center a.pf-nav-active{background:#E50914 !important;color:#FFFFFF !important;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
-        "header.MuiAppBar-root .pf-nav-center a.pf-nav-home{cursor:pointer;}",
-        "header.MuiAppBar-root.pf-modern-ready .pf-nav-center a.pf-nav-hidden{display:none !important;}",
         ".pf-menu-modern{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:40px;height:40px;margin-right:2px;padding:0;border:0;border-radius:50%;background:transparent;color:#F2F2F2;cursor:pointer;transition:background-color 200ms ease,transform 200ms ease;}",
         ".pf-menu-modern svg{width:24px;height:24px;fill:currentColor;pointer-events:none;}",
         ".pf-menu-modern:hover{background:rgba(229,9,20,0.25);transform:scale(1.08);}",
@@ -85,6 +56,28 @@
         '</svg><span class="pf-badge-sheen" aria-hidden="true"></span></span>';
     var WORDMARK =
         '<span class="pf-wm"><span class="pf-wm-p">PARTICULAR</span><span class="pf-wm-f">FLIX</span></span>';
+    var HOME_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
+    var MENU_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>';
+
+    function norm(t) {
+        return String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+    }
+
+    function hideList() {
+        var l = HIDE.slice();
+        try {
+            var v = window.localStorage.getItem("pf:navHide");
+            if (v) l = l.concat(v.split(","));
+        } catch (e) {}
+        return l.map(norm).filter(Boolean);
+    }
+
+    function homeLabel() {
+        var l = ((document.documentElement.lang || navigator.language || "") + "").toLowerCase();
+        if (l.indexOf("pt") === 0) return "Início";
+        if (l.indexOf("es") === 0) return "Inicio";
+        return "Home";
+    }
 
     function ensureStyle() {
         if (document.getElementById(STYLE_ID)) return;
@@ -94,22 +87,27 @@
         (document.head || document.documentElement).appendChild(s);
     }
 
-    var HOME_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
-
-    function homeLabel() {
-        var l = ((document.documentElement.lang || navigator.language || "") + "").toLowerCase();
-        if (l.indexOf("pt") === 0) return "In\u00edcio";
-        if (l.indexOf("es") === 0) return "Inicio";
-        return "Home";
+    function onLogoClick(ev) {
+        var cur = (window.location.hash || "#/").replace(/^#/, "").split("?")[0];
+        if (cur === "/home" || cur === "/home.html" || cur === "/" || cur === "") {
+            ev.preventDefault();
+            try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
+        }
     }
 
-    function syncActive(stack) {
+    function onMenuClick(ev) {
+        ev.preventDefault();
+        var b = document.querySelector(".skinHeader .mainDrawerButton");
+        if (b) b.click();
+    }
+
+    function syncLinks(stack) {
         var cur = (window.location.hash || "#/").replace(/^#/, "");
         var parts = cur.split("?");
         var curPath = parts[0] || "/";
         var curTab = new URLSearchParams(parts[1] || "").get("tab");
-        var links = stack.querySelectorAll("a:not(.pf-logo-modern)");
         var hide = hideList();
+        var links = stack.querySelectorAll("a:not(.pf-logo-modern)");
         for (var i = 0; i < links.length; i++) {
             var a = links[i];
             var hid = hide.indexOf(norm(a.textContent)) >= 0;
@@ -132,31 +130,51 @@
         }
     }
 
+    function fitNav(toolbar, stack, logo) {
+        var root = document.documentElement;
+        root.classList.remove("pf-nav-flow");
+        var t = toolbar.getBoundingClientRect();
+        if (!t.width) return;
+        var boxes = toolbar.querySelectorAll(":scope > .MuiBox-root");
+        var rightLeft = boxes.length ? boxes[0].getBoundingClientRect().left : t.right;
+        var sw = stack.getBoundingClientRect().width;
+        var left = t.left + t.width / 2 - sw / 2;
+        var right = left + sw;
+        var logoRight = logo.getBoundingClientRect().right;
+        if (left < logoRight + 12 || right > rightLeft - 12) root.classList.add("pf-nav-flow");
+    }
+
+    function syncModernFlag(header) {
+        var r = header.getBoundingClientRect();
+        var cs = window.getComputedStyle(header);
+        var vis = r.width > 0 && r.height > 0 && r.top > -2 && cs.visibility !== "hidden" && cs.display !== "none" && cs.opacity !== "0";
+        var root = document.documentElement;
+        if (vis !== root.classList.contains("pf-modern-active")) root.classList.toggle("pf-modern-active", vis);
+    }
+
     function place() {
         var header = document.querySelector("header.MuiAppBar-root");
         if (!header) return;
-        var orig = header.querySelector('a[href="#/"]:not(.pf-logo-modern):not(.pf-nav-home)');
-        if (!orig || !orig.parentElement) return;
-        var stack = orig.parentElement;
+        var stack = header.querySelector(".MuiToolbar-root > .MuiStack-root");
+        if (!stack || !stack.parentElement) return;
         var toolbar = stack.parentElement;
-        if (!toolbar) return;
 
         ensureStyle();
+        var root = document.documentElement;
+        if (!root.classList.contains("pf-modern-on")) root.classList.add("pf-modern-on");
 
-        var logo = header.querySelector(".pf-logo-modern");
+        var logo = toolbar.querySelector(":scope > .pf-logo-modern");
         if (!logo) {
             logo = document.createElement("a");
             logo.className = "pf-logo-modern";
             logo.href = "#/home";
-            logo.addEventListener("click", onLogoClick);
             logo.setAttribute("aria-label", "ParticularFlix");
             logo.innerHTML = BADGE + WORDMARK;
+            logo.addEventListener("click", onLogoClick);
         }
-        if (logo.nextElementSibling !== stack) {
-            toolbar.insertBefore(logo, stack);
-        }
+        if (logo.nextElementSibling !== stack) toolbar.insertBefore(logo, stack);
 
-        var menu = header.querySelector(".pf-menu-modern");
+        var menu = toolbar.querySelector(":scope > .pf-menu-modern");
         if (!menu) {
             menu = document.createElement("button");
             menu.type = "button";
@@ -165,11 +183,7 @@
             menu.innerHTML = MENU_ICON;
             menu.addEventListener("click", onMenuClick);
         }
-        if (menu.nextElementSibling !== logo) {
-            toolbar.insertBefore(menu, logo);
-        }
-
-        if (!stack.classList.contains("pf-nav-center")) stack.classList.add("pf-nav-center");
+        if (menu.nextElementSibling !== logo) toolbar.insertBefore(menu, logo);
 
         var home = stack.querySelector("a.pf-nav-home");
         if (!home) {
@@ -178,12 +192,15 @@
             home.href = "#/home";
             home.innerHTML = HOME_ICON + "<span>" + homeLabel() + "</span>";
         }
-        if (stack.firstElementChild !== home) {
-            stack.insertBefore(home, stack.firstElementChild);
-        }
+        if (stack.firstElementChild !== home) stack.insertBefore(home, stack.firstElementChild);
 
-        header.classList.add("pf-modern-ready");
-        syncActive(stack);
+        syncLinks(stack);
+        fitNav(toolbar, stack, logo);
+        syncModernFlag(header);
+    }
+
+    function safePlace() {
+        try { place(); } catch (e) {}
     }
 
     var queued = false;
@@ -192,14 +209,16 @@
         queued = true;
         requestAnimationFrame(function () {
             queued = false;
-            try { place(); } catch (e) {}
+            safePlace();
         });
     }
 
     function start() {
-        schedule();
+        safePlace();
         window.addEventListener("hashchange", schedule);
-        new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+        window.addEventListener("resize", schedule);
+        // Sincrono (antes da pintura): se o React recriar o cabecalho, a nossa marca volta no mesmo quadro, sem piscar.
+        new MutationObserver(safePlace).observe(document.body, { childList: true, subtree: true });
     }
 
     if (document.readyState === "loading") {
