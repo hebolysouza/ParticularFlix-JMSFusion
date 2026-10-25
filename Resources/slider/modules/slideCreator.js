@@ -10,6 +10,7 @@ import { openDetailsModal } from "./detailsModalLoader.js";
 import { getWatchlistButtonText } from "./watchlist.js";
 import { fetchItemDetailsFromSliderCache } from "./sliderCache.js";
 import { applyNewSeasonBadge } from "./newSeasonBadge.js";
+import { applySeriesQualityBadges } from "./seriesQuality.js";
 import "./layerTrim.js";
 
 const S = (u) => withServer(u);
@@ -913,6 +914,7 @@ async function createSlide(item, options = {}) {
   const statusContainer = createStatusContainer(config, UserData, RunTimeTicks);
   const formatContainer = createFormatContainer(itemType, config, ChildCount, MediaStreams, metaColorSeed);
   if (formatContainer && itemType === "Series") applyNewSeasonBadge(formatContainer, item, config.languageLabels);
+  if (formatContainer && itemType === "Series") applySeriesQualityBadges(formatContainer, item, config);
   csMark("before-actors");
   const actorSlider = await createActorSlider(People, config, item);
   csMark("actors-done");
