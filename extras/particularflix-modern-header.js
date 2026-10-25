@@ -374,8 +374,6 @@
     ].join("\n");
 
     var drEl = null;
-    var drPages = null;
-    var drPagesAsked = false;
 
     function drT() {
         var l = ((document.documentElement.lang || navigator.language || "") + "").toLowerCase().slice(0, 2);
@@ -408,18 +406,6 @@
             d.appendChild(h);
         }
         return d;
-    }
-
-    function drAskPages() {
-        if (drPagesAsked) return;
-        drPagesAsked = true;
-        try {
-            var api = window.ApiClient;
-            api.getJSON(api.getUrl("web/ConfigurationPages", { EnableInMainMenu: true })).then(function (list) {
-                drPages = (list || []).filter(function (p) { return /modular/i.test((p.DisplayName || "") + " " + (p.Name || "")); });
-                drFill();
-            }, function () { drPages = []; });
-        } catch (e) { drPages = []; }
     }
 
     // (Re)monta so as partes que NAO sao do Enhanced: principal, midia, administracao e usuario.
@@ -463,25 +449,25 @@
             adm = drSection("pf-dr-sec pf-dr-admin", T.adm);
             adm.appendChild(drLink("#/dashboard", "dashboard", T.dash));
             adm.appendChild(drLink("#/metadata", "edit", T.meta));
-            scroll.appendChild(adm);
+            var usrRef = scroll.querySelector(".pf-dr-user");
+            if (usrRef) scroll.insertBefore(adm, usrRef); else scroll.appendChild(adm);
         } else if (!adminState && adm) { adm.remove(); }
 
+        // Secao Usuario: criada UMA vez e com a classe "userMenuOptions", que o plugin Plugin Pages procura para
+        // colocar "Modular Home" logo depois de Configuracoes. Nao recriar, senao o item dele some.
         var usr = scroll.querySelector(".pf-dr-user");
-        if (usr) usr.remove();
-        usr = drSection("pf-dr-sec pf-dr-user", T.usr);
-        usr.appendChild(drLink("#/mypreferencesmenu", "settings", T.cfg));
-        drAskPages();
-        (drPages || []).forEach(function (pg) {
-            usr.appendChild(drLink("#/configurationpage?name=" + encodeURIComponent(pg.Name), "home_work", pg.DisplayName || pg.Name));
-        });
-        var out = drLink("#", "exit_to_app", T.out, "pf-dr-out");
-        out.addEventListener("click", function (ev) {
-            ev.preventDefault();
-            try { if (window.Dashboard && typeof window.Dashboard.logout === "function") { window.Dashboard.logout(); return; } } catch (e) {}
-            try { window.ApiClient.logout().then(function () { window.location.hash = "#/login"; }); } catch (e2) {}
-        });
-        usr.appendChild(out);
-        scroll.appendChild(usr);
+        if (!usr) {
+            usr = drSection("pf-dr-sec pf-dr-user userMenuOptions", T.usr);
+            usr.appendChild(drLink("#/mypreferencesmenu", "settings", T.cfg));
+            var out = drLink("#", "exit_to_app", T.out, "pf-dr-out");
+            out.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                try { if (window.Dashboard && typeof window.Dashboard.logout === "function") { window.Dashboard.logout(); return; } } catch (e) {}
+                try { window.ApiClient.logout().then(function () { window.location.hash = "#/login"; }); } catch (e2) {}
+            });
+            usr.appendChild(out);
+            scroll.appendChild(usr);
+        }
         drSync();
     }
 
@@ -564,10 +550,10 @@
             drEl.setAttribute("aria-hidden", "true");
             drEl.innerHTML =
                 '<div class="pf-dr-back"></div>' +
-                '<aside class="pf-dr-panel" role="dialog" aria-label="' + T.menu + '">' +
+                '<aside class="pf-dr-panel MuiDrawer-paper" role="dialog" aria-label="' + T.menu + '">' +
                 '<div class="pf-dr-head"><div class="pf-dr-brand">' + BADGE + WORDMARK + '</div>' +
                 '<button type="button" class="pf-dr-close" aria-label="' + T.close + '"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>' +
-                '<div class="mainDrawer-scrollContainer pf-dr-scroll"></div></aside>';
+                '<div class="mainDrawer-scrollContainer pf-dr-scroll" role="presentation"></div></aside>';
             document.body.appendChild(drEl);
             drEl.querySelector(".pf-dr-back").addEventListener("click", drClose);
             drEl.querySelector(".pf-dr-close").addEventListener("click", drClose);
@@ -580,7 +566,8 @@
     }
 
     document.addEventListener("keydown", function (ev) { if (ev.key === "Escape" && drEl && drEl.classList.contains("pf-dr-open")) drClose(); });
-    window.addEventListener("hashchange", function () { drClose(); drSync(); });
+    function drOnHash() { drClose(); drSync(); }
+    window.addEventListener("hashchange", drOnHash);
 
     var lastFitSig = "";
     function place() {
@@ -638,20 +625,53 @@
         });
     }
 
+    var pfObs = null;
+    var pfPoll = null;
+
+    // So reage a mudancas no cabecalho ou no corpo da pagina (nao no conteudo das telas), para nao interferir nas paginas dos plugins.
+    function relevante(muts) {
+        for (var i = 0; i < muts.length; i++) {
+            var m = muts[i];
+            var t = m.target;
+            if (t === document.body || (t.nodeType === 1 && (t.id === "root" || t.classList.contains("skinHeader") || (t.closest && t.closest("header.MuiAppBar-root"))))) return true;
+            var nodes = [];
+            for (var a = 0; a < m.addedNodes.length; a++) nodes.push(m.addedNodes[a]);
+            for (var r = 0; r < m.removedNodes.length; r++) nodes.push(m.removedNodes[r]);
+            for (var n = 0; n < nodes.length; n++) {
+                var x = nodes[n];
+                if (x.nodeType !== 1) continue;
+                if (x.matches && (x.matches("header,.MuiAppBar-root,.MuiToolbar-root,.MuiDrawer-root,.MuiDrawer-paper") || x.querySelector("header.MuiAppBar-root,.MuiDrawer-paper"))) return true;
+            }
+        }
+        return false;
+    }
+
+    function pfStop() {
+        try { if (pfObs) pfObs.disconnect(); } catch (e) {}
+        pfObs = null;
+        if (pfPoll) clearInterval(pfPoll);
+        pfPoll = null;
+        window.removeEventListener("hashchange", schedule);
+        window.removeEventListener("popstate", schedule);
+        window.removeEventListener("resize", schedule);
+        return "cabecalho ParticularFlix pausado (recarregue a pagina para voltar)";
+    }
+    window.__pfStop = pfStop;
+
     function start() {
         safePlace();
         window.addEventListener("hashchange", schedule);
         window.addEventListener("popstate", schedule);
         window.addEventListener("resize", schedule);
-        // Troca de aba/pagina pelo proprio app (pushState nao dispara hashchange): acompanhada pelo monitor de endereco abaixo.
         // Nao interceptamos history.pushState: isso quebrava navegacoes do Enhanced (Catalogo: Em alta, Filmes populares...).
         try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { lastFitSig = ""; schedule(); }); } catch (e) {}
         var lastUrl = location.href;
-        setInterval(function () {
+        pfPoll = setInterval(function () {
             if (location.href !== lastUrl) { lastUrl = location.href; schedule(); }
         }, 250);
         // Sincrono (antes da pintura): se o React recriar o cabecalho, a nossa marca volta no mesmo quadro, sem piscar.
-        new MutationObserver(safePlace).observe(document.body, { childList: true, subtree: true });
+        pfObs = new MutationObserver(function (muts) { if (relevante(muts)) safePlace(); });
+        pfObs.observe(document.body, { childList: true, subtree: true });
     }
 
     if (document.readyState === "loading") {
