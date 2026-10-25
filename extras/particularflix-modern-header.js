@@ -16,6 +16,7 @@
 
     var ROOT = "html.pf-modern-on header.MuiAppBar-root";
     var STACK = ROOT + " .MuiToolbar-root > .MuiStack-root";
+    var HDR = "header.MuiAppBar-root .MuiToolbar-root > .MuiStack-root";
     var STYLE_ID = "pf-modern-header-style";
 
     var CSS = [
@@ -23,10 +24,10 @@
         STACK + " a[href=\"#/\"]:not(.pf-logo-modern):not(.pf-nav-home){display:none !important;}",
         "html.pf-modern-active .skinHeader{visibility:hidden !important;opacity:0 !important;pointer-events:none !important;transition:none !important;}",
         ROOT + " .MuiToolbar-root{position:relative;}",
-        "html.pf-modern-on:not(.pf-nav-flow) " + STACK + "{position:absolute !important;left:50%;top:50%;transform:translate(-50%,-50%);display:flex !important;align-items:center;gap:8px;}",
-        "html.pf-modern-on.pf-nav-flow " + STACK + "{position:static !important;transform:none;margin-left:12px;display:flex !important;align-items:center;gap:6px;}",
+        "html.pf-modern-on:not(.pf-nav-flow) " + HDR + "{position:absolute !important;left:50%;top:50%;transform:translate(-50%,-50%);display:flex !important;align-items:center;gap:8px;}",
+        "html.pf-modern-on.pf-nav-flow " + HDR + "{position:static !important;transform:none;margin-left:12px;display:flex !important;align-items:center;gap:6px;}",
         STACK + " a:not(.pf-logo-modern){display:inline-flex !important;align-items:center;gap:6px;border-radius:999px !important;padding:6px 16px !important;min-width:0;background:rgba(255,255,255,0.06);color:#F2F2F2 !important;text-transform:none !important;text-decoration:none;font-size:14px;line-height:1.2;transition:background-color 200ms ease,box-shadow 200ms ease,color 200ms ease;}",
-        "html.pf-nav-flow " + STACK + " a:not(.pf-logo-modern){padding:6px 12px !important;font-size:13px;}",
+        "html.pf-modern-on.pf-nav-flow " + HDR + " a:not(.pf-logo-modern){padding:6px 12px !important;font-size:13px;}",
         STACK + " a:not(.pf-logo-modern) svg{width:18px;height:18px;fill:currentColor;}",
         STACK + " a:not(.pf-logo-modern):hover{background:rgba(229,9,20,0.38);}",
         STACK + " a.pf-nav-active{background:#E50914 !important;color:#FFFFFF !important;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
