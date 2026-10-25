@@ -47,6 +47,18 @@
         ".pf-logo-modern:hover .pf-wm-f::after,.pf-logo-modern:focus-visible .pf-wm-f::after{transform:scaleX(1);}",
         ".pf-logo-modern:hover .pf-wm-f,.pf-logo-modern:focus-visible .pf-wm-f{color:#FF3B47;text-shadow:0 0 7px rgba(229,9,20,0.6);}",
         ".pf-logo-modern:focus-visible{outline:2px solid #FF3B47;outline-offset:4px;border-radius:4px;}",
+        // Ordem na barra: hamburguer, botao voltar e logo (so troca a ordem visual; o React continua dono dos botoes).
+        "html.pf-modern-on header.MuiAppBar-root .MuiToolbar-root{display:flex;}",
+        "html.pf-modern-on header.MuiAppBar-root .MuiToolbar-root > .MuiIconButton-root:has(> svg[data-testid=\"MenuIcon\"]){order:-3;}",
+        "html.pf-modern-on header.MuiAppBar-root .MuiToolbar-root > .MuiIconButton-root:has(> svg[data-testid=\"ArrowBackIcon\"]){order:-2;}",
+        "html.pf-modern-on header.MuiAppBar-root .MuiToolbar-root > .pf-logo-modern{order:-1;}",
+        // Secao Administracao na gaveta do hamburguer (o Jellyfin 12 so tem o Painel no menu do avatar).
+        ".pf-admin-sec{border-top:1px solid rgba(255,255,255,0.12);margin-top:8px;padding-top:8px;}",
+        ".pf-admin-sec .pf-admin-title{padding:8px 16px;font-size:14px;line-height:1.4;color:rgba(255,255,255,0.7);}",
+        ".pf-admin-sec a.pf-admin-link{display:flex;align-items:center;gap:0;padding:8px 16px;color:inherit;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
+        ".pf-admin-sec a.pf-admin-link:hover{background:rgba(255,255,255,0.08);}",
+        ".pf-admin-sec a.pf-admin-link svg{width:24px;height:24px;fill:currentColor;flex:0 0 auto;margin-right:32px;}",
+        ".pf-admin-sec a.pf-admin-link span{font-size:16px;line-height:1.5;}",
     ].join("\n");
 
     var BADGE =
@@ -162,11 +174,77 @@
         if (vis !== root.classList.contains("pf-modern-active")) root.classList.toggle("pf-modern-active", vis);
     }
 
+    function placeLogoOnly(header) {
+        // Modo gaveta (janela estreita): o Jellyfin nao desenha as pilulas, so o hamburguer. O logo entra na barra
+        // e a ordem visual (hamburguer, logo) vem do CSS.
+        var toolbar = header.querySelector(".MuiToolbar-root");
+        if (!toolbar) return;
+        ensureStyle();
+        var root = document.documentElement;
+        if (!root.classList.contains("pf-modern-on")) root.classList.add("pf-modern-on");
+        var logo = toolbar.querySelector(":scope > .pf-logo-modern");
+        if (!logo) {
+            logo = document.createElement("a");
+            logo.className = "pf-logo-modern";
+            logo.href = "#/home";
+            logo.setAttribute("aria-label", "ParticularFlix");
+            logo.innerHTML = BADGE + WORDMARK;
+            logo.addEventListener("click", onLogoClick);
+            toolbar.insertBefore(logo, toolbar.firstChild);
+        }
+        syncModernFlag(header);
+    }
+
+    var ADMIN_TXT = {
+        pt: { sec: "Administração", dash: "Painel", meta: "Metadados" },
+        es: { sec: "Administración", dash: "Panel de control", meta: "Metadatos" },
+        en: { sec: "Administration", dash: "Dashboard", meta: "Metadata" }
+    };
+    var ICON_DASH = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>';
+    var ICON_META = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+    var adminState = null; // null = ainda nao sei, true/false = resposta do servidor
+    var adminAsked = false;
+
+    function askAdmin() {
+        if (adminAsked) return;
+        adminAsked = true;
+        try {
+            var api = window.ApiClient;
+            if (!api || typeof api.getCurrentUser !== "function") { adminAsked = false; return; }
+            api.getCurrentUser().then(function (u) {
+                adminState = !!(u && u.Policy && u.Policy.IsAdministrator);
+                safePlace();
+            }, function () { adminAsked = false; });
+        } catch (e) { adminAsked = false; }
+    }
+
+    function ensureAdminLinks() {
+        var home = document.querySelector('.MuiDrawer-paper a[href="#/home"]');
+        if (!home) return;
+        var list = home.closest(".MuiList-root");
+        var holder = list && list.parentElement;
+        if (!holder) return;
+        var existing = holder.querySelector(":scope > .pf-admin-sec");
+        if (adminState === null) { askAdmin(); return; }
+        if (!adminState) { if (existing) existing.remove(); return; }
+        if (existing) return;
+        var lang = ((document.documentElement.lang || navigator.language || "") + "").toLowerCase().slice(0, 2);
+        var t = ADMIN_TXT[lang] || ADMIN_TXT.en;
+        var sec = document.createElement("div");
+        sec.className = "pf-admin-sec";
+        sec.innerHTML =
+            '<div class="pf-admin-title">' + t.sec + '</div>' +
+            '<a class="pf-admin-link" href="#/dashboard">' + ICON_DASH + '<span>' + t.dash + '</span></a>' +
+            '<a class="pf-admin-link" href="#/metadata">' + ICON_META + '<span>' + t.meta + '</span></a>';
+        holder.appendChild(sec);
+    }
+
     function place() {
         var header = document.querySelector("header.MuiAppBar-root");
         if (!header) return;
+        ensureAdminLinks();
         var stack = header.querySelector(".MuiToolbar-root > .MuiStack-root");
-        if (!stack || !stack.parentElement) return;
+        if (!stack || !stack.parentElement) { placeLogoOnly(header); return; }
         var toolbar = stack.parentElement;
 
         ensureStyle();
