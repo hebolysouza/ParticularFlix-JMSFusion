@@ -6,7 +6,40 @@
     if (window.__pfModernHeader) return;
     window.__pfModernHeader = true;
 
+    // Itens da navegacao que voce quer ESCONDER no layout Modern (pelo nome exibido, sem acento).
+    // Exemplo: var HIDE = ["Filmes", "Colecoes"];
+    // Tambem vale, sem editar o arquivo: localStorage.setItem("pf:navHide", "Filmes,Colecoes") e recarregar.
+    var HIDE = [];
+
     var STYLE_ID = "pf-modern-header-style";
+    var MENU_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>';
+
+    function norm(t) {
+        return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    }
+
+    function hideList() {
+        var l = HIDE.slice();
+        try {
+            var v = window.localStorage.getItem("pf:navHide");
+            if (v) l = l.concat(v.split(","));
+        } catch (e) {}
+        return l.map(norm).filter(Boolean);
+    }
+
+    function onLogoClick(ev) {
+        var cur = (window.location.hash || "#/").replace(/^#/, "").split("?")[0];
+        if (cur === "/home" || cur === "/home.html" || cur === "/" || cur === "") {
+            ev.preventDefault();
+            try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
+        }
+    }
+
+    function onMenuClick(ev) {
+        ev.preventDefault();
+        var b = document.querySelector(".skinHeader .mainDrawerButton");
+        if (b) b.click();
+    }
     var CSS = [
         "header.MuiAppBar-root.pf-modern-ready a[href=\"#/\"]:not(.pf-logo-modern){display:none !important;}",
         ".pf-logo-modern{display:inline-flex !important;align-items:center;gap:10px;flex:0 0 auto;margin-left:4px;padding:4px 14px 4px 4px;line-height:1;text-decoration:none;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
@@ -26,7 +59,12 @@
         "header.MuiAppBar-root .pf-nav-center a:not(.pf-logo-modern) svg{width:18px;height:18px;fill:currentColor;}",
         "header.MuiAppBar-root .pf-nav-center a:not(.pf-logo-modern):hover{background:rgba(229,9,20,0.38);}",
         "header.MuiAppBar-root .pf-nav-center a.pf-nav-active{background:#E50914 !important;color:#FFFFFF !important;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
-        "header.MuiAppBar-root .pf-nav-center a.pf-nav-home{cursor:pointer;}"
+        "header.MuiAppBar-root .pf-nav-center a.pf-nav-home{cursor:pointer;}",
+        "header.MuiAppBar-root.pf-modern-ready .pf-nav-center a.pf-nav-hidden{display:none !important;}",
+        ".pf-menu-modern{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:40px;height:40px;margin-right:2px;padding:0;border:0;border-radius:50%;background:transparent;color:#F2F2F2;cursor:pointer;transition:background-color 200ms ease,transform 200ms ease;}",
+        ".pf-menu-modern svg{width:24px;height:24px;fill:currentColor;pointer-events:none;}",
+        ".pf-menu-modern:hover{background:rgba(229,9,20,0.25);transform:scale(1.08);}",
+        ".pf-menu-modern:active{transform:scale(0.92);}"
     ].join("\n");
 
     var BADGE =
@@ -63,8 +101,11 @@
         var curPath = parts[0] || "/";
         var curTab = new URLSearchParams(parts[1] || "").get("tab");
         var links = stack.querySelectorAll("a:not(.pf-logo-modern)");
+        var hide = hideList();
         for (var i = 0; i < links.length; i++) {
             var a = links[i];
+            var hid = hide.indexOf(norm(a.textContent)) >= 0;
+            if (hid !== a.classList.contains("pf-nav-hidden")) a.classList.toggle("pf-nav-hidden", hid);
             var active = false;
             if (a.classList.contains("pf-nav-home")) {
                 active = (curPath === "/home" || curPath === "/home.html" || curPath === "/" || curPath === "") && (curTab === null || curTab === "0");
@@ -98,12 +139,26 @@
         if (!logo) {
             logo = document.createElement("a");
             logo.className = "pf-logo-modern";
-            logo.href = "#/";
+            logo.href = "#/home";
+            logo.addEventListener("click", onLogoClick);
             logo.setAttribute("aria-label", "ParticularFlix");
             logo.innerHTML = BADGE + WORDMARK;
         }
         if (logo.nextElementSibling !== stack) {
             toolbar.insertBefore(logo, stack);
+        }
+
+        var menu = header.querySelector(".pf-menu-modern");
+        if (!menu) {
+            menu = document.createElement("button");
+            menu.type = "button";
+            menu.className = "pf-menu-modern";
+            menu.setAttribute("aria-label", "Menu");
+            menu.innerHTML = MENU_ICON;
+            menu.addEventListener("click", onMenuClick);
+        }
+        if (menu.nextElementSibling !== logo) {
+            toolbar.insertBefore(menu, logo);
         }
 
         if (!stack.classList.contains("pf-nav-center")) stack.classList.add("pf-nav-center");
