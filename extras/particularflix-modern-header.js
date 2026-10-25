@@ -124,23 +124,27 @@
         root.classList.remove("pf-nav-flow");
         var t = toolbar.getBoundingClientRect();
         if (!t.width) return;
-        // Borda esquerda do primeiro controle REAL da direita (icones). Os contêineres podem ser espacadores que ocupam a largura toda.
+        var center = t.left + t.width / 2;
+        // Borda esquerda do primeiro controle real que fica na METADE DIREITA da barra (ignora espacadores e itens ocultos).
         var rightLeft = t.right;
         var kids = toolbar.children;
         for (var i = 0; i < kids.length; i++) {
             var k = kids[i];
-            if (k === stack || k === logo || k.classList.contains("pf-logo-modern")) continue;
+            if (k === stack || k === logo) continue;
             var items = k.matches("button,a") ? [k] : k.querySelectorAll("button,a");
             for (var j = 0; j < items.length; j++) {
                 var r = items[j].getBoundingClientRect();
-                if (r.width > 0 && r.height > 0 && r.left < rightLeft) rightLeft = r.left;
+                if (r.width > 0 && r.height > 0 && r.left > center && r.left < rightLeft) rightLeft = r.left;
             }
         }
         var sw = stack.getBoundingClientRect().width;
-        var left = t.left + t.width / 2 - sw / 2;
+        var left = center - sw / 2;
         var right = left + sw;
         var logoRight = logo.getBoundingClientRect().right;
-        if (left < logoRight + 12 || right > rightLeft - 12) root.classList.add("pf-nav-flow");
+        // Em telas largas (1400px ou mais) as pilulas sempre cabem centralizadas; a medicao so decide em telas menores.
+        var flow = window.innerWidth < 1400 && (left < logoRight + 12 || right > rightLeft - 12);
+        window.__pfNavDebug = { toolbarW: Math.round(t.width), center: Math.round(center), stackW: Math.round(sw), left: Math.round(left), right: Math.round(right), logoRight: Math.round(logoRight), rightLeft: Math.round(rightLeft), flow: flow };
+        if (flow) root.classList.add("pf-nav-flow");
     }
 
     function syncModernFlag(header) {
