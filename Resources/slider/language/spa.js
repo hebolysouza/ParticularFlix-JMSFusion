@@ -802,6 +802,7 @@ export const languageLabels = {
   posCornersHint: "Predeterminado: las 4 esquinas redondeadas. Las esquinas recortan lo que quede fuera del marco, así que quita el redondeo si mueves sellos a los bordes.",
   posCornersDefault: "Predeterminado (4 esquinas)",
   posCornersRight: "Sin redondear a la derecha",
+  posCornersLeft: "Sin redondear a la izquierda",
   posCornersTop: "Sin redondear arriba",
   posCornersNone: "Ninguna esquina redondeada",
   posDragButton: "Arrastrar elementos en pantalla",

@@ -857,10 +857,19 @@ export function createPositionEditor(config, labels, section) {
       if (floating) floating.dispose();
       modal.remove();
       showMainModal(mainModal);
+      if (!committed) el.value = orig;
       previewTuning();
     };
+    const doSave = () => {
+      const v = el.value === '' ? '' : (el.tagName === 'SELECT' ? el.value : Number(el.value));
+      saveTuning(getActivePositionProfile(), { [name]: v });
+      committed = true;
+      previewTuning();
+      setSaved(L('posSavedHere', 'Salvo neste estilo.'));
+    };
     const onKey = (e) => {
-      if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); closeModal(); }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeModal(); }
+      else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); doSave(); closeModal(); }
     };
     document.addEventListener('keydown', onKey, true);
 
@@ -879,8 +888,10 @@ export function createPositionEditor(config, labels, section) {
     const name = el.dataset.jmsLay;
     const f = TUNING_FIELDS[name] || {};
     const saved = document.createElement('p');
-    saved.className = 'position-modal-status';
-    saved.style.minHeight = '1.2em';
+    saved.style.cssText = 'margin:0;font-size:12px;opacity:.85;display:none';
+    const setSaved = (t) => { saved.textContent = t; saved.style.display = t ? 'block' : 'none'; };
+    const orig = el.value;
+    let committed = false;
 
     if (el.tagName === 'SELECT') {
       const box = document.createElement('div');
@@ -896,7 +907,8 @@ export function createPositionEditor(config, labels, section) {
           box.querySelectorAll('.position-modal-option').forEach((x) => x.classList.remove('active'));
           b.classList.add('active');
           previewTuning();
-          saved.textContent = '';
+          committed = false;
+          setSaved('');
         };
         box.appendChild(b);
       });
@@ -916,7 +928,7 @@ export function createPositionEditor(config, labels, section) {
       range.min = f.min; range.max = f.max; range.step = f.step;
       range.value = el.value === '' ? String(def) : el.value;
       range.style.cssText = 'width:100%;margin-top:8px';
-      const push = (v) => { el.value = v; previewTuning(); saved.textContent = ''; };
+      const push = (v) => { el.value = v; previewTuning(); committed = false; setSaved(''); };
       num.addEventListener('input', () => { if (num.value !== '') range.value = num.value; push(num.value); });
       range.addEventListener('input', () => { num.value = range.value; push(range.value); });
       const def2 = document.createElement('button');
@@ -934,12 +946,7 @@ export function createPositionEditor(config, labels, section) {
     saveBtn.type = 'button';
     saveBtn.className = 'position-modal-apply';
     saveBtn.textContent = L('posSaveHere', 'Salvar esta mudança');
-    saveBtn.onclick = () => {
-      const v = el.value === '' ? '' : (el.tagName === 'SELECT' ? el.value : Number(el.value));
-      saveTuning(getActivePositionProfile(), { [name]: v });
-      previewTuning();
-      saved.textContent = L('posSavedHere', 'Salvo neste estilo.');
-    };
+    saveBtn.onclick = doSave;
     content.append(saveBtn, saved);
     modal.appendChild(content);
     document.body.appendChild(modal);
@@ -1061,7 +1068,7 @@ export function createPositionEditor(config, labels, section) {
       appendStringSelect('alignInfo', L('posAlignInfo', 'Gênero, ano e país: alinhamento'), L('posAlignInfoHint', 'Alinha só a linha de gênero, ano e país. Não mexe nos botões.'), [['', L('posAlignDefault', 'Padrão do estilo')], ['left', L('posAlignLeft', 'Esquerda')], ['center', L('posAlignCenter', 'Centralizado')], ['right', L('posAlignRight', 'Direita')]], stored);
       createTuningNumber('infoX', L('posInfoX', 'Gênero, ano e país: mover na horizontal (px)'), L('posInfoXHint', 'Positivo move para a direita, negativo para a esquerda. Independente dos botões.'), stored);
       createTuningNumber('infoY', L('posInfoY', 'Gênero, ano e país: mover na vertical (px)'), L('posInfoYHint', 'Positivo move para baixo, negativo para cima. Independente dos botões.'), stored);
-      appendStringSelect('corners', L('posCorners', 'Cantos arredondados do slider'), L('posCornersHint', 'Padrão: os 4 cantos arredondados. Os cantos cortam o que estiver fora da moldura, então tire o arredondamento se for mover selos para as bordas.'), [['', L('posCornersDefault', 'Padrão (4 cantos)')], ['right', L('posCornersRight', 'Sem arredondar à direita')], ['top', L('posCornersTop', 'Sem arredondar em cima')], ['none', L('posCornersNone', 'Nenhum canto arredondado')]], stored);
+      appendStringSelect('corners', L('posCorners', 'Cantos arredondados do slider'), L('posCornersHint', 'Padrão: os 4 cantos arredondados. Os cantos cortam o que estiver fora da moldura, então tire o arredondamento se for mover selos para as bordas.'), [['', L('posCornersDefault', 'Padrão (4 cantos)')], ['left', L('posCornersLeft', 'Sem arredondar à esquerda')], ['right', L('posCornersRight', 'Sem arredondar à direita')], ['top', L('posCornersTop', 'Sem arredondar em cima')], ['none', L('posCornersNone', 'Nenhum canto arredondado')]], stored);
       const dragRow = document.createElement('div');
       dragRow.className = 'position-item';
       const dragBtn = document.createElement('button');

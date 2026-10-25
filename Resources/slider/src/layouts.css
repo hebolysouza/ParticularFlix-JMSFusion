@@ -11,6 +11,8 @@ html[data-slider-layout=cinema] .monwui-slide:not([style*="display: none"]),
 html[data-slider-layout=mosaic] .monwui-slide:not([style*="display: none"]){
   display:flex!important;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:var(--lay-gap);
   box-sizing:border-box;height:100%;padding:clamp(64px,9%,96px) var(--lay-pad-x) var(--lay-pad-b)}
+/* the text column starts after the left navigation arrow, so the arrow never covers the text */
+html[data-slider-layout=cinema] .monwui-slide:not([style*="display: none"]),html[data-slider-layout=mosaic] .monwui-slide:not([style*="display: none"]){padding-left:max(var(--lay-pad-x),var(--lay-nav-w,60px))!important}
 html[data-slider-layout=cinema] .monwui-main-content-container,
 html[data-slider-layout=mosaic] .monwui-main-content-container{display:contents}
 

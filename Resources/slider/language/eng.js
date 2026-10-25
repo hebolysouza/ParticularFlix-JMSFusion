@@ -813,6 +813,7 @@ export const languageLabels = {
   posCornersHint: "Default: all 4 corners rounded. Corners clip anything outside the frame, so remove the rounding if you move badges to the edges.",
   posCornersDefault: "Default (4 corners)",
   posCornersRight: "No rounding on the right",
+  posCornersLeft: "No rounding on the left",
   posCornersTop: "No rounding on top",
   posCornersNone: "No rounded corners",
   posDragButton: "Drag elements on screen",

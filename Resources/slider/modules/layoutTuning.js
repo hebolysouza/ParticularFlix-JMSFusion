@@ -41,7 +41,7 @@ BLOCKS.forEach((b) => {
 });
 
 export const ALIGN_MODES = ["", "left", "center", "right", "bottom"];
-export const CORNER_MODES = ["", "right", "top", "none"];
+export const CORNER_MODES = ["", "left", "right", "top", "none"];
 export const LAYOUT_MODES = ["", "zones"];
 export const PLOT_MODES = ["", "hidden", "l2", "l3", "l4", "full"];
 const STRING_OPTS = { plot: PLOT_MODES, layout: LAYOUT_MODES, align: ALIGN_MODES, alignInfo: ALIGN_MODES, corners: CORNER_MODES };
@@ -66,9 +66,13 @@ html[data-jms-plot=hidden] .monwui-plot-container:not(:has(.monwui-playing-progr
 ${ALIGN_CSS("data-jms-btnalign", ".monwui-main-button-container")}
 ${ALIGN_CSS("data-jms-infoalign", ".monwui-info-container")}
 html[data-slider-layout][data-jms-btnalign=bottom] .monwui-slide>.monwui-main-button-container{align-self:center!important;justify-content:center!important;margin-top:auto!important}
+/* centralizado embaixo: o grupo botoes + info desce mais, rente a borda de baixo */
+html[data-slider-layout][data-jms-btnalign=bottom] .monwui-slide>.monwui-main-button-container,html[data-slider-layout][data-jms-btnalign=bottom] .monwui-slide>.monwui-info-container{top:clamp(14px,3.2vh,34px)!important}
+html[data-slider-layout][data-jms-btnalign=bottom] .monwui-slide>.monwui-info-container{align-self:center!important;justify-content:center!important}
 /* botoes e info nao dependem da largura do texto */
 html[data-slider-layout] .monwui-slide>.monwui-main-button-container,html[data-slider-layout] .monwui-slide>.monwui-info-container{max-width:100%!important}
 /* cantos do slider */
+html[data-slider-layout][data-jms-corners=left] .monwui-slide{border-radius:0 var(--lay-radius,24px) var(--lay-radius,24px) 0!important}
 html[data-slider-layout][data-jms-corners=right] .monwui-slide{border-radius:var(--lay-radius,24px) 0 0 var(--lay-radius,24px)!important}
 html[data-slider-layout][data-jms-corners=top] .monwui-slide{border-radius:0 0 var(--lay-radius,24px) var(--lay-radius,24px)!important}
 html[data-slider-layout][data-jms-corners=none] .monwui-slide{border-radius:0!important}

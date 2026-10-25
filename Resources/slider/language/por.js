@@ -816,6 +816,7 @@ export const languageLabels = {
   posCornersHint: "Padrão: os 4 cantos arredondados. Os cantos cortam o que estiver fora da moldura, então tire o arredondamento se for mover selos para as bordas.",
   posCornersDefault: "Padrão (4 cantos)",
   posCornersRight: "Sem arredondar à direita",
+  posCornersLeft: "Sem arredondar à esquerda",
   posCornersTop: "Sem arredondar em cima",
   posCornersNone: "Nenhum canto arredondado",
   posDragButton: "Arrastar elementos na tela",
