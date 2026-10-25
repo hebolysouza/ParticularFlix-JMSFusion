@@ -124,8 +124,18 @@
         root.classList.remove("pf-nav-flow");
         var t = toolbar.getBoundingClientRect();
         if (!t.width) return;
-        var boxes = toolbar.querySelectorAll(":scope > .MuiBox-root");
-        var rightLeft = boxes.length ? boxes[0].getBoundingClientRect().left : t.right;
+        // Borda esquerda do primeiro controle REAL da direita (icones). Os contêineres podem ser espacadores que ocupam a largura toda.
+        var rightLeft = t.right;
+        var kids = toolbar.children;
+        for (var i = 0; i < kids.length; i++) {
+            var k = kids[i];
+            if (k === stack || k === logo || k.classList.contains("pf-logo-modern")) continue;
+            var items = k.matches("button,a") ? [k] : k.querySelectorAll("button,a");
+            for (var j = 0; j < items.length; j++) {
+                var r = items[j].getBoundingClientRect();
+                if (r.width > 0 && r.height > 0 && r.left < rightLeft) rightLeft = r.left;
+            }
+        }
         var sw = stack.getBoundingClientRect().width;
         var left = t.left + t.width / 2 - sw / 2;
         var right = left + sw;
