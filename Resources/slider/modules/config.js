@@ -1420,6 +1420,7 @@ function computeConfig() {
 
     slideTransitionType: localStorage.getItem('slideTransitionType') || 'flip',
     nextStyle: (() => { const v = localStorage.getItem('nextStyle'); return v === 'dots' || v === 'none' ? v : 'card'; })(),
+    dotsPreview: localStorage.getItem('dotsPreview') === 'off' ? 'off' : 'on',
     arrowStyle: (() => { const v = localStorage.getItem('arrowStyle'); return v === 'bar' ? 'bar' : 'round'; })(),
     buttonStyle: (() => { const v = localStorage.getItem('buttonStyle'); return ['classic', 'pills', 'orbs'].includes(v) ? v : 'classic'; })(),
     badgeStyle: (() => { const v = localStorage.getItem('badgeStyle'); return ['classic', 'minimal', 'tinted', 'outline'].includes(v) ? v : 'minimal'; })(),

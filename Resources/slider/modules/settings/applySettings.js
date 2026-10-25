@@ -401,6 +401,7 @@ const USER_ONLY_KEYS = [
             cssVariant: formData.get('cssVariant'),
             badgeStyle: formData.get('badgeStyle') || 'minimal',
             nextStyle: ['card', 'dots', 'none'].includes(formData.get('nextStyle')) ? formData.get('nextStyle') : 'card',
+            dotsPreview: formData.get('dotsPreview') === 'off' ? 'off' : 'on',
             arrowStyle: formData.get('arrowStyle') === 'bar' ? 'bar' : 'round',
             buttonStyle: ['classic', 'pills', 'orbs'].includes(formData.get('buttonStyle')) ? formData.get('buttonStyle') : 'classic',
             useAlbumArtAsBackground: formData.get('useAlbumArtAsBackground') === 'on',

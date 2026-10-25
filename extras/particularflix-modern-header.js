@@ -59,6 +59,11 @@
         "html.pf-modern-on header.MuiAppBar-root .MuiToolbar-root > .MuiIconButton-root:has(> svg[data-testid=\"MenuIcon\"]){order:-3;}",
         "html.pf-modern-on header.MuiAppBar-root .MuiToolbar-root > .MuiIconButton-root:has(> svg[data-testid=\"ArrowBackIcon\"]){order:-2;}",
         "html.pf-modern-on header.MuiAppBar-root .MuiToolbar-root > .pf-logo-modern{order:-1;}",
+        // Sino de notificacoes do JMSFusion: mesmo tamanho e alinhamento dos outros icones da barra, hover vermelho.
+        "html.pf-modern-on header.MuiAppBar-root #jfNotifBtn{display:inline-flex !important;align-items:center;justify-content:center;align-self:center;position:relative;box-sizing:border-box;width:40px;height:40px;min-width:40px;margin:0 !important;padding:0 !important;top:0 !important;vertical-align:middle;border:0;border-radius:50% !important;background:transparent;color:inherit;line-height:1;cursor:pointer;transition:background-color 200ms ease,color 200ms ease,box-shadow 200ms ease;}",
+        "html.pf-modern-on header.MuiAppBar-root #jfNotifBtn .jf-notif-icon,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn svg,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn i{display:block;margin:0 !important;font-size:20px;width:auto;height:auto;line-height:1;}",
+        "html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:hover,html.pf-modern-on header.MuiAppBar-root #jfNotifBtn:focus-visible{background:rgba(229,9,20,0.38) !important;color:#FFFFFF;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
+        "html.pf-modern-on header.MuiAppBar-root #jfNotifBtn .jf-notif-badge{top:3px !important;right:2px !important;}",
         // Secao Administracao na gaveta do hamburguer (o Jellyfin 12 so tem o Painel no menu do avatar).
         ".pf-admin-sec{border-top:1px solid rgba(255,255,255,0.12);margin-top:8px;padding-top:8px;}",
         ".pf-admin-sec .pf-admin-title{padding:8px 16px;font-size:14px;line-height:1.4;color:rgba(255,255,255,0.7);}",
@@ -109,10 +114,20 @@
     }
 
     function onLogoClick(ev) {
-        var cur = (window.location.hash || "#/").replace(/^#/, "").split("?")[0];
-        if (cur === "/home" || cur === "/home.html" || cur === "/" || cur === "") {
+        var raw = (window.location.hash || "#/").replace(/^#/, "").split("?");
+        var cur = raw[0];
+        var tab = new URLSearchParams(raw[1] || "").get("tab");
+        var naPrimeiraAba = tab === null || tab === "0";
+        // Ja esta na Inicio (primeira aba): so sobe a pagina. Em outra aba ou pagina, navega como o botao Inicio.
+        if ((cur === "/home" || cur === "/home.html" || cur === "/" || cur === "") && naPrimeiraAba) {
             ev.preventDefault();
             try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
+            return;
+        }
+        var home = document.querySelector("a.pf-nav-home");
+        if (home) {
+            ev.preventDefault();
+            home.click();
         }
     }
 
@@ -139,6 +154,12 @@
                     active = curPath === "/home" && want !== null && want === curTab;
                 } else {
                     active = curPath === hp[0];
+                    // Paginas de plugin usam o mesmo caminho (ex.: /configurationpage?name=X): so e ativa se os parametros do link tambem batem.
+                    if (active && hp[1]) {
+                        var want2 = new URLSearchParams(hp[1]);
+                        var have2 = new URLSearchParams(parts[1] || "");
+                        want2.forEach(function (v, k) { if (have2.get(k) !== v) active = false; });
+                    }
                 }
             }
             if (active !== a.classList.contains("pf-nav-active")) a.classList.toggle("pf-nav-active", active);
@@ -188,6 +209,12 @@
             if (!sobrepoe()) break;
         }
         var sr2 = stack.getBoundingClientRect();
+        var bell = document.getElementById("jfNotifBtn");
+        var br = bell ? bell.getBoundingClientRect() : null;
+        var rr = null;
+        var btns = toolbar.querySelectorAll(".MuiIconButton-root");
+        for (var z = 0; z < btns.length; z++) { if (btns[z] !== bell && btns[z].getBoundingClientRect().width) { rr = btns[z].getBoundingClientRect(); break; } }
+        window.__pfBellDebug = br ? { bell: [Math.round(br.left), Math.round(br.top), Math.round(br.width), Math.round(br.height)], vizinho: rr ? [Math.round(rr.left), Math.round(rr.top), Math.round(rr.width), Math.round(rr.height)] : null } : null;
         window.__pfNavDebug = { toolbarW: Math.round(t.width), center: Math.round(center), stackW: Math.round(sr2.width), left: Math.round(sr2.left), right: Math.round(sr2.right), logoRight: Math.round(logoRight), rightLeft: Math.round(rightLeft), passo: usado, classes: passos[usado].join(" ") };
     }
 
@@ -318,7 +345,23 @@
     function start() {
         safePlace();
         window.addEventListener("hashchange", schedule);
+        window.addEventListener("popstate", schedule);
         window.addEventListener("resize", schedule);
+        // Troca de aba/pagina feita pelo proprio app usa pushState, que nao dispara hashchange: acompanha o endereco.
+        try {
+            ["pushState", "replaceState"].forEach(function (fn) {
+                var orig = history[fn];
+                history[fn] = function () {
+                    var r = orig.apply(this, arguments);
+                    schedule();
+                    return r;
+                };
+            });
+        } catch (e) {}
+        var lastUrl = location.href;
+        setInterval(function () {
+            if (location.href !== lastUrl) { lastUrl = location.href; schedule(); }
+        }, 250);
         // Sincrono (antes da pintura): se o React recriar o cabecalho, a nossa marca volta no mesmo quadro, sem piscar.
         new MutationObserver(safePlace).observe(document.body, { childList: true, subtree: true });
     }

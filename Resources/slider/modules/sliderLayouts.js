@@ -66,7 +66,10 @@ html[data-next-style=dots] .monwui-dot-navigation-container{display:none!importa
 .jms-dot{appearance:none;border:0;padding:0;margin:0;cursor:pointer;width:7px;height:7px;border-radius:999px;background:rgba(255,255,255,.34);transition:width .35s cubic-bezier(.2,.8,.2,1),background .25s ease,transform .25s ease,opacity .25s ease;flex:none}
 .jms-dot:hover,.jms-dot.hover{background:rgba(255,255,255,.85);transform:scale(1.4)}
 .jms-dot.active.hover{transform:none;filter:brightness(1.15)}
-.jms-dots-tip{position:absolute;bottom:calc(100% + 10px);left:0;transform:translateX(-50%) translateY(4px);max-width:260px;padding:6px 10px;border-radius:9px;background:rgba(10,14,22,.92);border:1px solid rgba(255,255,255,.12);color:#fff;font:600 12px/1.25 system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;opacity:0;transition:opacity .15s ease,transform .15s ease}
+.jms-dots-tip{position:absolute;bottom:calc(100% + 10px);left:0;transform:translateX(-50%) translateY(4px);width:max-content;max-width:224px;padding:6px 10px;border-radius:9px;background:rgba(10,14,22,.92);border:1px solid rgba(255,255,255,.12);color:#fff;font:600 12px/1.25 system-ui,sans-serif;display:flex;flex-direction:column;gap:6px;pointer-events:none;opacity:0;transition:opacity .15s ease,transform .15s ease}
+.jms-dots-tip-img{width:204px;height:115px;border-radius:7px;background:#111 center/cover no-repeat;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.jms-dots-tip-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:204px}
+html[data-dots-preview=off] .jms-dots-tip-img,.jms-dots-tip.noimg .jms-dots-tip-img{display:none}
 .jms-dots-tip.show{opacity:1;transform:translateX(-50%) translateY(0)}
 html.jms-dots-hot,html.jms-dots-hot *{cursor:pointer!important}
 .jms-dot.edge{transform:scale(.62);opacity:.55}
@@ -286,6 +289,7 @@ function renderDots(container) {
     d.dataset.idx = String(i);
     const title = tileTitle(slides[i]);
     d.dataset.title = title || `${i + 1}`;
+    d.dataset.img = tileImage(slides[i]) || "";
     d.setAttribute("aria-label", title ? `${i + 1}: ${title}` : String(i + 1));
     if (i === active) { d.classList.add("active"); d.setAttribute("aria-selected", "true"); }
     else if (Math.abs(i - active) === 1) d.classList.add("near");
@@ -302,6 +306,11 @@ function renderDots(container) {
   count.textContent = `${active + 1} / ${n}`;
   const tip = document.createElement("div");
   tip.className = "jms-dots-tip";
+  const tipImg = document.createElement("div");
+  tipImg.className = "jms-dots-tip-img";
+  const tipTxt = document.createElement("span");
+  tipTxt.className = "jms-dots-tip-t";
+  tip.append(tipImg, tipTxt);
   box.dataset.active = String(active);
   box.append(track, count, tip);
   installDotsPointer();
@@ -334,10 +343,22 @@ function setDotHover(dot) {
   dot.classList.add("hover");
   document.documentElement.classList.add("jms-dots-hot");
   if (tip) {
-    tip.textContent = dot.dataset.title || "";
+    const txt = tip.querySelector(".jms-dots-tip-t");
+    const pic = tip.querySelector(".jms-dots-tip-img");
+    if (txt) txt.textContent = dot.dataset.title || "";
+    const url = dot.dataset.img || "";
+    if (pic) pic.style.backgroundImage = url ? `url("${url.replace(/"/g, "%22")}")` : "";
+    tip.classList.toggle("noimg", !url);
     const b = box.getBoundingClientRect();
     const q = dot.getBoundingClientRect();
-    tip.style.left = `${q.left + q.width / 2 - b.left}px`;
+    const cx = q.left + q.width / 2;
+    tip.style.left = `${cx - b.left}px`;
+    // Mantem a previa dentro da tela (os pontos ficam no canto): mede a largura real e desloca se precisar.
+    const w = tip.getBoundingClientRect().width || 0;
+    let shift = 0;
+    if (cx - w / 2 < 8) shift = 8 - (cx - w / 2);
+    else if (cx + w / 2 > window.innerWidth - 8) shift = (window.innerWidth - 8) - (cx + w / 2);
+    if (shift) tip.style.left = `${cx - b.left + shift}px`;
     tip.classList.add("show");
   }
 }

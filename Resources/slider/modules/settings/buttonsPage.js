@@ -81,6 +81,29 @@ export function createButtonsPanel(config, labels) {
     nextDiv.append(nextLabel, nextSelect, nextDesc);
     section.appendChild(nextDiv);
 
+    const dotsPrevDiv = document.createElement('div');
+    dotsPrevDiv.className = 'fsetting-item';
+    const dotsPrevLabel = document.createElement('h3');
+    dotsPrevLabel.textContent = labels.dotsPreview || 'Image preview on the dots:';
+    const dotsPrevSelect = document.createElement('select');
+    dotsPrevSelect.name = 'dotsPreview';
+    dotsPrevSelect.id = 'dotsPreviewSelect';
+    [
+        { value: 'on', label: labels.dotsPreviewOn || 'Show the image preview (default)' },
+        { value: 'off', label: labels.dotsPreviewOff || 'Title only, no image' }
+    ].forEach((o) => {
+        const opt = document.createElement('option');
+        opt.value = o.value;
+        opt.textContent = o.label;
+        if (o.value === (config.dotsPreview === 'off' ? 'off' : 'on')) opt.selected = true;
+        dotsPrevSelect.appendChild(opt);
+    });
+    const dotsPrevDesc = document.createElement('p');
+    dotsPrevDesc.className = 'description-text';
+    dotsPrevDesc.textContent = labels.dotsPreviewDesc || 'Hovering a dot shows the cover of that title, the same one used by the Up next card. Only applies to the Modern dots.';
+    dotsPrevDiv.append(dotsPrevLabel, dotsPrevSelect, dotsPrevDesc);
+    section.appendChild(dotsPrevDiv);
+
     const trailerButtonDiv = document.createElement('div');
     trailerButtonDiv.appendChild(createCheckbox('showTrailerButton', labels.showTrailerButton || 'Fragman Butonunu Göster', config.showTrailerButton));
     section.appendChild(trailerButtonDiv);
