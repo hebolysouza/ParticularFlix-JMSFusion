@@ -55,6 +55,9 @@
         ".pf-logo,.pf-logo-modern,.pf-logo-osd{align-items:center !important;}",
         ".pf-logo .pf-wm,.pf-logo-modern .pf-wm,.pf-logo-osd .pf-wm{display:inline-flex !important;align-items:baseline !important;}",
         ".pf-logo .pf-wm-p,.pf-logo .pf-wm-f,.pf-logo-modern .pf-wm-p,.pf-logo-modern .pf-wm-f,.pf-logo-osd .pf-wm-p,.pf-logo-osd .pf-wm-f{top:0 !important;bottom:auto !important;margin-top:0 !important;margin-bottom:0 !important;vertical-align:baseline !important;text-box:trim-both cap alphabetic;}",
+        // Correcao optica: medido em pixels, FLIX e PARTICULAR ocupam exatamente as mesmas linhas, mas o vermelho sobre o
+        // fundo escuro parece mais alto que o cinza claro. FLIX desce 1px (ajustavel no CSS do tema: :root{--pf-flix-y:2px}).
+        ".pf-logo .pf-wm-f,.pf-logo-modern .pf-wm-f,.pf-logo-osd .pf-wm-f{transform:translateY(var(--pf-flix-y,1px));}",
         "@supports not (text-box: trim-both cap alphabetic){.pf-logo .pf-wm,.pf-logo-modern .pf-wm,.pf-logo-osd .pf-wm{position:relative;top:0.1em;}}",
         // No Modern o logo fica do tamanho do Legado.
         "html.pf-modern-on header.MuiAppBar-root .MuiToolbar-root > .pf-logo-modern{zoom:1.3;}",
