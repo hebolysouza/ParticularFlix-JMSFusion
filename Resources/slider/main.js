@@ -32,6 +32,7 @@ import { initProfileChooser, syncProfileChooserHeaderButtonVisibility } from "./
 import { waitForNativeHomeSectionStability, waitForVisibleHomeSections } from "./modules/homeSectionNative.js";
 import { installHomeSectionOrder } from "./modules/homeSectionOrder.js";
 import { installSliderLayouts, readSliderLayout } from "./modules/sliderLayouts.js";
+import { applyLayoutTuning } from "./modules/layoutTuning.js";
 import { prefetchLocalTrailer } from "./modules/utils.js";
 export { loadCSS } from "./modules/playerStyles.js";
 export { waitForAnyVisible };
@@ -3168,6 +3169,7 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     document.documentElement.dataset.badgeStyle = sliderCssEnabled ? (cfg.badgeStyle || 'minimal') : 'classic';
     document.documentElement.dataset.buttonStyle = sliderCssEnabled ? (cfg.buttonStyle || 'classic') : 'classic';
     try { installSliderLayouts(); } catch {}
+    try { applyLayoutTuning(); } catch {}
     document.documentElement.setAttribute('data-jms-notif', cfg.enableNotifications ? '1' : '0');
   }
 

@@ -1,6 +1,7 @@
 import { getAdminTargetProfile, getConfig, getDeviceProfileAuto, normalizeManagedCardTitleDisplayMode, normalizeManagedHomeSectionOrder, normalizeSettingsHotkey, publishAdminSnapshotIfForced, SETTINGS_HOTKEY_DEFAULT } from "../config.js";
 import { updateConfig } from "../configPersistence.js";
 import { getActivePositionProfile, isPositionKey, savePositionOverrides } from "../positionProfiles.js";
+import { saveTuning, applyLayoutTuning } from "../layoutTuning.js";
 import { loadCSS } from "../playerStyles.js";
 import { updateSlidePosition } from '../positionUtils.js';
 import { createCheckbox, createImageTypeSelect, bindCheckboxKontrol, bindTersCheckboxKontrol } from "./shared.js";
@@ -1112,6 +1113,20 @@ const USER_ONLY_KEYS = [
             if (isPositionKey(k)) { layoutPositions[k] = toSave[k]; delete toSave[k]; }
           });
           savePositionOverrides(layoutPositions);
+        }
+        // ajustes globais do estilo (margens, largura do texto, sinopse): um conjunto por estilo
+        {
+          const tuning = {};
+          for (const [k, v] of formData.entries()) {
+            if (typeof k === 'string' && k.startsWith('jmsLay:')) {
+              const name = k.slice(7);
+              tuning[name] = (name === 'plot' || v === '') ? String(v) : Number(v);
+            }
+          }
+          if (Object.keys(tuning).length) {
+            saveTuning(getActivePositionProfile(), tuning);
+            applyLayoutTuning();
+          }
         }
         const persistedConfig = { ...config, ...toSave };
         const shouldForceCinemaPreRollCacheRefresh =

@@ -20,7 +20,31 @@ export function profileIdFromVariant(raw) {
   if (v.includes('coverflow')) return 'coverflow';
   if (v.includes('cinema') || v.includes('trailer')) return 'cinema';
   if (v.includes('mosaic')) return 'mosaic';
+  if (v.includes('peak')) return 'peak';
+  if (v.includes('normal')) return 'normal';
+  if (v === 'slider' || v.includes('compact')) return 'compact';
   return 'classic';
+}
+
+/*
+ * Normal, Peak e Compact tem perfil proprio, mas comecam iguais as posicoes classicas (as chaves de sempre)
+ * e so passam a divergir no que for ajustado em cada um. Coverflow funciona do mesmo jeito.
+ * Cinema e Mosaico comecam vazios (posicao padrao do layout).
+ */
+const FALLBACK_TO_CLASSIC = new Set(['coverflow', 'normal', 'peak', 'compact']);
+export function profileFallsBackToClassic(id) { return FALLBACK_TO_CLASSIC.has(id); }
+
+/* Le os valores de posicao efetivos de um estilo (para copiar de um estilo para outro). */
+export function readProfilePositions(id) {
+  const out = {};
+  try {
+    for (const k of POSITION_KEYS) {
+      let raw = id === 'classic' ? null : localStorage.getItem(`${NS}${id}:${k}`);
+      if (raw === null && (id === 'classic' || FALLBACK_TO_CLASSIC.has(id))) raw = localStorage.getItem(k);
+      if (raw !== null && raw !== '') out[k] = raw;
+    }
+  } catch {}
+  return out;
 }
 
 export function getActivePositionProfile() {
@@ -42,7 +66,7 @@ export function applyPositionOverlay(cfg) {
     for (const k of POSITION_KEYS) {
       const raw = localStorage.getItem(`${NS}${id}:${k}`);
       if (raw !== null) cfg[k] = isNumericKey(k) ? (parseInt(raw, 10) || 0) : raw;
-      else if (id !== 'coverflow') cfg[k] = isNumericKey(k) ? 0 : '';
+      else if (!FALLBACK_TO_CLASSIC.has(id)) cfg[k] = isNumericKey(k) ? 0 : '';
     }
   } catch {}
   return cfg;
@@ -58,9 +82,13 @@ export function savePositionOverrides(values) {
       const empty = v === '' || v === null || v === undefined || (typeof v === 'number' && (!Number.isFinite(v) || v === 0));
       const key = `${NS}${id}:${k}`;
       if (empty) {
-        // no coverflow um valor vazio precisa valer como vazio (senao voltaria ao valor do classico)
-        if (id === 'coverflow' && localStorage.getItem(key) !== null) setManaged(key, '');
-        else if (id !== 'coverflow') localStorage.removeItem(key);
+        // nos estilos que herdam do classico, um valor vazio precisa valer como vazio (senao voltaria ao valor do classico)
+        if (FALLBACK_TO_CLASSIC.has(id)) {
+          if (localStorage.getItem(key) !== null) setManaged(key, '');
+          else if (localStorage.getItem(k) !== null && localStorage.getItem(k) !== '') setManaged(key, '');
+        } else {
+          localStorage.removeItem(key);
+        }
       } else {
         setManaged(key, String(v));
       }

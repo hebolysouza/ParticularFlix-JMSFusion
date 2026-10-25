@@ -1,5 +1,6 @@
 import { applySettings } from "./applySettings.js";
-import { getActivePositionProfile } from "../positionProfiles.js";
+import { getActivePositionProfile, readProfilePositions, POSITION_KEYS } from "../positionProfiles.js";
+import { TUNING_FIELDS, readTuning, applyLayoutTuning, isFlowProfile, revertTuningWhenSettingsCloses } from "../layoutTuning.js";
 import {
   markPositionEditing,
   writeAnchorRelease,
@@ -809,10 +810,149 @@ export function createPositionEditor(config, labels, section) {
     section.appendChild(createSettingItem(PROP_TEXT.height.label(), `${prefixKey}Height`, 'height', ph, target, type, blockLabel));
   }
 
+  /* ---------- ajustes globais do estilo (margens, largura do texto, sinopse) e copia entre estilos ---------- */
+
+  const STYLE_NAMES = {
+    classic: 'Normal / Peak / Compact', normal: 'Normal', peak: 'Peak', compact: 'Compact',
+    cinema: 'Cinema', mosaic: L('mosaicName', 'Mosaico'), coverflow: 'Coverflow 3D'
+  };
+
+  function collectTuning() {
+    const out = {};
+    section.querySelectorAll('[data-jms-lay]').forEach((el) => { out[el.dataset.jmsLay] = el.value === '' ? '' : (el.dataset.jmsLay === 'plot' ? el.value : Number(el.value)); });
+    return out;
+  }
+
+  function previewTuning() {
+    revertTuningWhenSettingsCloses();
+    applyLayoutTuning(collectTuning());
+  }
+
+  function createTuningNumber(name, labelText, hintText, stored) {
+    const f = TUNING_FIELDS[name];
+    const row = document.createElement('div');
+    row.className = 'position-item';
+    const label = document.createElement('label');
+    label.textContent = labelText;
+    label.title = hintText;
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.name = `jmsLay:${name}`;
+    input.id = `input-jmsLay-${name}`;
+    input.dataset.jmsLay = name;
+    input.min = f.min; input.max = f.max; input.step = f.step;
+    input.value = stored[name] === '' ? '' : String(stored[name]);
+    input.placeholder = L('placeholderText', 'Digite um valor');
+    input.title = hintText;
+    label.htmlFor = input.id;
+    input.addEventListener('input', previewTuning);
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'reset-button';
+    reset.textContent = L('resetButton', 'Padrão');
+    reset.addEventListener('click', () => { input.value = ''; previewTuning(); });
+    const hint = document.createElement('p');
+    hint.className = 'position-block-desc';
+    hint.textContent = hintText;
+    row.append(label, input, reset);
+    section.append(row, hint);
+    return input;
+  }
+
+  function appendTuningBlock() {
+    const profile = getActivePositionProfile();
+    const flow = isFlowProfile(profile);
+    const stored = readTuning(profile);
+    const h = document.createElement('h3');
+    h.textContent = L('posTuneTitle', 'Ajustes globais do estilo');
+    const d = document.createElement('p');
+    d.className = 'position-block-desc';
+    d.textContent = L('posTuneDesc', 'Estes ajustes mexem no estilo inteiro de uma vez, sem desalinhar os blocos entre si. Cada estilo (Normal, Peak, Compact, Cinema, Mosaico e Coverflow) guarda os seus. Vazio = padrão do estilo. Só valem depois de Salvar.');
+    section.append(h, d);
+
+    if (flow) {
+      createTuningNumber('padX', L('posTunePadX', 'Margem lateral (px)'), L('posTunePadXHint', 'Distância entre a coluna de texto e a borda do slide. Também afasta da borda os selos do topo, a caixa de ícones e a navegação.'), stored);
+      createTuningNumber('padB', L('posTunePadB', 'Margem inferior (%)'), L('posTunePadBHint', 'Distância entre o último bloco (botões e gênero) e a borda de baixo do slide.'), stored);
+      createTuningNumber('textW', L('posTuneTextW', 'Largura do texto (vw)'), L('posTuneTextWHint', 'Largura máxima da coluna de texto (logo, selos, sinopse). Valores menores deixam a sinopse mais estreita.'), stored);
+      createTuningNumber('gap', L('posTuneGap', 'Espaço entre blocos (px)'), L('posTuneGapHint', 'Espaço vertical entre logo, selos, sinopse, botões e gênero.'), stored);
+    }
+
+    const row = document.createElement('div');
+    row.className = 'position-item';
+    const label = document.createElement('label');
+    label.textContent = L('posTunePlot', 'Sinopse');
+    const select = document.createElement('select');
+    select.name = 'jmsLay:plot';
+    select.id = 'input-jmsLay-plot';
+    select.dataset.jmsLay = 'plot';
+    label.htmlFor = select.id;
+    const opts = [['', L('posPlotDefault', 'Padrão do estilo')], ['hidden', L('posPlotHidden', 'Ocultar totalmente')]];
+    if (flow) opts.push(['l2', L('posPlotL2', 'Até 2 linhas')], ['l3', L('posPlotL3', 'Até 3 linhas')], ['l4', L('posPlotL4', 'Até 4 linhas')], ['full', L('posPlotFull', 'Completa (sem cortar)')]);
+    opts.forEach(([v, t]) => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = t;
+      if (stored.plot === v) o.selected = true;
+      select.appendChild(o);
+    });
+    select.addEventListener('change', previewTuning);
+    const hint = document.createElement('p');
+    hint.className = 'position-block-desc';
+    hint.textContent = flow
+      ? L('posPlotHintFlow', 'Mostra a sinopse cortada em até N linhas, completa, ou a esconde por inteiro (o espaço dela some e os outros blocos sobem).')
+      : L('posPlotHintClassic', 'Esconde a sinopse por inteiro neste estilo. Os demais blocos não se mexem.');
+    row.append(label, select);
+    section.append(row, hint);
+  }
+
+  function appendCopyBlock() {
+    const current = getActivePositionProfile();
+    const h = document.createElement('h3');
+    h.textContent = L('posCopyTitle', 'Copiar de outro estilo');
+    const d = document.createElement('p');
+    d.className = 'position-block-desc';
+    d.textContent = L('posCopyDesc', 'Preenche os campos desta tela com as posições e ajustes salvos de outro estilo (a prévia muda na hora). Só fica gravado depois de Salvar.');
+    const row = document.createElement('div');
+    row.className = 'position-item';
+    const select = document.createElement('select');
+    select.id = 'jms-copy-from';
+    ['normal', 'peak', 'compact', 'cinema', 'mosaic', 'coverflow'].forEach((id) => {
+      if (id === current) return;
+      const o = document.createElement('option');
+      o.value = id; o.textContent = STYLE_NAMES[id];
+      select.appendChild(o);
+    });
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'reset-button';
+    btn.textContent = L('posCopyButton', 'Copiar');
+    btn.addEventListener('click', () => {
+      const src = select.value;
+      const positions = readProfilePositions(src);
+      const keys = new Set(POSITION_KEYS);
+      section.querySelectorAll('input[name], select[name]').forEach((el) => {
+        if (!keys.has(el.name) || el.dataset.special) return;
+        const v = positions[el.name] === undefined ? '' : String(positions[el.name]);
+        if (el.value === v) return;
+        el.value = v;
+        el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
+      });
+      const t = readTuning(src);
+      section.querySelectorAll('[data-jms-lay]').forEach((el) => {
+        const v = t[el.dataset.jmsLay];
+        const next = v === undefined || v === '' ? '' : String(v);
+        if (el.tagName === 'SELECT' && ![...el.options].some((o) => o.value === next)) return;
+        el.value = next;
+      });
+      previewTuning();
+    });
+    row.append(select, btn);
+    section.append(h, d, row);
+  }
+
   function render() {
     section.appendChild(createGlobalResetButton());
 
-    const profileNames = { classic: 'Normal / Peak / Compact', cinema: 'Cinema', mosaic: 'Mosaic', coverflow: 'Coverflow 3D' };
+    const profileNames = STYLE_NAMES;
     const profileNote = document.createElement('h5');
     profileNote.className = 'position-profile-note';
     const noteTpl = L('positionProfileNote',
@@ -824,6 +964,9 @@ export function createPositionEditor(config, labels, section) {
     howTo.className = 'position-block-desc';
     howTo.textContent = L('posHowTo', 'How to use: click a field to open the quick editor and see the slider change live. Values only stick after you Save. The Default button returns a field to its original value.');
     section.appendChild(howTo);
+
+    appendTuningBlock();
+    appendCopyBlock();
 
     appendHeader(L('homeSectionsPosition', 'Posição das fileiras da home'), 'homeSections');
     section.appendChild(
