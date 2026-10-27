@@ -463,8 +463,9 @@
         "html.pf-modern-on .mainAnimatedPage[id^=\"je-\"]:not(.hide),html.pf-modern-on #je-recommendations-category-page:not(.hide){position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;height:auto !important;opacity:1 !important;overflow-y:auto !important;z-index:1095 !important;isolation:isolate !important;background:#0a0a0e !important;contain:none !important;padding-top:70px !important;}",
         "@media (prefers-reduced-motion:reduce){.pf-dr-panel,.pf-dr-back{transition:none;}}",
         // Pagina de detalhes: uma linha fina entre Diretor, Escritores, Estudios e Generos (o tema desenha a moldura do bloco).
-        // Conta so os grupos visiveis: a primeira linha visivel nao ganha borda em cima.
-        ".itemDetailsGroup .detailsGroupItem:not(.hide) ~ .detailsGroupItem:not(.hide){border-top:1px solid rgba(255,255,255,0.08);}"
+        // No Jellyfin 12 cada grupo vem dentro de uma div propria (.itemDetailsGroup > div > .detailsGroupItem); no Legado
+        // os grupos sao irmaos. A primeira linha nao ganha borda em cima.
+        ".itemDetailsGroup > :not(:first-child) > .detailsGroupItem,.itemDetailsGroup > .detailsGroupItem:not(.hide) ~ .detailsGroupItem:not(.hide){border-top:1px solid rgba(255,255,255,0.08);padding-top:0.55em;margin-top:0.55em;}"
     ].join("\n");
 
     var drEl = null;

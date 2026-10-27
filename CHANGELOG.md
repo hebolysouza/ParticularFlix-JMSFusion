@@ -21,7 +21,7 @@ Fixes and performance work after 4.0.0.1. Same requirements (Jellyfin 12.x, net1
 - **Studio collections preview (eye), first hover**: the titles were fetched only when a card came near the screen and the browser was idle, so a mouse that went straight to the eye still waited for the first server query. Every card of the section is now warmed in the background, one query at a time, 1.5 s after the section is built.
 - **Side bar arrows (Netflix style)**: the bar was slow to let go of the mouse. The hovered state was a class on `<html>` (each change restyled the whole page) and every mouse move measured the bars. The state now lives on the slider, the bars are measured once per entry (and after a scroll or resize), and the fade is shorter.
 - **Jellyfin Enhanced "Only available on ..." icon**: when the configured image does not load, the header script now tries the page's own favicon and then the default Jellyfin favicon before Jellyfin Enhanced hides it.
-- **Details page**: a thin separator line between Director, Writers, Studios and Genres (header script).
+- **Details page**: a thin separator line between Director, Writers, Studios and Genres (header script; on Jellyfin 12 each group sits in its own wrapper, which the rule now follows).
 
 ### Performance
 - One shared observer replaces the one or two `MutationObserver`s that every slide and every row hero card kept on the whole page to notice its own removal (about 140 callbacks per DOM change with 70 slides). It looks only at removals, once per frame.
