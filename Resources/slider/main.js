@@ -11,7 +11,7 @@ import { getCurrentIndex, setCurrentIndex } from "./modules/sliderState.js";
 import { startSlideTimer, stopSlideTimer, pauseSlideTimer, resumeSlideTimer } from "./modules/timer.js";
 import { ensureProgressBarExists, resetProgressBar, pauseProgressBar, resumeProgressBar, updateProgressBarPosition } from "./modules/progressBar.js";
 import { createSlide, cleanupSlideCreatorRuntime } from "./modules/slideCreator.js";
-import { changeSlide, createDotNavigation, enablePeakNeighborActivation, getPeakDisplayOptions, initSwipeEvents, primePeakFirstPaint, syncPeakStructureNow, updatePeakClasses } from "./modules/navigation.js";
+import { changeSlide, createDotNavigation, scheduleDotNavigationSync, enablePeakNeighborActivation, getPeakDisplayOptions, initSwipeEvents, primePeakFirstPaint, syncPeakStructureNow, updatePeakClasses } from "./modules/navigation.js";
 import { attachMouseEvents } from "./modules/events.js";
 import { getSessionInfo, getAuthHeader, waitForAuthReadyStrict, isAuthReadyStrict, AUTH_PROFILE_CHANGED_EVENT, USERDATA_CHANGED_EVENT } from "../Plugins/JMSFusion/runtime/api.js";
 import { cacheGetUserDataMap, cachePatchItemUserData, cachePutUserDataItems, cachedFetchJson, createCachedItemDetailsFetcher, releaseSliderCacheMemory, startLibraryDeltaWatcher } from "./modules/sliderCache.js";
@@ -35,6 +35,7 @@ import { installLegacyHomeTabsFix } from "./modules/legacyHomeTabs.js";
 import { installSliderLayouts, readSliderLayout } from "./modules/sliderLayouts.js";
 import { applyLayoutTuning } from "./modules/layoutTuning.js";
 import { prefetchLocalTrailer } from "./modules/utils.js";
+import "./modules/studioGroupShim.js";
 export { loadCSS } from "./modules/playerStyles.js";
 export { waitForAnyVisible };
 // Fork ParticularFlix 3.8.2.25: igual ao requestIdleCallback original, mas avisa no console quando uma tarefa
@@ -5626,6 +5627,7 @@ export async function slidesInit() {
   }
   window.__totalSlidesPlanned = items.length;
   window.__slidesCreated = 0;
+  window.__jmsSlideCreationDone = false;
   syncCustomSplashProgress({
     selectionReady: true,
     totalSlides: items.length,
@@ -5678,7 +5680,9 @@ export async function slidesInit() {
       if (itemIndex === 0) {
         markSlideReadyWhenVisualSyncOpens(slideEl);
       }
-      try { annotateDomWithQualityHints(document); } catch {}
+      // Fork ParticularFlix 4.0.0.2: only the new slide is annotated (the whole page was scanned once per slide, 70
+      // scans of every card on the Home during the background creation); one page-wide pass runs at the end.
+      try { annotateDomWithQualityHints(slideEl || document); } catch {}
       markSlideCreated(bootToken);
       return slideEl;
     };
@@ -5744,6 +5748,7 @@ export async function slidesInit() {
               if (slideEl) createdSlides.push(slideEl);
             }
             if (!isBootActive({ requireContainer: true })) return;
+            if (createdSlides.length) scheduleDotNavigationSync();
             if (config.peakSlider) {
               const idxPage = document.querySelector('#indexPage:not(.hide), #homePage:not(.hide)');
               if (idxPage) syncPeakStructureNow(idxPage);
@@ -5769,10 +5774,11 @@ export async function slidesInit() {
             console.warn("Arka plan slayt oluşturma hatası:", e);
           }
         }
-        try {
-        } catch (e) {
-          console.warn("Dot navigation yeniden kurulamadı:", e);
-        }
+        try { annotateDomWithQualityHints(document); } catch {}
+        // The modern dots show the planned slides while the others are still being created; from here on they
+        // follow only the slides that exist (an item that could not be created does not stay as a pending dot).
+        window.__jmsSlideCreationDone = true;
+        try { document.dispatchEvent(new CustomEvent("jms:slides-creation-done")); } catch {}
       })();
     });
   } catch (e) {
@@ -6133,10 +6139,20 @@ function setupNavigationObserver() {
     return !!node.querySelector?.("#indexPage, #homePage, .homeSectionsContainer");
   };
 
+  // Fork ParticularFlix 4.0.0.2: a class change only matters on the Home page elements themselves (shown/hidden).
+  // Checking the subtree of every element whose class changed ran a query over the whole page for each class change
+  // on <html> or on the slider (hover states, trailer and Cinema states), many times per second.
+  const isHomeAttributeTarget = (node) => {
+    if (!node || node.nodeType !== 1) return false;
+    if (node.id === "indexPage" || node.id === "homePage") return true;
+    const cl = node.classList;
+    return !!cl && (cl.contains("homeSectionsContainer") || cl.contains("page") || cl.contains("mainAnimatedPages"));
+  };
+
   const domObserver = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       if (mutation.type === "attributes") {
-        if (isHomeMutationTarget(mutation.target)) {
+        if (isHomeAttributeTarget(mutation.target)) {
           scheduleCheck();
           return;
         }

@@ -3471,19 +3471,33 @@ async function submitSingleEpisode({ plan, episode, button }) {
   });
 }
 
+// Fork ParticularFlix 4.0.0.2: outside an item page every scan (each DOM change on the Home, plus every 1.5 s) cleared
+// the page again with six document-wide queries, although nothing had been placed since the last clear. Once the
+// page is clean the bridge stays idle until an item page shows up.
+let outsideClean = false;
+function hashLooksLikeDetails() {
+  const hash = String(window.location.hash || "").toLowerCase();
+  return hash.includes("details");
+}
+function clearOutsideOnce() {
+  if (outsideClean && !activeItemId) return;
+  activeItemId = "";
+  resetPageState({ clearDom: true });
+  outsideClean = true;
+}
+
 async function scan() {
   if (!isDetailsRoute()) {
-    activeItemId = "";
-    resetPageState({ clearDom: true });
+    clearOutsideOnce();
     return;
   }
 
   const itemId = currentRouteItemId();
   if (!itemId) {
-    activeItemId = "";
-    resetPageState({ clearDom: true });
+    clearOutsideOnce();
     return;
   }
+  outsideClean = false;
 
   if (activeItemId !== itemId) {
     activeItemId = itemId;
@@ -3597,6 +3611,7 @@ function handleSerrRequestsChanged() {
 }
 
 function handleRouteChanged() {
+  outsideClean = false;
   activeItemId = "";
   resetPageState({ clearDom: true });
   scheduleScan(120);
@@ -3609,8 +3624,9 @@ export function initSerrItemPageBridge() {
   if (booted) return;
   booted = true;
   scheduleScan(200);
-  pollTimer = setInterval(() => scheduleScan(0), 1500);
-  observer = new MutationObserver(() => scheduleScan(220));
+  const wanted = () => !outsideClean || hashLooksLikeDetails();
+  pollTimer = setInterval(() => { if (wanted()) scheduleScan(0); }, 1500);
+  observer = new MutationObserver(() => { if (wanted()) scheduleScan(220); });
   observer.observe(document.body || document.documentElement, {
     childList: true,
     subtree: true

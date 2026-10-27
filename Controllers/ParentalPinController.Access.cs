@@ -213,7 +213,7 @@ public partial class ParentalPinController
     }
 
     [HttpGet("access/status")]
-    public IActionResult GetAccessStatus()
+    public async Task<IActionResult> GetAccessStatus()
     {
         var userCheck = TryGetRequestUser();
         if (userCheck.Result is not null)
@@ -225,6 +225,26 @@ public partial class ParentalPinController
         {
             var plugin = JMSFusionPlugin.Instance ?? throw new InvalidOperationException("Plugin not available.");
             var cfg = plugin.Configuration;
+            var profile = FindAccessProfile(cfg, userCheck.UserId);
+            if (profile is not null)
+            {
+                // Fork ParticularFlix: o status e consultado na abertura e a cada minuto; aproveita para conferir que
+                // a politica real do usuario ainda e a restrita (nada de biblioteca liberada por outro caminho).
+                await AccessControlCore.Gate.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    await AccessControlCore.EnforceRestrictedAsync(_users, userCheck.UserId, profile).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[JMSFusion] Access control: could not verify the live policy of {UserId}.", userCheck.UserId);
+                }
+                finally
+                {
+                    AccessControlCore.Gate.Release();
+                }
+            }
+
             NoCache();
             return Ok(BuildAccessStatus(cfg, userCheck.UserId, FindAccessProfile(cfg, userCheck.UserId)));
         }

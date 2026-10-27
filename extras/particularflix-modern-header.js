@@ -457,8 +457,23 @@
         ".pf-dr .pluginMenuOptions a:hover,.pf-dr .pluginMenuOptions a:focus-visible{background:rgba(229,9,20,0.28);outline:none;}",
         ".pf-dr .pluginMenuOptions .navMenuOptionIcon,.pf-dr .pluginMenuOptions .material-icons{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;width:24px;height:24px;margin:0 !important;font-size:22px;}",
         ".pf-dr .pluginMenuOptions .navMenuOptionText{flex:1 1 auto;margin:0 !important;text-align:left;}",
+        // Plugin Pages (Modular Home) no layout novo: acha o link de Configuracoes, poe um marcador vazio depois dele e
+        // insere, como irmaos do marcador, um <hr> e um item de menu do MUI (fonte de 16px, margens e classes css-* do
+        // menu do usuario). Aqui ele recebe o mesmo desenho dos outros itens da lista.
+        ".pf-dr .pluginMenuOptions.marker,.pf-dr hr[data-plugin-pages]{display:none !important;}",
+        ".pf-dr a[data-plugin-pages]{display:flex !important;align-items:center !important;justify-content:flex-start !important;gap:14px;min-height:0 !important;width:auto;box-sizing:border-box;padding:10px 14px !important;margin:2px 0 !important;border-radius:10px;color:#fff !important;background:transparent;font-family:inherit !important;font-size:15px !important;font-weight:400 !important;line-height:1.2 !important;letter-spacing:normal !important;text-align:left;text-transform:none;text-decoration:none;white-space:nowrap;cursor:pointer;transition:background-color 140ms ease;}",
+        ".pf-dr a[data-plugin-pages]:hover,.pf-dr a[data-plugin-pages]:focus-visible{background:rgba(229,9,20,0.28) !important;outline:none;}",
+        ".pf-dr a[data-plugin-pages].pf-dr-active{background:#E50914 !important;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
+        ".pf-dr a[data-plugin-pages] .MuiListItemIcon-root{display:inline-flex !important;align-items:center;justify-content:center;flex:0 0 24px;width:24px;min-width:0 !important;height:24px;margin:0 !important;color:inherit !important;}",
+        ".pf-dr a[data-plugin-pages] .material-icons{display:inline-flex !important;align-items:center;justify-content:center;width:24px;height:24px;margin:0 !important;font-size:22px !important;color:inherit;}",
+        ".pf-dr a[data-plugin-pages] .MuiListItemText-root{flex:1 1 auto;min-width:0;margin:0 !important;padding:0 !important;}",
+        ".pf-dr a[data-plugin-pages] .MuiTypography-root{display:block;margin:0 !important;font:inherit !important;letter-spacing:inherit !important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
+        ".pf-dr a[data-plugin-pages] .MuiTouchRipple-root{display:none !important;}",
         "html.pf-modern-on .mainAnimatedPage[id^=\"je-\"]:not(.hide),html.pf-modern-on #je-recommendations-category-page:not(.hide){position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;height:auto !important;opacity:1 !important;overflow-y:auto !important;z-index:1095 !important;isolation:isolate !important;background:#0a0a0e !important;contain:none !important;padding-top:70px !important;}",
-        "@media (prefers-reduced-motion:reduce){.pf-dr-panel,.pf-dr-back{transition:none;}}"
+        "@media (prefers-reduced-motion:reduce){.pf-dr-panel,.pf-dr-back{transition:none;}}",
+        // Pagina de detalhes: uma linha fina entre Diretor, Escritores, Estudios e Generos (o tema desenha a moldura do bloco).
+        // Conta so os grupos visiveis: a primeira linha visivel nao ganha borda em cima.
+        ".itemDetailsGroup .detailsGroupItem:not(.hide) ~ .detailsGroupItem:not(.hide){border-top:1px solid rgba(255,255,255,0.08);}"
     ].join("\n");
 
     var drEl = null;
@@ -564,7 +579,7 @@
         var cur = (window.location.hash || "#/").replace(/^#/, "");
         var cp = cur.split("?");
         var have = new URLSearchParams(cp[1] || "");
-        [].forEach.call(drEl.querySelectorAll("a.navMenuOption"), function (a) {
+        [].forEach.call(drEl.querySelectorAll("a.navMenuOption, a[data-plugin-pages]"), function (a) {
             var h = (a.getAttribute("href") || "").replace(/^#/, "");
             var on = false;
             if (h && h !== "/" && h !== "") {
@@ -760,6 +775,8 @@
             // ou a gaveta (checado abaixo). Antes qualquer uma rodava place(), que mede a barra e forcava o
             // layout da pagina inteira (~175 ms na Inicio cheia, a cada popover aberto).
             if (t.nodeType === 1 && t !== document.body && (t.id === "root" || t.classList.contains("skinHeader") || (t.closest && t.closest("header.MuiAppBar-root")))) return true;
+            // Mudancas dentro do conteudo das telas (cartoes, fileiras, slider) nunca trazem o cabecalho: sem consultar a subarvore.
+            if (t.nodeType === 1 && t.closest && t.closest(".page,.mainAnimatedPage,.homeSectionsContainer,#monwui-slides-container")) continue;
             var nodes = [];
             for (var a = 0; a < m.addedNodes.length; a++) nodes.push(m.addedNodes[a]);
             for (var r = 0; r < m.removedNodes.length; r++) nodes.push(m.removedNodes[r]);
@@ -807,6 +824,26 @@
         pfObs = new MutationObserver(function (muts) { if (relevante(muts)) safePlace(); });
         pfObs.observe(document.body, { childList: true, subtree: true });
     }
+
+    // Jellyfin Enhanced, "Disponivel somente em ...": quando a imagem configurada para a marca nao carrega, o Enhanced
+    // a esconde. Aqui ela tenta antes o icone da propria pagina (o favicon do ParticularFlix) e depois o favicon padrao
+    // do Jellyfin. A fase de captura roda antes do onerror do Enhanced; a imagem volta a aparecer com o novo endereco.
+    document.addEventListener("error", function (ev) {
+        var img = ev.target;
+        if (!img || img.tagName !== "IMG" || !img.classList || !img.classList.contains("elsewhere-custom-branding-icon")) return;
+        var tried = (img.getAttribute("data-pf-fallback") || "").split("|");
+        var link = document.querySelector('link[rel~="icon"][href]');
+        var opts = [link ? link.href : "", new URL("favicon.ico", document.baseURI).href];
+        for (var i = 0; i < opts.length; i++) {
+            var u = opts[i];
+            if (!u || u === img.src || tried.indexOf(u) >= 0) continue;
+            tried.push(u);
+            img.setAttribute("data-pf-fallback", tried.join("|"));
+            img.src = u;
+            setTimeout(function () { img.style.display = ""; }, 0);
+            return;
+        }
+    }, true);
 
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", start);

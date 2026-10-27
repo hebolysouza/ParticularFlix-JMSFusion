@@ -82,6 +82,8 @@ html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-bckdrp-cntn
 html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-backdrop,html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-backdrop{opacity:0!important}
 /* Cinema with automatic trailers: after the first slide change only the trailer is shown, never the backdrop (not before the trailer starts, not on the slide that is leaving). The first slide after a reload or a return to Home waits up to 1.2 s for its trailer (jms-cinema-wait) and then shows its backdrop (navigation.js). utils.js removes jms-cinema-hold when the item has no playable trailer. */
 html.jms-cinema-switched[data-slider-layout=cinema] .monwui-slide.jms-cinema-hold .monwui-backdrop,html.jms-cinema-wait[data-slider-layout=cinema] .monwui-slide.jms-cinema-hold .monwui-backdrop{opacity:0!important;transition:none!important}
+/* When the first-slide wait ends without a trailer, the backdrop fades in instead of popping, so a trailer that starts right after reads as a cross-fade and not as a flash. */
+html[data-slider-layout=cinema] .monwui-slide.jms-cinema-hold:not(.trailer-active) .monwui-backdrop{transition:opacity .6s ease}
 /* the blurred logo ghost only existed while the trailer plays; drop it */
 html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-logo,html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-logo,
 html[data-slider-layout=cinema] .monwui-slide.trailer-active .monwui-no-logo-container,html[data-slider-layout=mosaic] .monwui-slide.trailer-active .monwui-no-logo-container{filter:none;opacity:1;transform:none}

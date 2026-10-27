@@ -1,5 +1,6 @@
 import { changeSlide } from "./navigation.js";
 import { getConfig } from "./config.js";
+import { withServer } from "./jfUrl.js";
 
 /*
  * Slider layouts (Cinema, Mosaic, Coverflow) + on-screen previous/next arrows.
@@ -45,17 +46,17 @@ const NAV_CSS = `
 #monwui-slides-container .pf-row-arrow,.pf-slider-arrow,.emby-scroller:has(#monwui-slides-container)>.pf-row-arrow,.pf-row-arrow:has(~ #monwui-slides-container){display:none!important}
 html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-nav-arrow.next{right:calc(var(--jms-rail-w, 27%) + var(--lay-inset, 12px) + 22px)}
 /* Side bar style (Netflix like): no visible button; the hovered side gets a translucent bar over the full slide height and any click on it changes the slide */
-#${ARROWS_ID} .jms-bar{position:absolute;top:0;bottom:0;width:clamp(48px,4.6vw,88px);display:none;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .22s ease;color:#fff}
+#${ARROWS_ID} .jms-bar{position:absolute;top:0;bottom:0;width:clamp(48px,4.6vw,88px);display:none;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .12s ease-out;color:#fff;will-change:opacity}
 html[data-arrow-style=bar] #${ARROWS_ID} .jms-bar{display:flex}
 html[data-arrow-style=bar] #${ARROWS_ID} .jms-nav-arrow{display:none!important}
 #${ARROWS_ID} .jms-bar.prev{left:0;border-radius:var(--lay-radius,24px) 0 0 var(--lay-radius,24px);background:linear-gradient(90deg,rgba(6,9,15,.66),rgba(6,9,15,.3) 55%,rgba(6,9,15,0))}
 #${ARROWS_ID} .jms-bar.next{right:0;border-radius:0 var(--lay-radius,24px) var(--lay-radius,24px) 0;background:linear-gradient(270deg,rgba(6,9,15,.66),rgba(6,9,15,.3) 55%,rgba(6,9,15,0))}
 html[data-jms-corners=none] #${ARROWS_ID} .jms-bar{border-radius:0}
 html[data-slider-layout=mosaic] #${ARROWS_ID} .jms-bar.next{right:calc(var(--jms-rail-w, 27%) + var(--lay-inset, 12px) + 22px);border-radius:0}
-#${ARROWS_ID} .jms-bar.hot{opacity:1}
-#${ARROWS_ID} .jms-bar svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 2px 6px rgba(0,0,0,.65));transition:transform .2s ease}
+#${ARROWS_ID} .jms-bar.hot{opacity:1;transition-duration:.16s}
+#${ARROWS_ID} .jms-bar svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 2px 6px rgba(0,0,0,.65));transition:transform .14s ease-out}
 #${ARROWS_ID} .jms-bar.hot svg{transform:scale(1.2)}
-html.jms-bar-hot #monwui-slides-container,html.jms-bar-hot #monwui-slides-container *{cursor:pointer!important}
+#monwui-slides-container.jms-bar-hot,#monwui-slides-container.jms-bar-hot *{cursor:pointer!important}
 @media (hover:none){#${ARROWS_ID} .jms-bar{display:none!important}}
 /* Modern dots (Next slide indicator = dots): a glass capsule with a sliding window of dots, the active one is a wine pill. Replaces the plugin's own dots while active. */
 html[data-next-style=dots] .monwui-dot-navigation-container{display:none!important}
@@ -71,8 +72,9 @@ html[data-next-style=dots] .monwui-dot-navigation-container{display:none!importa
 .jms-dots-tip-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:204px}
 html[data-dots-preview=off] .jms-dots-tip-img,.jms-dots-tip.noimg .jms-dots-tip-img{display:none}
 .jms-dots-tip.show{opacity:1;transform:translateX(-50%) translateY(0)}
-html.jms-dots-hot,html.jms-dots-hot *{cursor:pointer!important}
+.jms-dots.jms-dots-hot,.jms-dots.jms-dots-hot *{cursor:pointer!important}
 .jms-dot.edge{transform:scale(.62);opacity:.55}
+.jms-dot.pending{opacity:.32;cursor:progress}
 .jms-dot.near{background:rgba(255,255,255,.5)}
 .jms-dot.active{width:30px;background:linear-gradient(90deg,#b3151d,#d4343c);box-shadow:0 0 10px rgba(179,21,29,.6);transform:none;opacity:1;cursor:default}
 .jms-dot:focus-visible{outline:2px solid #fff;outline-offset:2px}
@@ -126,16 +128,26 @@ function ensureArrows(container) {
 }
 
 /* Side bar arrows: the bars never take the mouse (pointer-events:none), so buttons, links and trailer controls under them keep working.
-   The container decides by position which bar is hot and turns a click on it into previous/next. */
+   The container decides by position which bar is hot and turns a click on it into previous/next.
+   Fork ParticularFlix 4.0.0.2: the bar boxes are measured once (on entering the slider, and again after a resize or a scroll)
+   instead of on every mouse move, which forced a layout per move while a trailer or an animation was running; and the
+   "hot" state is a class on the slider instead of on <html> (a class on <html> restyles the whole page at each change,
+   which is what made the bar slow to let go of the mouse). */
 const BAR_SKIP = "button,a,input,select,textarea,label,[role=button],.monwui-main-button-container,.monwui-provider-container,.monwui-preview-volume-control,.monwui-preview-fullscreen-toggle,.monwui-auto-trailer-toggle,.jms-nextup,.jms-mosaic-tile,.jms-mosaic-rail,.monwui-dot-navigation-container,.monwui-artist-popover-body";
+function measureBars(wrap) {
+  const now = performance.now();
+  if (!wrap.__jmsBarRects || now - (wrap.__jmsBarRectsAt || 0) > 500) {
+    wrap.__jmsBarRects = Array.from(wrap.querySelectorAll(".jms-bar")).map((b) => [b, b.getBoundingClientRect()]);
+    wrap.__jmsBarRectsAt = now;
+  }
+  return wrap.__jmsBarRects;
+}
 function barAt(wrap, ev) {
   if (document.documentElement.dataset.arrowStyle !== "bar") return null;
   if (ev.pointerType === "touch") return null;
   const t = ev.target;
   if (t && t.closest && t.closest(BAR_SKIP)) return null;
-  const bars = wrap.querySelectorAll(".jms-bar");
-  for (const b of bars) {
-    const r = b.getBoundingClientRect();
+  for (const [b, r] of measureBars(wrap)) {
     if (r.width && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) return b;
   }
   return null;
@@ -143,10 +155,18 @@ function barAt(wrap, ev) {
 function installBarHandlers(container, wrap) {
   if (container.__jmsBarInstalled) return;
   container.__jmsBarInstalled = true;
+  let current = null;
   const setHot = (hot) => {
+    if (hot === current) return;
+    current = hot;
     wrap.querySelectorAll(".jms-bar").forEach((b) => b.classList.toggle("hot", b === hot));
-    document.documentElement.classList.toggle("jms-bar-hot", !!hot);
+    container.classList.toggle("jms-bar-hot", !!hot);
   };
+  const invalidate = () => { wrap.__jmsBarRects = null; };
+  container.addEventListener("pointerenter", invalidate, { passive: true });
+  window.addEventListener("resize", invalidate, { passive: true });
+  window.addEventListener("scroll", invalidate, { passive: true, capture: true });
+  document.addEventListener("jms:slide-enter", invalidate, true);
   container.addEventListener("pointermove", (ev) => setHot(barAt(wrap, ev)), { passive: true });
   container.addEventListener("pointerleave", () => setHot(null), { passive: true });
   container.addEventListener("click", (ev) => {
@@ -261,13 +281,31 @@ function removeDots(container) {
   container?.querySelectorAll?.(`:scope > .${DOTS_CLASS}`).forEach((n) => n.remove());
 }
 
+// Fork ParticularFlix 4.0.0.2: after a reload only the first slides exist and the others are created in the background,
+// so the dots said "1 / 2" for a while. While that creation runs, the dots count the planned slides (the item list is
+// already known): the ones not created yet are shown dimmed, with their title and image, and cannot be clicked yet.
+function plannedSlideItems(created) {
+  if (window.__jmsSlideCreationDone !== false) return null;
+  const planned = Number(window.__totalSlidesPlanned) || 0;
+  if (planned <= created) return null;
+  const map = window.__jmsHomeSliderItemsById;
+  const list = map instanceof Map ? Array.from(map.values()) : [];
+  return list.length >= planned ? list.slice(0, planned) : null;
+}
+function plannedImage(item) {
+  const tag = Array.isArray(item?.BackdropImageTags) ? item.BackdropImageTags[0] : null;
+  if (!item?.Id || !tag) return "";
+  try { return withServer(`/Items/${item.Id}/Images/Backdrop/0?tag=${encodeURIComponent(tag)}&maxWidth=420&quality=80`); } catch { return ""; }
+}
+
 function renderDots(container) {
   const slides = Array.from(container.querySelectorAll(":scope > .monwui-slide"));
-  if (slides.length < 2) { removeDots(container); return; }
+  const planned = plannedSlideItems(slides.length);
+  if (slides.length < 2 && !planned) { removeDots(container); return; }
   let active = slides.findIndex((s) => s.classList.contains("active"));
   if (active < 0) active = 0;
-  const n = slides.length;
-  const key = [active, n].join(":");
+  const n = planned ? planned.length : slides.length;
+  const key = [active, n, slides.length].join(":");
   let box = container.querySelector(`:scope > .${DOTS_CLASS}`);
   if (box && box.dataset.key === key) return;
   if (!box) {
@@ -278,6 +316,8 @@ function renderDots(container) {
   }
   box.dataset.key = key;
   box.textContent = "";
+  dropDotsCache();
+  hoveredDot = null;
   const win = Math.min(n, DOTS_WINDOW);
   const start = Math.max(0, Math.min(active - Math.floor(win / 2), n - win));
   const track = document.createElement("div");
@@ -288,9 +328,11 @@ function renderDots(container) {
     d.className = "jms-dot";
     d.setAttribute("role", "tab");
     d.dataset.idx = String(i);
-    const title = tileTitle(slides[i]);
+    const pending = i >= slides.length;
+    const title = pending ? String(planned?.[i]?.Name || "") : tileTitle(slides[i]);
     d.dataset.title = title || `${i + 1}`;
-    d.dataset.img = tileImage(slides[i]) || "";
+    d.dataset.img = (pending ? plannedImage(planned?.[i]) : tileImage(slides[i])) || "";
+    if (pending) { d.classList.add("pending"); d.disabled = true; d.dataset.pending = "1"; }
     d.setAttribute("aria-label", title ? `${i + 1}: ${title}` : String(i + 1));
     if (i === active) { d.classList.add("active"); d.setAttribute("aria-selected", "true"); }
     else if (Math.abs(i - active) === 1) d.classList.add("near");
@@ -298,6 +340,7 @@ function renderDots(container) {
     d.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      if (d.dataset.pending === "1") return;
       if (i !== active) { try { changeSlide(i - active); } catch {} }
     });
     track.appendChild(d);
@@ -320,10 +363,27 @@ function renderDots(container) {
 /* The dots answer to the mouse by position, in the capture phase of the window, so nothing layered above them can swallow the hover or the click. */
 let dotsPointerInstalled = false;
 const DOTS_BLOCK = ".position-modal,#settings-modal,#jms-drag-layer,.jms-drag-bar,[role=dialog],.monwui-details-modal,.monwui-castmodal,.monwui-now-playing-modal,.monwui-trailer-modal-overlay";
+// Fork ParticularFlix 4.0.0.2: this runs for every mouse move on every page. The box and its rectangle are kept between
+// moves (dropped on scroll, resize and each re-render), so a move away from the dots costs a comparison of numbers
+// instead of a DOM query plus a forced layout.
+let dotsBoxCache = null;
+let dotsRectCache = null;
+let dotsRectAt = 0;
+function dropDotsCache() { dotsBoxCache = null; dotsRectCache = null; }
+function dotsBox() {
+  if (!dotsBoxCache || !dotsBoxCache.isConnected) {
+    dotsBoxCache = document.querySelector(`#monwui-slides-container > .${DOTS_CLASS}`);
+    dotsRectCache = null;
+  }
+  return dotsBoxCache;
+}
 function dotUnder(x, y) {
-  const box = document.querySelector(`#monwui-slides-container > .${DOTS_CLASS}`);
+  const box = dotsBox();
   if (!box) return null;
-  const r = box.getBoundingClientRect();
+  // The rectangle is also refreshed every 500 ms, for layout shifts that come without a scroll or a resize.
+  const now = performance.now();
+  if (!dotsRectCache || now - dotsRectAt > 500) { dotsRectCache = box.getBoundingClientRect(); dotsRectAt = now; }
+  const r = dotsRectCache;
   if (x < r.left || x > r.right || y < r.top || y > r.bottom) return null;
   let best = null;
   let bestDist = 1e9;
@@ -335,14 +395,17 @@ function dotUnder(x, y) {
   });
   return best;
 }
+let hoveredDot = null;
 function setDotHover(dot) {
-  const box = document.querySelector(`#monwui-slides-container > .${DOTS_CLASS}`);
-  if (!box) { document.documentElement.classList.remove("jms-dots-hot"); return; }
+  if (dot === hoveredDot && (!dot || dot.isConnected)) return;
+  hoveredDot = dot;
+  const box = dotsBox();
+  if (!box) return;
   box.querySelectorAll(".jms-dot.hover").forEach((d) => { if (d !== dot) d.classList.remove("hover"); });
   const tip = box.querySelector(".jms-dots-tip");
-  if (!dot) { tip?.classList.remove("show"); document.documentElement.classList.remove("jms-dots-hot"); return; }
+  if (!dot) { tip?.classList.remove("show"); box.classList.remove("jms-dots-hot"); return; }
   dot.classList.add("hover");
-  document.documentElement.classList.add("jms-dots-hot");
+  box.classList.add("jms-dots-hot");
   if (tip) {
     const txt = tip.querySelector(".jms-dots-tip-t");
     const pic = tip.querySelector(".jms-dots-tip-img");
@@ -367,9 +430,12 @@ function installDotsPointer() {
   if (dotsPointerInstalled) return;
   dotsPointerInstalled = true;
   const blocked = (t) => !!(t && t.closest && t.closest(DOTS_BLOCK));
+  window.addEventListener("scroll", () => { dotsRectCache = null; }, { capture: true, passive: true });
+  window.addEventListener("resize", () => { dotsRectCache = null; }, { passive: true });
   window.addEventListener("pointermove", (e) => {
     if (e.pointerType === "touch") return;
-    setDotHover(blocked(e.target) ? null : dotUnder(e.clientX, e.clientY));
+    const d = dotUnder(e.clientX, e.clientY);
+    setDotHover(d && !blocked(e.target) ? d : null);
   }, { capture: true, passive: true });
   const swallow = (e, act) => {
     if (blocked(e.target)) return;
@@ -381,6 +447,7 @@ function installDotsPointer() {
       const box = d.closest(`.${DOTS_CLASS}`);
       const active = Number(box?.dataset.active);
       const idx = Number(d.dataset.idx);
+      if (d.dataset.pending === "1") return;
       if (Number.isFinite(active) && Number.isFinite(idx) && idx !== active) { try { changeSlide(idx - active); } catch {} }
     }
   };
@@ -452,6 +519,7 @@ export function installSliderLayouts() {
   if (installed) { scheduleRender(); return; }
   installed = true;
   document.addEventListener("jms:first-slide-ready", scheduleRender);
+  document.addEventListener("jms:slides-creation-done", scheduleRender);
   document.addEventListener("jms:slide-enter", scheduleRender, true);
   window.addEventListener("hashchange", () => setTimeout(scheduleRender, 400));
   window.addEventListener("pageshow", scheduleRender);

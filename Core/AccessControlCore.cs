@@ -418,6 +418,80 @@ namespace Jellyfin.Plugin.JMSFusion.Core
             return true;
         }
 
+        // Compara so os campos do controle de acesso (pastas em qualquer ordem, tags sem diferenciar maiusculas).
+        public static bool PolicyMatches(UserPolicy policy, AccessPolicyValues values)
+        {
+            var live = Capture(policy);
+            static HashSet<string> Set(IEnumerable<string>? items) => new((items ?? Array.Empty<string>()).Select(s => (s ?? string.Empty).Trim()).Where(s => s.Length > 0), StringComparer.OrdinalIgnoreCase);
+            var wantedFolders = (values.EnabledFolders ?? Array.Empty<string>())
+                .Select(s => Guid.TryParse(s, out var g) ? g.ToString("N") : string.Empty)
+                .Where(s => s.Length > 0);
+            var wantedUnrated = ToUnrated(values.BlockUnratedItems).Select(v => (int)v);
+
+            return live.EnableAllFolders == values.EnableAllFolders
+                && live.MaxParentalRating == values.MaxParentalRating
+                && (values.EnableAllFolders || Set(live.EnabledFolders).SetEquals(Set(wantedFolders)))
+                && new HashSet<int>(live.BlockUnratedItems).SetEquals(wantedUnrated)
+                && Set(live.BlockedTags).SetEquals(Set(values.BlockedTags))
+                && Set(live.AllowedTags).SetEquals(Set(values.AllowedTags));
+        }
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, long> LastEnforce = new();
+
+        // Fork ParticularFlix: o perfil bloqueado precisa valer em todos os caminhos (barra de bibliotecas, busca,
+        // favoritos, endereco direto), e isso so o servidor garante. Se a politica real do usuario saiu do valor
+        // restrito (edicao no painel do Jellyfin, gravacao que falhou, desbloqueio que nao voltou), ela e reaplicada.
+        // No maximo uma verificacao a cada 15 s por usuario. Devolve true quando precisou reaplicar.
+        public static async Task<bool> EnforceRestrictedAsync(IUserManager users, Guid userId, AccessProfileEntry entry)
+        {
+            var restricted = entry.Restricted;
+            if (restricted is null || entry.UnlockedUntilUtc > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
+            {
+                return false;
+            }
+
+            var now = Environment.TickCount64;
+            if (LastEnforce.TryGetValue(userId, out var last) && now - last < 15_000)
+            {
+                return false;
+            }
+
+            LastEnforce[userId] = now;
+            var user = UserAccessor.Find(users, userId);
+            if (user is null)
+            {
+                return false;
+            }
+
+            var policy = UserAccessor.PolicyOf(users, user);
+            if (policy is null || IsAdmin(policy) || PolicyMatches(policy, restricted))
+            {
+                return false;
+            }
+
+            // Se o Jellyfin normalizar algum valor ao gravar, a comparacao nunca fecharia e cada verificacao subiria a
+            // geracao do cache (a pagina recarregaria sem parar). Nesse caso a mesma diferenca so e reaplicada uma vez.
+            var fingerprint = JsonSerializer.Serialize(Capture(policy)) + "|" + JsonSerializer.Serialize(restricted);
+            if (Unenforceable.TryGetValue(userId, out var known) && string.Equals(known, fingerprint, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            Log?.LogWarning("[JMSFusion] Access control: live policy of {UserId} differed from the restricted profile; restricted policy re-applied.", userId);
+            var applied = await ApplyAsync(users, userId, restricted).ConfigureAwait(false);
+            var reloaded = UserAccessor.Find(users, userId);
+            var fresh = reloaded is null ? null : UserAccessor.PolicyOf(users, reloaded);
+            if (fresh is not null && !PolicyMatches(fresh, restricted))
+            {
+                Unenforceable[userId] = JsonSerializer.Serialize(Capture(fresh)) + "|" + JsonSerializer.Serialize(restricted);
+                Log?.LogWarning("[JMSFusion] Access control: the server stored a different policy for {UserId} after re-applying; it will not be retried until it changes.", userId);
+            }
+
+            return applied;
+        }
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, string> Unenforceable = new();
+
         // Volta para a politica restrita quando o desbloqueio temporario venceu.
         public static async Task RelockExpiredAsync(IUserManager users, ILogger logger)
         {

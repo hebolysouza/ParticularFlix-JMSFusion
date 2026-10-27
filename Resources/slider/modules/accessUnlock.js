@@ -12,6 +12,41 @@ const DLG_ID = "jms-accu-dialog";
 const POLL_MS = 60_000;
 const EMPTY_ID = "jms-accu-empty";
 
+// Fork ParticularFlix: com o perfil bloqueado (html.jms-access-blocked), os atalhos de biblioteca, favoritos e busca
+// somem de todos os lugares onde o Jellyfin e os scripts do ParticularFlix os desenham (barra moderna, barra legada,
+// menu lateral nativo e o menu lateral do ParticularFlix). A garantia real e a politica no servidor; isto evita que
+// o usuario veja icones que levariam a paginas vazias ou, com a politica antiga ainda em cache, a conteudo.
+const NAV_HOSTS = ["header", ".skinHeader", ".mainDrawer", "#pf-dr", ".headerTabs"];
+const NAV_LINKS = [
+  'a[href*="topParentId="]', 'a[href*="parentId="]', 'a[href^="#/movies"]', 'a[href^="#/tv"]', 'a[href^="#/music"]',
+  'a[href^="#/boxsets"]', 'a[href^="#/livetv"]', 'a[href^="#/homevideos"]', 'a[href^="#/books"]', 'a[href^="#/musicvideos"]',
+  'a[href^="#/list"]', 'a[href^="#/search"]', 'a[href^="#/home?tab=1"]', 'a[href^="#/favorites"]', 'a.lnkMediaFolder[data-itemid]',
+  ".headerSearchButton", ".libraryMenuOptions", ".jms-watchlist-header-btn"
+];
+const BLOCKED_NAV_CSS = NAV_HOSTS.map((h) => NAV_LINKS.map((l) => `html.jms-access-blocked ${h} ${l}`).join(",")).join(",") + "{display:none !important}";
+
+// Rotas que continuam abertas com o perfil bloqueado: a home (que mostra o aviso), as preferencias do usuario e as
+// telas de login/servidor. Qualquer outra (biblioteca, detalhes, busca, favoritos, player, lista) volta para a home.
+const BLOCKED_ALLOWED_ROUTES = /^\/(home|index|home\.html|index\.html|mypreferences[a-z]*|userprofile|login|selectserver|addserver|forgotpassword[a-z]*|forgotpasswordpin|quickconnect|userpluginsettings\.html|wizard[a-z]*|dashboard|startup[a-z/]*)?$/i;
+
+function isBlockedRoute() {
+  const raw = String(location.hash || "").replace(/^#!?/, "");
+  if (!raw) return false;
+  const [path, query = ""] = raw.split("?");
+  if (!BLOCKED_ALLOWED_ROUTES.test(path || "/")) return true;
+  if (/^\/(home|index)/i.test(path)) {
+    const tab = new URLSearchParams(query).get("tab");
+    if (tab === "1") return true;
+  }
+  return false;
+}
+
+function guardBlockedRoute() {
+  if (!document.documentElement.classList.contains("jms-access-blocked")) return;
+  if (!isBlockedRoute()) return;
+  try { location.replace("#/home"); } catch { location.hash = "#/home"; }
+}
+
 let started = false;
 let pollTimer = 0;
 let expiryTimer = 0;
@@ -33,6 +68,7 @@ body.jms-accu-hide #${BTN_ID}{display:none}
 #${EMPTY_ID} p.jms-accu-hint{font-size:.95em;opacity:.72}
 @keyframes jmsAccuIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){#${EMPTY_ID}{animation:none}}
+${BLOCKED_NAV_CSS}
 #${DLG_ID}{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6)}
 #${DLG_ID} .box{background:#1b1b20;color:#fff;border-radius:14px;padding:22px;width:min(92vw,340px);box-shadow:0 10px 40px rgba(0,0,0,.6)}
 #${DLG_ID} h3{margin:0 0 10px}
@@ -204,6 +240,7 @@ function isBlockedStatus(status) {
 function applyBlockedState(status) {
   const blocked = isBlockedStatus(status);
   document.documentElement.classList.toggle("jms-access-blocked", blocked);
+  if (blocked) guardBlockedRoute();
   try {
     const uid = String(status?.userId || "").replace(/-/g, "").toLowerCase();
     if (blocked && uid) localStorage.setItem(BLOCKED_USER_KEY, uid);
@@ -349,8 +386,10 @@ export function initAccessUnlock() {
     void refresh();
   });
   window.addEventListener("hashchange", () => {
+    guardBlockedRoute();
     if (lastStatus) scheduleEmptyHomeCheck(lastStatus);
   });
+  window.addEventListener("popstate", guardBlockedRoute);
   document.addEventListener("jms:auth-profile-changed", () => {
     document.documentElement.classList.remove("jms-access-blocked");
     clearEmptyNotice();

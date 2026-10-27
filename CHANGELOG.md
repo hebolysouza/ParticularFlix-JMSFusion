@@ -5,6 +5,36 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 4.0.0.2 (fork build, Jellyfin 12)
+
+Fixes and performance work after 4.0.0.1. Same requirements (Jellyfin 12.x, net10.0). Settings are kept; no setting is renamed or reset. The header script (`extras/particularflix-modern-header.js`) changed too and is deployed separately, like the other brand scripts.
+
+### Fixes
+- **Access control, every path**: a blocked profile only hid the Home. The library shortcuts in the header (modern and legacy), the side menus and a typed address still led to the library. Now:
+  - the server checks, whenever the client asks for the access status (at start and every minute), that the user's real Jellyfin policy is still the restricted one, and re-applies it if it drifted (edited in the dashboard, a save that failed, an unlock that did not return). At most once every 15 s per user; a value the server keeps normalising is re-applied only once and logged;
+  - with every library blocked, the library, favourites and search shortcuts are hidden in the header bars and side menus, and any route other than Home, the user preferences and the login screens returns to Home.
+- **Trailer controls on the row hero cards**: the large card of the Home rows (recent, directors, recommendations) uses the same trailer preview as the slider and got the pause, volume and fullscreen buttons too, which flashed while the hover trailer started. Those controls belong to the slider only now.
+- **Cinema, first trailer**: the first slide after a reload or a return to Home waited 1.2 s and then showed its backdrop, often just before the trailer covered it (a flash of the image). The wait is now 1.8 s and is extended, up to 4.5 s, while the trailer of the active slide is still downloading; a backdrop that does come in fades in.
+- **Next slide dots after a reload**: only the first two dots were shown until the other slides had been created in the background (with 70 slides that took a while). The modern dots now count the planned slides from the start: the ones not created yet are dimmed, show their title and image on hover and become clickable as soon as their slide exists. The plugin's own dots follow the slides as they are created (at most one rebuild every 400 ms).
+- **Modular Home in the side menu**: Plugin Pages inserts its item as a menu entry of the native user menu (16 px text, its own margins), so it looked larger and out of line. It now has the same layout as the other entries and is highlighted when its page is open.
+- **Studio collections, "More from <studio>" (Jellyfin Enhanced + Seerr) on grouped hubs** (Marvel, DC and any hub that groups several studios): the list opens as `#/list?studioId=a,b,c` and Jellyfin Enhanced asked its studio endpoint for that whole value, which failed, so the section never appeared. It now receives the hub's own studio. The request adjustment also loads on every page, so a grouped list opened straight from its address works too.
+- **Studio collections preview (eye), first hover**: the titles were fetched only when a card came near the screen and the browser was idle, so a mouse that went straight to the eye still waited for the first server query. Every card of the section is now warmed in the background, one query at a time, 1.5 s after the section is built.
+- **Side bar arrows (Netflix style)**: the bar was slow to let go of the mouse. The hovered state was a class on `<html>` (each change restyled the whole page) and every mouse move measured the bars. The state now lives on the slider, the bars are measured once per entry (and after a scroll or resize), and the fade is shorter.
+- **Jellyfin Enhanced "Only available on ..." icon**: when the configured image does not load, the header script now tries the page's own favicon and then the default Jellyfin favicon before Jellyfin Enhanced hides it.
+- **Details page**: a thin separator line between Director, Writers, Studios and Genres (header script).
+
+### Performance
+- One shared observer replaces the one or two `MutationObserver`s that every slide and every row hero card kept on the whole page to notice its own removal (about 140 callbacks per DOM change with 70 slides). It looks only at removals, once per frame.
+- The modern dots no longer query the page and measure it on every mouse move anywhere in the app; the box and its position are cached.
+- The quality hints are applied to each new slide instead of the whole page (70 page-wide scans during the background slide creation); one page-wide pass runs at the end.
+- The Seerr item-page bridge stays idle outside item pages (it cleared the page with six document-wide queries on every DOM change and every 1.5 s).
+- The Home watcher no longer queries the subtree of every element whose class changes (it ran a page-wide query for each class change on `<html>` or on the slider).
+- The player header ratings check runs at most every 200 ms while the page changes (each check reads computed styles).
+- The header script ignores DOM changes inside page content (cards, rows, slider), which can never bring the header back.
+
+### Known limitations
+- The red hover outline of the cards and the separators of the media info box come from the NetFin theme CSS, not from JMSFusion; they need the theme CSS to be adjusted for the Jellyfin 12 markup.
+
 ## 4.0.0.1 (fork build, Jellyfin 12)
 
 Fixes found after the 4.0.0.0 rollout. Same requirements as 4.0.0.0 (Jellyfin 12.x, net10.0). Settings are kept; no setting is renamed or reset.

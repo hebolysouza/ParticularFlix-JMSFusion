@@ -18,6 +18,7 @@ import {
 } from "./homeSectionChain.js";
 import { resolveSliderAssetHref } from "./assetLinks.js";
 import { withServer } from "./jfUrl.js";
+import "./studioGroupShim.js";
 import { ensureWatchlistLoaded, getCachedWatchlistMembership, getWatchlistButtonText } from "./watchlist.js";
 import {
   buildStudioHubLogoUrl,
@@ -96,57 +97,8 @@ function buildStudioGroupIds(desired, primary, allStudios) {
   return out;
 }
 
-// Fork ParticularFlix: a tela nativa #/list?studioId=a,b,c busca o "estudio" pelo id inteiro
-// (/Items/a,b,c), o servidor responde 500 e a tela fica girando. Aqui a consulta do item de
-// cabecalho usa so o primeiro id; a lista de filmes continua usando todos os ids.
-const MULTI_ID_ITEM_RE = /(\/Items\/)([0-9a-fA-F]{32})(?:(?:,|%2C)[0-9a-fA-F]{32})+(?=$|[/?#])/i;
-const SINGLE_STUDIOIDS_RE = /([?&]StudioIds=)([0-9a-fA-F]{32})(?=&|#|$)/i;
-// A tela nativa usa o id devolvido pelo item de cabecalho (o primeiro) para listar os filmes.
-// Na rota #/list?studioId=a,b,c a consulta da lista e ampliada para todos os ids do grupo.
-function getGroupIdsFromHash() {
-  try {
-    const m = /[?&]studioId=([^&]+)/i.exec(String(location.hash || ""));
-    if (!m) return null;
-    const ids = decodeURIComponent(m[1]).split(",").map((x) => x.trim()).filter((x) => /^[0-9a-fA-F]{32}$/.test(x));
-    return ids.length > 1 ? ids : null;
-  } catch { return null; }
-}
-function rewriteMultiIdItemUrl(u) {
-  try {
-    const str = typeof u === "string" ? u : (u && u.url) ? u.url : String(u || "");
-    let out = str;
-    if (MULTI_ID_ITEM_RE.test(out)) out = out.replace(MULTI_ID_ITEM_RE, "$1$2");
-    if (/\/Items\?/i.test(out) && SINGLE_STUDIOIDS_RE.test(out)) {
-      const ids = getGroupIdsFromHash();
-      const m = SINGLE_STUDIOIDS_RE.exec(out);
-      if (ids && m && ids[0].toLowerCase() === m[2].toLowerCase()) {
-        out = out.replace(SINGLE_STUDIOIDS_RE, (_all, pre) => pre + ids.join(","));
-      }
-    }
-    return out === str ? null : out;
-  } catch { return null; }
-}
-(function installStudioGroupRequestShim() {
-  try {
-    if (window.__jmsStudioGroupShim) return;
-    window.__jmsStudioGroupShim = true;
-    const origFetch = window.fetch;
-    if (typeof origFetch === "function") {
-      window.fetch = function (input, init) {
-        const fixed = rewriteMultiIdItemUrl(input);
-        if (fixed) {
-          input = (typeof input === "string") ? fixed : new Request(fixed, input);
-        }
-        return origFetch.call(this, input, init);
-      };
-    }
-    const origOpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-      const fixed = rewriteMultiIdItemUrl(url);
-      return origOpen.call(this, method, fixed || url, ...rest);
-    };
-  } catch {}
-})();
+// Fork ParticularFlix: o ajuste das consultas da rota #/list?studioId=a,b,c (hubs que agrupam varios estudios)
+// mora em studioGroupShim.js, carregado pelo main.js em toda pagina (tambem quando a lista e aberta direto pelo endereco).
 
 const LOGO_H = 160;
 const CACHE_TTL = 6 * 60 * 60 * 1000;
@@ -704,6 +656,32 @@ function warmPreviewWhenVisible(card, load) {
   }
   card.__jmsWarmPreview = load;
   __previewWarmObserver.observe(card);
+  queueBackgroundPreviewWarm(card);
+}
+
+// Fork ParticularFlix 4.0.0.2: the warm-up above only ran once a card came near the screen, and then waited for an
+// idle moment (up to 2.5 s); a mouse that went straight to the eye still waited for the first (cold) server query.
+// Every card of the section is now also warmed in the background, one query at a time with an idle gap between them,
+// starting 1.5 s after the section is built. A card already warmed (by hover or by the observer) is skipped, since
+// loadStudioPreviewItems shares one promise per studio.
+const __previewWarmQueue = [];
+let __previewWarmDraining = false;
+function queueBackgroundPreviewWarm(card) {
+  __previewWarmQueue.push(card);
+  if (__previewWarmDraining) return;
+  __previewWarmDraining = true;
+  const idle = (fn, timeout) => (typeof requestIdleCallback === "function")
+    ? requestIdleCallback(fn, { timeout })
+    : setTimeout(fn, 120);
+  const next = () => {
+    const el = __previewWarmQueue.shift();
+    if (!el) { __previewWarmDraining = false; return; }
+    if (!el.isConnected || typeof el.__jmsWarmPreview !== "function") { next(); return; }
+    let p = null;
+    try { p = el.__jmsWarmPreview(); } catch {}
+    Promise.resolve(p).catch(() => {}).finally(() => idle(next, 1500));
+  };
+  setTimeout(() => idle(next, 2000), 1500);
 }
 
 function createPreviewButton(card, studioName, studioId, userId) {
@@ -740,7 +718,8 @@ function createPreviewButton(card, studioName, studioId, userId) {
     }).catch(() => {});
   }, { passive: true });
   warmPreviewWhenVisible(card, () => {
-    loadStudioPreviewItems(studioId, studioName, userId).then((items) => {
+    if (studioItems) return null;
+    return loadStudioPreviewItems(studioId, studioName, userId).then((items) => {
       studioItems = items;
       const run = () => preloadPreviewPosters(items, true);
       if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 4000 });

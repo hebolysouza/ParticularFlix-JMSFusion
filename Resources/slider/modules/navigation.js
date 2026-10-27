@@ -1084,6 +1084,35 @@ export function updateActiveDot() {
   if (config.dotPosterMode) centerActiveDot({ smooth: !lowPower, force: true });
 }
 
+// Fork ParticularFlix 4.0.0.2: after a reload only the first slides exist and the others are created in the background,
+// one at a time; the dots were built from the slides in the page and rebuilt only when all of them were ready, so with
+// 70 slides the strip showed 2 dots for a long while. The dots now follow the slides as they arrive: at most one
+// rebuild every 400 ms (a rebuild of the simple dots costs well under a millisecond per dot). The poster dots (heavier:
+// images, previews and details per dot) keep the single rebuild at the end.
+let dotSyncTimer = 0;
+let dotSyncLastAt = 0;
+const DOT_SYNC_MIN_MS = 400;
+function runDotSync() {
+  dotSyncTimer = 0;
+  dotSyncLastAt = Date.now();
+  try {
+    const config = getConfig();
+    if (!config.showDotNavigation || config.dotPosterMode) return;
+    const slidesContainer = getPeakViewportContainer();
+    if (!slidesContainer) return;
+    const slideCount = slidesContainer.querySelectorAll(".monwui-slide").length;
+    const dotContainer = slidesContainer.querySelector(".monwui-dot-navigation-container");
+    const dotCount = dotContainer ? dotContainer.querySelectorAll(".monwui-dot").length : 0;
+    if (dotContainer && dotCount === slideCount) return;
+    createDotNavigation();
+  } catch {}
+}
+export function scheduleDotNavigationSync() {
+  if (dotSyncTimer) return;
+  const wait = Math.max(0, DOT_SYNC_MIN_MS - (Date.now() - dotSyncLastAt));
+  dotSyncTimer = setTimeout(runDotSync, wait);
+}
+
 export function createDotNavigation() {
   const config = getConfig();
   if (!config.showDotNavigation) {
@@ -1579,17 +1608,39 @@ let displaySlideSeq = 0;
 // trailer plays (jms-cinema-switched). The first slide after a reload or a return to Home waits a short
 // moment for its trailer (jms-cinema-wait) and then shows its backdrop, so the Home is never dark for long
 // while that trailer loads, and a trailer that starts quickly comes in without the image before it.
-const CINEMA_FIRST_WAIT_MS = 1200;
+// Fork ParticularFlix 4.0.0.2: with a fixed 1.2 s the backdrop often appeared and was covered by the trailer a moment
+// later (a flash of the image on the first slide only). The wait now lasts 1.8 s and is extended, up to 4.5 s in all,
+// while the active slide's trailer is still downloading; the backdrop that does come in fades in (layouts.css).
+const CINEMA_FIRST_WAIT_MS = 1800;
+const CINEMA_FIRST_WAIT_MAX_MS = 4500;
+const CINEMA_FIRST_WAIT_STEP_MS = 300;
 let cinemaWaitTimer = 0;
+function isActiveTrailerLoading() {
+  try {
+    const slide = document.querySelector("#monwui-slides-container .monwui-slide.active.jms-cinema-hold");
+    if (!slide) return false;
+    const v = slide.querySelector(".intro-video-container video");
+    if (v && (v.currentSrc || v.getAttribute("src")) && v.readyState < 3 && !v.error) return true;
+    return !!slide.querySelector(".intro-video-container iframe") && !slide.classList.contains("trailer-active");
+  } catch {
+    return false;
+  }
+}
 function startCinemaFirstWait() {
   const root = document.documentElement;
   root.classList.remove("jms-cinema-switched");
   root.classList.add("jms-cinema-wait");
   if (cinemaWaitTimer) clearTimeout(cinemaWaitTimer);
-  cinemaWaitTimer = setTimeout(() => {
+  const startedAt = Date.now();
+  const tick = () => {
     cinemaWaitTimer = 0;
+    if (Date.now() - startedAt < CINEMA_FIRST_WAIT_MAX_MS && isActiveTrailerLoading()) {
+      cinemaWaitTimer = setTimeout(tick, CINEMA_FIRST_WAIT_STEP_MS);
+      return;
+    }
     root.classList.remove("jms-cinema-wait");
-  }, CINEMA_FIRST_WAIT_MS);
+  };
+  cinemaWaitTimer = setTimeout(tick, CINEMA_FIRST_WAIT_MS);
 }
 function markCinemaSwitched() {
   const root = document.documentElement;
@@ -2177,7 +2228,7 @@ export function enablePeakNeighborActivation() {
     if (e.target.closest?.('[data-no-peak-activate="1"], .monwui-dot-navigation-container')) return;
     // Fork ParticularFlix: com as barras laterais estilo Netflix (sliderLayouts.js), clique na barra acesa
     // e anterior/proximo, nao um salto para o card vizinho que esta embaixo dela (no Coverflow eles se cruzam).
-    if (document.documentElement.classList.contains('jms-bar-hot')) return;
+    if (container.classList.contains('jms-bar-hot')) return;
 
     const x = e.clientX, y = e.clientY;
     const topEl    = document.elementFromPoint(x, y);

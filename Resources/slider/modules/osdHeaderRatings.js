@@ -1572,11 +1572,19 @@ export function initOsdHeaderRatings() {
   } catch {}
 
   try {
-    bodyObserver = new MutationObserver(() => {
+    // Fork ParticularFlix 4.0.0.2: at most one check per 200 ms. Each check looks for the visible player with
+    // getComputedStyle, and during playback the subtitles and the OSD change the page many times per second.
+    let bodyCheckTimer = 0;
+    const runBodyCheck = () => {
+      bodyCheckTimer = 0;
       if (destroyed || document.hidden) return;
       bindVideoSignals();
       if (!isPlaybackScreenActive() && !document.getElementById(HOST_ID)) return;
       queueQuickSync();
+    };
+    bodyObserver = new MutationObserver(() => {
+      if (destroyed || document.hidden || bodyCheckTimer) return;
+      bodyCheckTimer = setTimeout(runBodyCheck, 200);
     });
     bodyObserver.observe(document.body, { childList: true, subtree: true });
   } catch {}

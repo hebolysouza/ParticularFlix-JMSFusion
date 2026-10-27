@@ -730,6 +730,63 @@ export function prefetchLocalTrailer(itemId, { background = false } = {}) {
   return entry.promise;
 }
 
+// Fork ParticularFlix 4.0.0.2: every slide and every row hero card had one or two MutationObservers of its own on the
+// whole <body>, only to notice when it was removed. With 70 slides that is 140 callbacks for each DOM change anywhere
+// on the page (navigation, animations, other plugins), a source of CPU spikes. One shared observer now looks only at
+// mutations that remove nodes, once per frame, and runs the cleanup of the elements that left the page.
+const __detachWatch = new Map();
+let __detachObserver = null;
+let __detachQueued = false;
+const DETACH_NEVER_CONNECTED_MS = 30_000;
+function runDetachCheck() {
+  __detachQueued = false;
+  const now = Date.now();
+  for (const [el, entry] of __detachWatch) {
+    if (el.isConnected) { entry.seen = true; continue; }
+    if (!entry.seen && now - entry.at < DETACH_NEVER_CONNECTED_MS) continue;
+    __detachWatch.delete(el);
+    for (const fn of entry.callbacks) { try { fn(); } catch {} }
+  }
+  if (!__detachWatch.size && __detachObserver) {
+    __detachObserver.disconnect();
+    __detachObserver = null;
+  }
+}
+function watchDetach(el, onDetach) {
+  if (!el || typeof onDetach !== "function") return () => {};
+  let entry = __detachWatch.get(el);
+  if (!entry) {
+    entry = { seen: el.isConnected, at: Date.now(), callbacks: new Set() };
+    __detachWatch.set(el, entry);
+    if (!entry.seen) {
+      // Slides are built before they are inserted: note when they reach the page, so a later removal counts.
+      const mark = () => { if (el.isConnected) entry.seen = true; };
+      requestAnimationFrame(mark);
+      setTimeout(mark, 1500);
+    }
+  }
+  entry.callbacks.add(onDetach);
+  if (!__detachObserver && document.body) {
+    __detachObserver = new MutationObserver((records) => {
+      if (__detachQueued) return;
+      for (const r of records) {
+        if (r.removedNodes && r.removedNodes.length) {
+          __detachQueued = true;
+          requestAnimationFrame(runDetachCheck);
+          return;
+        }
+      }
+    });
+    __detachObserver.observe(document.body, { childList: true, subtree: true });
+  }
+  return () => {
+    const cur = __detachWatch.get(el);
+    if (!cur) return;
+    cur.callbacks.delete(onDetach);
+    if (!cur.callbacks.size) __detachWatch.delete(el);
+  };
+}
+
 export function createTrailerIframe({
   config,
   RemoteTrailers,
@@ -1239,6 +1296,10 @@ function clearPreviewPlaybackFlag() {
   }
 
   function setPreviewVolumeVisible(visible) {
+    // Fork ParticularFlix: pause, volume and fullscreen belong to the slider only. The hero cards of the home rows
+    // (recent, directors, recommendations) use this same preview and never had trailer controls; they were created
+    // there too and flashed for a moment while the hover trailer started.
+    if (!allowAutoTrailer) visible = false;
     if (visible) ensurePreviewVolumeButton();
     const wrap = previewVolumeWrap;
     // The column of the pause button is reserved whenever the automatic trailer is enabled, even while a trailer
@@ -2316,21 +2377,18 @@ function clearPreviewPlaybackFlag() {
       });
     }
 
-    const mo = new MutationObserver(() => {
-      if (!document.body.contains(slideEl)) {
+    let unwatch = null;
+    unwatch = watchDetach(slideEl, () => {
+      try {
+        stopPreview({ force: true });
+      } catch {}
+      cleanups.forEach((fn) => {
         try {
-          stopPreview({ force: true });
+          fn();
         } catch {}
-        cleanups.forEach((fn) => {
-          try {
-            fn();
-          } catch {}
-        });
-        mo.disconnect();
-      }
+      });
     });
-    mo.observe(document.body, { childList: true, subtree: true });
-    cleanups.push(() => mo.disconnect());
+    cleanups.push(() => unwatch?.());
 
     const onVis = () => {
       if (document.hidden) {
@@ -2512,20 +2570,16 @@ function clearPreviewPlaybackFlag() {
     setTimeout(() => maybeStartAutoTrailer(), 0);
   }
 
-  const mo = new MutationObserver(() => {
-    if (!document.body.contains(slide)) {
-      try { hoverTarget.removeEventListener("mouseenter", handleEnter); } catch {}
-      try { hoverTarget.removeEventListener("mouseleave", handleLeave); } catch {}
-      try { slide.removeEventListener("slideActive", onSlideActive); } catch {}
-      try { document.removeEventListener("jms:per-slide-complete", onPerSlideComplete); } catch {}
-      try { window.removeEventListener(PLAYBACK_START_REQUESTED_EVENT, onPlaybackStartRequested); } catch {}
-      try { detachGuards?.(); } catch {}
-      try { classObserver.disconnect(); } catch {}
-      try { stopPreview({ force: true }); } catch {}
-      mo.disconnect();
-    }
+  watchDetach(slide, () => {
+    try { hoverTarget.removeEventListener("mouseenter", handleEnter); } catch {}
+    try { hoverTarget.removeEventListener("mouseleave", handleLeave); } catch {}
+    try { slide.removeEventListener("slideActive", onSlideActive); } catch {}
+    try { document.removeEventListener("jms:per-slide-complete", onPerSlideComplete); } catch {}
+    try { window.removeEventListener(PLAYBACK_START_REQUESTED_EVENT, onPlaybackStartRequested); } catch {}
+    try { detachGuards?.(); } catch {}
+    try { classObserver.disconnect(); } catch {}
+    try { stopPreview({ force: true }); } catch {}
   });
-  mo.observe(document.body, { childList: true, subtree: true });
 }
 
 const _bestBackdropCache = new Map();
