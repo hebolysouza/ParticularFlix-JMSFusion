@@ -457,18 +457,9 @@
         ".pf-dr .pluginMenuOptions a:hover,.pf-dr .pluginMenuOptions a:focus-visible{background:rgba(229,9,20,0.28);outline:none;}",
         ".pf-dr .pluginMenuOptions .navMenuOptionIcon,.pf-dr .pluginMenuOptions .material-icons{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;width:24px;height:24px;margin:0 !important;font-size:22px;}",
         ".pf-dr .pluginMenuOptions .navMenuOptionText{flex:1 1 auto;margin:0 !important;text-align:left;}",
-        // Plugin Pages (Modular Home) no layout novo: acha o link de Configuracoes, poe um marcador vazio depois dele e
-        // insere, como irmaos do marcador, um <hr> e um item de menu do MUI (fonte de 16px, margens e classes css-* do
-        // menu do usuario). Aqui ele recebe o mesmo desenho dos outros itens da lista.
-        ".pf-dr .pluginMenuOptions.marker,.pf-dr hr[data-plugin-pages]{display:none !important;}",
-        ".pf-dr a[data-plugin-pages]{display:flex !important;align-items:center !important;justify-content:flex-start !important;gap:14px;min-height:0 !important;width:auto;box-sizing:border-box;padding:10px 14px !important;margin:2px 0 !important;border-radius:10px;color:#fff !important;background:transparent;font-family:inherit !important;font-size:15px !important;font-weight:400 !important;line-height:1.2 !important;letter-spacing:normal !important;text-align:left;text-transform:none;text-decoration:none;white-space:nowrap;cursor:pointer;transition:background-color 140ms ease;}",
-        ".pf-dr a[data-plugin-pages]:hover,.pf-dr a[data-plugin-pages]:focus-visible{background:rgba(229,9,20,0.28) !important;outline:none;}",
-        ".pf-dr a[data-plugin-pages].pf-dr-active{background:#E50914 !important;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
-        ".pf-dr a[data-plugin-pages] .MuiListItemIcon-root{display:inline-flex !important;align-items:center;justify-content:center;flex:0 0 24px;width:24px;min-width:0 !important;height:24px;margin:0 !important;color:inherit !important;}",
-        ".pf-dr a[data-plugin-pages] .material-icons{display:inline-flex !important;align-items:center;justify-content:center;width:24px;height:24px;margin:0 !important;font-size:22px !important;color:inherit;}",
-        ".pf-dr a[data-plugin-pages] .MuiListItemText-root{flex:1 1 auto;min-width:0;margin:0 !important;padding:0 !important;}",
-        ".pf-dr a[data-plugin-pages] .MuiTypography-root{display:block;margin:0 !important;font:inherit !important;letter-spacing:inherit !important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
-        ".pf-dr a[data-plugin-pages] .MuiTouchRipple-root{display:none !important;}",
+        // Plugin Pages (Modular Home): o item dele chega com o markup do menu do usuario do MUI (e o tema estiliza
+        // .navMenuOption de outro jeito), entao ele e escondido e trocado por uma copia com o mesmo markup dos nossos itens.
+        ".pf-dr .pluginMenuOptions.marker,.pf-dr hr[data-plugin-pages],.pf-dr a.pf-dr-pp-src{display:none !important;}",
         "html.pf-modern-on .mainAnimatedPage[id^=\"je-\"]:not(.hide),html.pf-modern-on #je-recommendations-category-page:not(.hide){position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;height:auto !important;opacity:1 !important;overflow-y:auto !important;z-index:1095 !important;isolation:isolate !important;background:#0a0a0e !important;contain:none !important;padding-top:70px !important;}",
         "@media (prefers-reduced-motion:reduce){.pf-dr-panel,.pf-dr-back{transition:none;}}",
         // Pagina de detalhes: uma linha fina entre Diretor, Escritores, Estudios e Generos (o tema desenha a moldura do bloco).
@@ -571,7 +562,30 @@
             usr.appendChild(out);
             scroll.appendChild(usr);
         }
+        drMirrorPluginPages();
         drSync();
+    }
+
+    // Copia cada item do Plugin Pages com drLink (mesmas classes, mesmo desenho e mesmo realce de pagina ativa).
+    function drMirrorPluginPages() {
+        if (!drEl) return;
+        [].forEach.call(drEl.querySelectorAll("a[data-plugin-pages]:not(.pf-dr-pp)"), function (src) {
+            src.classList.add("pf-dr-pp-src");
+            var href = src.getAttribute("href");
+            if (!href) return;
+            var ja = drEl.querySelectorAll("a.pf-dr-pp");
+            for (var k = 0; k < ja.length; k++) { if (ja[k].getAttribute("href") === href) return; }
+            var icon = "extension";
+            var ic = src.querySelector(".material-icons");
+            if (ic) {
+                var lig = (ic.textContent || "").trim();
+                if (lig) icon = lig;
+                else [].forEach.call(ic.classList, function (c) { if (!/^(Mui|css-|material-icons|navMenuOptionIcon)/.test(c)) icon = c; });
+            }
+            var tx = src.querySelector(".MuiTypography-root,.navMenuOptionText,.sectionName");
+            var a = drLink(href, icon, ((tx || src).textContent || "").replace(/\s+/g, " ").trim(), "pf-dr-pp");
+            src.parentNode.insertBefore(a, src);
+        });
     }
 
     function drSync() {
@@ -579,7 +593,7 @@
         var cur = (window.location.hash || "#/").replace(/^#/, "");
         var cp = cur.split("?");
         var have = new URLSearchParams(cp[1] || "");
-        [].forEach.call(drEl.querySelectorAll("a.navMenuOption, a[data-plugin-pages]"), function (a) {
+        [].forEach.call(drEl.querySelectorAll("a.navMenuOption"), function (a) {
             var h = (a.getAttribute("href") || "").replace(/^#/, "");
             var on = false;
             if (h && h !== "/" && h !== "") {
