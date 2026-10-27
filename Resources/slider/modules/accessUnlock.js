@@ -23,7 +23,10 @@ const NAV_LINKS = [
   'a[href^="#/list"]', 'a[href^="#/search"]', 'a[href^="#/home?tab=1"]', 'a[href^="#/favorites"]', 'a.lnkMediaFolder[data-itemid]',
   ".headerSearchButton", ".libraryMenuOptions", ".jms-watchlist-header-btn"
 ];
-const BLOCKED_NAV_CSS = NAV_HOSTS.map((h) => NAV_LINKS.map((l) => `html.jms-access-blocked ${h} ${l}`).join(",")).join(",") + "{display:none !important}";
+// The ParticularFlix header script styles the pills with long selectors and !important (display:inline-flex); the
+// :not(#id) adds id weight so the hiding rule always wins over them.
+const BLOCKED_ROOT = "html.jms-access-blocked:not(#jms-access-guard)";
+const BLOCKED_NAV_CSS = NAV_HOSTS.map((h) => NAV_LINKS.map((l) => `${BLOCKED_ROOT} ${h} ${l}`).join(",")).join(",") + "{display:none !important}";
 
 // Rotas que continuam abertas com o perfil bloqueado: a home (que mostra o aviso), as preferencias do usuario e as
 // telas de login/servidor. Qualquer outra (biblioteca, detalhes, busca, favoritos, player, lista) volta para a home.
