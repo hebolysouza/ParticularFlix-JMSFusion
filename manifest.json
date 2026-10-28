@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/hebolysouza/ParticularFlix-JMSFusion/main/img/icon.png",
     "versions": [
     {
+      "version": "4.0.0.6",
+      "changelog": "v4.0.0.6 (ParticularFlix fork)\n\nPerformance release for Jellyfin 12 (net10.0, validated on 12.3), rolling up the unpublished builds 4.0.0.3 to 4.0.0.5. Same plugin GUID, settings kept. Jellyfin 10.11.x: stay on 3.8.2.45.\n\nSlider: slides that already left the screen are removed from rendering (Normal, Compact, Cinema, Mosaic; kill switch localStorage jmsLayerTrim = \"off\"), the seconds counter writes only when the second changes, the orb Play pulse runs three times per slide instead of forever, the hidden classic dots are no longer rebuilt when the modern dots are on.\n\nTrailers: new downloads prefer H.264 over AV1 (hardware decoded almost everywhere); trailers already downloaded keep their codec.\n\nPage: no endless 250 ms timer waiting for a Jellyfin 10 function, header observers no longer feed each other (styles written only when they differ), cheaper animation cleanup, player header checks only near a player, hidden empty hover preview no longer closed and wiped on every card leave, no hover preview during a scroll.\n\nFull notes: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
+      "targetAbi": "12.0.0.0",
+      "sourceUrl": "https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases/download/v4.0.0.6/JMSFusion-4.0.0.6-server.zip",
+      "checksum": "1e14f0651a4bc89d96a25b10c5727347",
+      "timestamp": "2026-10-28T20:32:01.0000000Z"
+    },
+    {
       "version": "4.0.0.2",
       "changelog": "v4.0.0.2 (ParticularFlix fork)\n\nFixes and performance release for Jellyfin 12 (net10.0, validated on 12.3). Same plugin GUID, settings kept. Jellyfin 10.11.x: stay on 3.8.2.45.\n\nAccess control: the server re-applies the restricted policy when the live one drifted; with every library blocked, library, favourites and search shortcuts are hidden and other routes return to Home.\n\nSlider and rows: trailer controls only on the slider (no flash on the row hero cards), Cinema first trailer without the backdrop flash, next-slide dots show every planned slide from the start, side bar arrows respond at once.\n\nStudio collections: grouped hubs (Marvel, DC...) show the Jellyfin Enhanced \"More from\" section again, and the preview (eye) opens at once on the first hover.\n\nPerformance: one shared observer instead of one or two per slide, cached pointer hit tests, idle Seerr item bridge outside item pages, lighter Home and player watchers.\n\nHeader script (deployed separately): Modular Home side menu entry aligned with the others, details page separators, Jellyfin Enhanced branding icon fallback.",
       "targetAbi": "12.0.0.0",
