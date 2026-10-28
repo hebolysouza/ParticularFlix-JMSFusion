@@ -5,6 +5,17 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 4.0.0.3 (fork build, Jellyfin 12)
+
+Performance release. Same requirements as 4.0.0.2 (Jellyfin 12.x, net10.0). Settings are kept; no setting is renamed or reset.
+
+### Performance
+- **Slider, slides that already left the screen**: every slide starts hidden; once shown, the hide that runs when it leaves only swapped a class that had no style, so every slide already visited stayed laid out and painted under the active one (backdrop, gradients with masks, badges). After a few minutes the browser was compositing dozens of full-size slides on every frame of the trailer. In the styles without Peak (Normal, Compact, Cinema, Mosaic) a slide that left the screen is now removed from rendering when its transition ends. Kill switch: `localStorage jmsLayerTrim = "off"`.
+- **Trailer downloads prefer H.264**: the trailer sync asked yt-dlp for the best 1080p mp4, and its default codec order picks AV1 when YouTube has it. Browsers without AV1 hardware decoding play those trailers on the CPU, at every slide change. New downloads now prefer H.264 (decoded by the GPU almost everywhere). Trailers already downloaded keep their codec.
+- **Animation cleanup**: a page-wide observer walked every element of every subtree removed anywhere in the app (thousands of nodes per page change) to cancel slide animation timers. It now checks only the elements that hold timers, once per frame.
+- **Hover previews while scrolling**: cards passing under a still mouse during a scroll could each open their preview (details request and video) only to close it a moment later. No preview opens during a scroll and for 250 ms after it.
+- **Dots during the first load**: with the modern dots enabled, the hidden classic dots were still rebuilt while slides were created; they are now left alone.
+
 ## 4.0.0.2 (fork build, Jellyfin 12)
 
 Fixes and performance work after 4.0.0.1. Same requirements (Jellyfin 12.x, net10.0). Settings are kept; no setting is renamed or reset. The header script (`extras/particularflix-modern-header.js`) changed too and is deployed separately, like the other brand scripts.

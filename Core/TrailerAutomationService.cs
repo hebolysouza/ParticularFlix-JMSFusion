@@ -1359,8 +1359,10 @@ public sealed class TrailerAutomationService
         return ytDlpArgs;
     }
 
+    // Fork ParticularFlix 4.0.0.3: H.264 (avc1) first. Without the codec filter yt-dlp picks AV1 when YouTube has it,
+    // and browsers without AV1 hardware decoding play those trailers on the CPU.
     private static string BuildPreferredTrailerFormatSelector(int minResolution, int maxResolution)
-        => $"bestvideo[ext=mp4][height<={maxResolution}][height>={minResolution}]+bestaudio[ext=m4a]/best[ext=mp4][height<={maxResolution}][height>={minResolution}]";
+        => $"bestvideo[ext=mp4][vcodec^=avc1][height<={maxResolution}][height>={minResolution}]+bestaudio[ext=m4a]/bestvideo[ext=mp4][height<={maxResolution}][height>={minResolution}]+bestaudio[ext=m4a]/best[ext=mp4][height<={maxResolution}][height>={minResolution}]";
 
     private static string BuildSingleFileTrailerFormatSelector(int minResolution, int maxResolution)
         => $"best[ext=mp4][acodec!=none][vcodec!=none][height<={maxResolution}][height>={minResolution}]/best[ext=mp4][acodec!=none][vcodec!=none][height<={maxResolution}]/best[ext=mp4][acodec!=none][vcodec!=none]";

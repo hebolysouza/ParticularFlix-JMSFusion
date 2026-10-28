@@ -3431,6 +3431,15 @@ export function setupHoverForAllItems() {
 
     document.addEventListener('pointerenter', onEnter, { passive: true, capture: true });
     document.addEventListener('pointerleave', onLeave, { passive: true, capture: true });
+    // Fork ParticularFlix 4.0.0.3: while the page scrolls, the cards pass under a still mouse and each one could open
+    // its preview (details request, video load) only to close it a moment later. No preview opens during a scroll and
+    // for 250 ms after it; moving the mouse over a card afterwards opens it as usual.
+    if (!window.__jmsHoverScrollGuard) {
+      window.__jmsHoverScrollGuard = true;
+      window.addEventListener('scroll', () => {
+        modalState.__suppressOpenUntil = Math.max(modalState.__suppressOpenUntil || 0, Date.now() + 250);
+      }, { passive: true, capture: true });
+    }
   }
 }
 

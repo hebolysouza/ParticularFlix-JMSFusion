@@ -1098,6 +1098,8 @@ function runDotSync() {
   try {
     const config = getConfig();
     if (!config.showDotNavigation || config.dotPosterMode) return;
+    // With the modern dots (html[data-next-style=dots]) these dots are hidden: no rebuild while slides arrive.
+    if (document.documentElement.dataset.nextStyle === "dots") return;
     const slidesContainer = getPeakViewportContainer();
     if (!slidesContainer) return;
     const slideCount = slidesContainer.querySelectorAll(".monwui-slide").length;

@@ -36,8 +36,12 @@ function startTransition(el, setInitial, setFinal) {
   raf(el, () => setFinal?.());
 }
 
+// Fork ParticularFlix 4.0.0.3: elements that hold animation timers, so a removal only needs to look at them.
+const __timedEls = new Set();
+
 function trackTimer(el, id) {
   if (!el || !id) return;
+  __timedEls.add(el);
   let arr = __animTimers.get(el);
   if (!arr) { arr = []; __animTimers.set(el, arr); }
   arr.push(id);
@@ -47,6 +51,7 @@ function trackTimer(el, id) {
 function trackRaf(el, id) {
   if (!id) return;
   if (el) {
+    __timedEls.add(el);
     let arr = __animRafs.get(el);
     if (!arr) { arr = []; __animRafs.set(el, arr); }
     arr.push(id);
@@ -72,6 +77,7 @@ function clearTimers(el) {
     __animRafs.delete(el);
   }
   if (el.__glowSub) { stopLoop(el.__glowSub); el.__glowSub = null; }
+  __timedEls.delete(el);
 }
 
 export function teardownAnimations() {
@@ -106,39 +112,34 @@ if (typeof window !== 'undefined') {
  });
 }
 
-const __removedSentinel = new WeakSet();
+// Fork ParticularFlix 4.0.0.3: the observer used to walk every element of every subtree removed anywhere in the app
+// (page changes, card lists, other plugins), a few thousand nodes per navigation. Only elements that hold timers can
+// need a cleanup, so a removal now schedules one check per frame over that short list.
 let __mo = null;
-
+let __removalCheckQueued = false;
+function runRemovalCheck() {
+  __removalCheckQueued = false;
+  for (const el of __timedEls) {
+    if (!el.isConnected) clearTimers(el);
+  }
+}
 function ensureRemovalObserver() {
   if (__mo || typeof MutationObserver === 'undefined') return;
   const root = document.body || document.documentElement;
   if (!root) return;
   __mo = new MutationObserver((muts) => {
+    if (__removalCheckQueued || !__timedEls.size) return;
     for (const m of muts) {
-      m.removedNodes && m.removedNodes.forEach(node => {
-        if (node.nodeType === 1) cleanupTree(node);
-      });
+      if (m.removedNodes && m.removedNodes.length) {
+        __removalCheckQueued = true;
+        requestAnimationFrame(runRemovalCheck);
+        return;
+      }
     }
   });
   __mo.observe(root, { childList: true, subtree: true });
 }
 ensureRemovalObserver();
-
-function cleanupTree(root) {
-  if (root.nodeType !== 1) return;
-  if (!__removedSentinel.has(root)) {
-    __removedSentinel.add(root);
-    clearTimers(root);
-  }
-  const it = document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT);
-  let n;
-  while ((n = it.nextNode())) {
-    if (!__removedSentinel.has(n)) {
-      __removedSentinel.add(n);
-      clearTimers(n);
-    }
-  }
-}
 
 const animationStyles = `
   .monwui-slide {
@@ -833,6 +834,7 @@ export function applyDotPosterAnimation(dot, isActive) {
             }
          });
           dot.__glowSub = sub;
+          __timedEls.add(dot);
         }
       } else {
         dot.style.boxShadow = GLOW_WEAK;

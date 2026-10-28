@@ -7,6 +7,11 @@
 // textos e o desfoque do painel de audio so aparecem no slide ativo.
 // Fileiras: logos sem drop-shadow, botoes de card com blur so no hover, hub-cards sem blur
 // (fundo opaco) e overlays de card sem will-change fora do hover.
+// 4.0.0.3: os slides inativos dos estilos sem Peak voltam a sair da renderizacao. Todo slide nasce com display:none
+// inline; o showSlide() tira esse display e o hideSlide({soft:true}) so troca a classe para is-hidden, que nao tinha
+// regra nenhuma. Cada slide que ja tinha passado pela tela continuava montado e pintado por baixo do ativo (backdrop,
+// gradientes com mascara, badges): depois de alguns minutos eram dezenas de camadas cheias para o navegador compor a
+// cada quadro do trailer. O slide que sai continua visivel durante a transicao (is-visible) e some ao terminar.
 // Desligar: localStorage.setItem('jmsLayerTrim', 'off') e recarregar.
 (function injectLayerTrim() {
   try {
@@ -16,6 +21,7 @@
     const st = document.createElement("style");
     st.id = "jms-layer-trim-style";
     st.textContent = [
+      "html:not([data-css-variant=peakslider]) #monwui-slides-container:not(.peak-mode) > .monwui-slide.is-hidden:not(.active):not(.is-visible){display:none!important}",
       ".monwui-slide:not(.active) :is(.monwui-status-container,.monwui-logo-container,.monwui-plot-container,.monwui-provider-container,.monwui-info-container,.monwui-director-container,.monwui-no-logo-container,.monwui-title-container,.monwui-main-btn){will-change:auto}",
       ".monwui-slide:not(.active) :is(.monwui-title-container,.monwui-plot-container,.monwui-provider-container){filter:none}",
       ".monwui-slide:not(.active) .jms-audio-preview-overlay__panel{backdrop-filter:none;-webkit-backdrop-filter:none}",

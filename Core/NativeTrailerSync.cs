@@ -488,7 +488,10 @@ public sealed class NativeTrailerSync
             args.Add(dateAfter!);
         }
 
-        args.AddRange(new[] { "-S", "res:1080", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best", "--merge-output-format", "mp4", "--postprocessor-args", "Merger:-movflags +faststart" });
+        // Fork ParticularFlix 4.0.0.3: a ordem padrao de codec do yt-dlp poe AV1 na frente, e o YouTube serve AV1 em mp4
+        // tambem, entao os trailers saiam em AV1. Navegador sem decodificacao AV1 em hardware toca esses arquivos na CPU
+        // (pesado no slider, onde um trailer comeca a cada troca de slide). H.264 e decodificado pela GPU quase sempre.
+        args.AddRange(new[] { "-S", "res:1080,vcodec:h264", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best", "--merge-output-format", "mp4", "--postprocessor-args", "Merger:-movflags +faststart" });
 
         if (simulate)
         {
