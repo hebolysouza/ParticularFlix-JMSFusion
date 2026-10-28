@@ -5,6 +5,14 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 4.0.0.6 (fork build, Jellyfin 12)
+
+Performance follow-up for scrolling the Home, from clean CPU profiles (trailer paused, first and second pass). With 4.0.0.3 to 4.0.0.5 the slider and the trailers became light (about 12% of the main thread idle, 22% with a trailer playing); scrolling the Home was still around 75%.
+
+### Performance
+- **Player header module on the Home**: to know whether a player was on screen it measured every `.videoPlayerContainer` (computed style and size) after each change of the page, forcing a full style and layout pass while the Home sections were mounting. It was the top script of the first scroll. Outside the player route, with no visible player container, it now does nothing.
+- **Hover preview closed again and again**: every card the pointer left (dozens per scroll with the mouse still) ran the preview close sequence and wiped its contents (texts, images, button markup), several times per card in the JMSFusion rows, even when the preview was already hidden and empty. It was the top script of the second scroll. A hidden, empty preview is now left alone.
+
 ## 4.0.0.5 (fork build, Jellyfin 12)
 
 Performance follow-up, from a clean CPU profile of the Home while trailers play (InPrivate window, no extensions). Same requirements; settings are kept.

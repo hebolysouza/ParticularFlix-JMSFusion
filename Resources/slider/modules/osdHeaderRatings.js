@@ -1575,9 +1575,19 @@ export function initOsdHeaderRatings() {
     // Fork ParticularFlix 4.0.0.2: at most one check per 200 ms. Each check looks for the visible player with
     // getComputedStyle, and during playback the subtitles and the OSD change the page many times per second.
     let bodyCheckTimer = 0;
+    // Fork ParticularFlix 4.0.0.6: finding the player measures every .videoPlayerContainer (getComputedStyle and
+    // getBoundingClientRect), which forced a style and layout pass of the whole page each time the Home changed (the
+    // top script while scrolling the Home for the first time). Outside the player route, with no visible player
+    // container and no header of ours on the page, there is nothing to look for.
+    const playerMaybeOnPage = () =>
+      /^#!?\/video/i.test(String(location.hash || "")) ||
+      !!document.querySelector(".videoPlayerContainer:not(.hide)") ||
+      !!document.getElementById(HOST_ID) ||
+      !!trackedVideoEl;
     const runBodyCheck = () => {
       bodyCheckTimer = 0;
       if (destroyed || document.hidden) return;
+      if (!playerMaybeOnPage()) return;
       bindVideoSignals();
       if (!isPlaybackScreenActive() && !document.getElementById(HOST_ID)) return;
       queueQuickSync();

@@ -3123,8 +3123,12 @@ function shouldHideModal() { return !modalState.isMouseInModal; }
 export function startModalHideTimer() {
   clearTimeout(modalState.modalHideTimeout);
   if (isTouchRuntime()) return;
+  // Fork ParticularFlix 4.0.0.6: every card the pointer left (dozens per scroll, with the mouse still) ran the whole
+  // close sequence (styles, stop playback, reset texts and buttons) on a preview that was already hidden. Only a
+  // preview on screen is closed.
+  if (!modalState.videoModal || (modalState.videoModal.style.display === 'none' && !modalState._isModalClosing)) return;
   modalState.modalHideTimeout = setTimeout(() => {
-    if (shouldHideModal() && modalState.videoModal) {
+    if (shouldHideModal() && modalState.videoModal && modalState.videoModal.style.display !== 'none') {
       modalState._isModalClosing = true;
       modalState._modalClosingUntil = Date.now() + MODAL_ANIM.closeMs + HARD_CLOSE_BUFFER_MS;
       modalState.videoModal.style.transition =

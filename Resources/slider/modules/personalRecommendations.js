@@ -1551,9 +1551,16 @@ function buildBackdropImageUrl(item) {
   return buildBackdropUrl(item, 1920, 80) || buildBackdropUrl(item, 420, 25) || buildPosterImageUrl(item) || null;
 }
 
+// Fork ParticularFlix 4.0.0.6: a card the pointer leaves (dozens per scroll with the mouse still) used to close and wipe
+// the preview several times (texts, images, button markup) even when it was already hidden and empty. A hidden preview
+// with no item is left alone.
+function isHoverModalIdle(modal = document.querySelector('.video-preview-modal')) {
+  return !modal || (modal.style.display === 'none' && !modal.dataset.itemId);
+}
+
 function hardWipeHoverModalDom() {
   const modal = document.querySelector('.video-preview-modal');
-  if (!modal) return;
+  if (!modal || isHoverModalIdle(modal)) return;
   try { modal.dataset.itemId = ""; } catch {}
   modal.querySelectorAll('img').forEach(img => {
     try { img.removeAttribute('src'); img.removeAttribute('srcset'); } catch {}
@@ -1758,6 +1765,7 @@ function schedulePostOpenGuard(cardEl, token, delay=340) {
 
 function scheduleClosePollingGuard(cardEl, tries=6, interval=90) {
   let count = 0;
+  if (isHoverModalIdle()) return;
   const iid = setInterval(() => {
     count++;
     if (isHoveringCardOrModal(cardEl)) { clearInterval(iid); return; }
@@ -4564,6 +4572,7 @@ function safeOpenHoverModal(itemId, anchorEl) {
 }
 
 function safeCloseHoverModal() {
+  if (isHoverModalIdle()) return;
   if (typeof window.closeHoverPreview === 'function') {
     try { window.closeHoverPreview(); return; } catch {}
   }
