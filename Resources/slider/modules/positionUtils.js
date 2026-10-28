@@ -11,11 +11,15 @@ let sliderHeaderLifecycleBound = false;
 let sliderHeaderRafId = 0;
 let sliderHeaderMutationObserver = null;
 
+// Fork ParticularFlix 4.0.0.5: 'style' left the filter. Inline styles change all the time (slide transitions, trailer
+// fades, previews, other plugins) and each record went through the selector test below; this module was the top script
+// of the Home in a CPU profile while trailers played. The header size is still followed by the ResizeObserver, and
+// pages and the header still switch by class or hidden.
 const SLIDER_HEADER_OBSERVER_OPTIONS = {
   subtree: true,
   childList: true,
   attributes: true,
-  attributeFilter: ['class', 'style', 'hidden']
+  attributeFilter: ['class', 'hidden']
 };
 
 const SLIDER_HEADER_RELEVANT_SELECTOR = [
@@ -287,10 +291,17 @@ function nodeContainsSliderHeaderRelevantTarget(node) {
 
 function shouldScheduleSliderHeaderSync(mutations = []) {
   for (const mutation of mutations) {
+    const target = mutation.target;
     if (mutation.type === 'attributes') {
-      if (nodeMatchesSliderHeaderRelevantTarget(mutation.target)) return true;
+      // Class changes on the slider itself (hover of the side bars, dots, Peak and Cinema states) do not move it
+      // under the header; they used to start a burst of five header measurements each time.
+      if (target?.id === 'monwui-slides-container') continue;
+      if (nodeMatchesSliderHeaderRelevantTarget(target)) return true;
       continue;
     }
+
+    // Changes inside the slider (slides, trailers, dots) never add or remove the header or a page.
+    if (target?.nodeType === 1 && target.closest?.('#monwui-slides-container')) continue;
 
     for (const node of mutation.addedNodes || []) {
       if (nodeMatchesSliderHeaderRelevantTarget(node) || nodeContainsSliderHeaderRelevantTarget(node)) {

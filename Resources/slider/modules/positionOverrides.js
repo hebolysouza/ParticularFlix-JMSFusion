@@ -408,21 +408,30 @@ export function forceHomeSectionsTop() {
   }
 }
 
+// Fork ParticularFlix 4.0.0.5: this runs after every DOM change anywhere on the page. Writing the same inline styles
+// again each time still changed the header's style attribute, which woke the header observer in positionUtils.js and
+// started a burst of header measurements (forced layouts) for every slide tick, dot or trailer change. Now a property
+// is only written when it differs, and the observer runs at most once per frame.
+function setImportantIfDifferent(el, prop, value) {
+  if (el.style.getPropertyValue(prop) === value && el.style.getPropertyPriority(prop) === 'important') return;
+  el.style.setProperty(prop, value, 'important');
+}
+
 export function forceSkinHeaderPointerEvents() {
   const apply = () => {
     document.querySelectorAll('html .skinHeader').forEach(el => {
-      el.style.setProperty('pointer-events', 'all', 'important');
+      setImportantIfDifferent(el, 'pointer-events', 'all');
     });
 
     const playerToggle = document.querySelector('button#jellyfinPlayerToggle');
     if (playerToggle) {
-      playerToggle.style.setProperty('display', 'block', 'important');
-      playerToggle.style.setProperty('opacity', '1', 'important');
-      playerToggle.style.setProperty('pointer-events', 'all', 'important');
-      playerToggle.style.setProperty('background', 'none', 'important');
-      playerToggle.style.setProperty('text-shadow', 'rgb(255, 255, 255) 0px 0px 2px', 'important');
-      playerToggle.style.setProperty('cursor', 'pointer', 'important');
-      playerToggle.style.setProperty('border', 'none', 'important');
+      setImportantIfDifferent(playerToggle, 'display', 'block');
+      setImportantIfDifferent(playerToggle, 'opacity', '1');
+      setImportantIfDifferent(playerToggle, 'pointer-events', 'all');
+      setImportantIfDifferent(playerToggle, 'background', 'none');
+      setImportantIfDifferent(playerToggle, 'text-shadow', 'rgb(255, 255, 255) 0px 0px 2px');
+      setImportantIfDifferent(playerToggle, 'cursor', 'pointer');
+      setImportantIfDifferent(playerToggle, 'border', 'none');
     }
   };
 
@@ -436,8 +445,13 @@ export function forceSkinHeaderPointerEvents() {
       scheduleBurst(apply);
     }
 
+    let skinHeaderRaf = 0;
     skinHeaderObserver = new MutationObserver(() => {
-      try { applySkinHeader?.(); } catch {}
+      if (skinHeaderRaf) return;
+      skinHeaderRaf = requestAnimationFrame(() => {
+        skinHeaderRaf = 0;
+        try { applySkinHeader?.(); } catch {}
+      });
     });
     reconnectObserver(skinHeaderObserver);
   } else {

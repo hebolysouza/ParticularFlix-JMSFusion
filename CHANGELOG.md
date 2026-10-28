@@ -5,6 +5,14 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 4.0.0.5 (fork build, Jellyfin 12)
+
+Performance follow-up, from a clean CPU profile of the Home while trailers play (InPrivate window, no extensions). Same requirements; settings are kept.
+
+### Performance
+- **Header observers feeding each other**: after every DOM change anywhere on the page, a helper wrote the same inline styles on the header again. Each write changed the header's `style` attribute, which another observer took as a header change and answered with a burst of five header measurements (forced layouts). So every slide tick, dot update or trailer change cost several full layouts. The styles are now written only when they differ (at most once per frame), and the header observer no longer follows `style` changes (the header size is still followed by its ResizeObserver).
+- **Slider class changes**: hover of the side bars, dots and Cinema states toggled classes on the slider, and each toggle started that same burst of header measurements. Class changes on the slider and changes inside it are now ignored by the header observer. In the profile this module was the top script of the Home (about 1.2 s of CPU in 25 s).
+
 ## 4.0.0.4 (fork build, Jellyfin 12)
 
 Performance follow-up to 4.0.0.3, guided by a CPU profile of the Home. Same requirements; settings are kept.
