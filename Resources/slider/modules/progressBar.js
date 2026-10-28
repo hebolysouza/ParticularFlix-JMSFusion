@@ -21,7 +21,10 @@ function now() { return performance.now(); }
 
 function setSecondsText(el, remainingMs) {
   if (!el) return;
-  el.textContent = Math.max(0, Math.ceil(Math.max(0, remainingMs) / 1000)).toString();
+  // Fork ParticularFlix 4.0.0.4: called every 100 ms; rewriting the same number was a DOM change ten times per second
+  // (style, layout and paint, plus every page observer). Only a new second touches the DOM.
+  const text = Math.max(0, Math.ceil(Math.max(0, remainingMs) / 1000)).toString();
+  if (el.textContent !== text) el.textContent = text;
 }
 
 function getSlidesContainer() {

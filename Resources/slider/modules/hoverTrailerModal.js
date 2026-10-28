@@ -3897,9 +3897,13 @@ export async function openPreviewModalForItem(itemId, anchorEl, opts = {}) {
   };
 
   tryPatchShowItem();
+  // Fork ParticularFlix 4.0.0.4: window.showItemDetailsPage does not exist on Jellyfin 12, so this check ran four
+  // times per second for as long as the page stayed open (the top script in the CPU profile of the Home). It now
+  // gives up after 10 s; route changes still close the overlays through the listeners below.
+  let patchTries = 0;
   const patchTimer = setInterval(() => {
     tryPatchShowItem();
-    if (window.__showItemPatched) clearInterval(patchTimer);
+    if (window.__showItemPatched || ++patchTries >= 40) clearInterval(patchTimer);
   }, 250);
 
   document.addEventListener('click', (e) => {

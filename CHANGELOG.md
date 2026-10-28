@@ -5,6 +5,15 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 4.0.0.4 (fork build, Jellyfin 12)
+
+Performance follow-up to 4.0.0.3, guided by a CPU profile of the Home. Same requirements; settings are kept.
+
+### Performance
+- **Endless timer on Jellyfin 12**: the hover module waited for `window.showItemDetailsPage` (a Jellyfin 10 function) with a 250 ms timer that only stopped once it appeared. On Jellyfin 12 it never appears, so the timer ran four times per second for as long as the page was open; it was the top script in the profile. It now gives up after 10 s (route changes still close the overlays).
+- **Slider seconds counter**: it rewrote the same number every 100 ms, a DOM change ten times per second (style, layout and paint, plus every page observer). The text now changes only when the second changes.
+- **Orb buttons, Play pulse**: the pulse animated a box-shadow forever, repainting the button on every frame over the trailer. It now pulses three times each time the slide is shown.
+
 ## 4.0.0.3 (fork build, Jellyfin 12)
 
 Performance release. Same requirements as 4.0.0.2 (Jellyfin 12.x, net10.0). Settings are kept; no setting is renamed or reset.

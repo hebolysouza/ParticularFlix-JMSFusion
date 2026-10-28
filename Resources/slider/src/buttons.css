@@ -90,7 +90,8 @@ html[data-button-style=orbs] .monwui-btn-container:active{transform:translateY(0
 html[data-button-style=orbs] .monwui-btn-container:has(.monwui-watch-btn){
   background:linear-gradient(150deg,#b3151d,#6f0a10)!important;border-color:rgba(255,120,120,.28);color:#fff;-webkit-backdrop-filter:none;backdrop-filter:none;
   width:calc(var(--pf-orb) * 1.18)!important;min-width:calc(var(--pf-orb) * 1.18)!important;max-width:calc(var(--pf-orb) * 1.18)!important;height:calc(var(--pf-orb) * 1.18)!important;
-  animation:pf-orb-pulse 2.4s ease-out infinite}
+/* Three pulses each time the slide is shown: an endless box-shadow animation repaints the button on every frame, over the trailer. */
+  animation:pf-orb-pulse 2.4s ease-out 3}
 html[data-button-style=orbs] .monwui-btn-container:has(.monwui-watch-btn):hover{
   background:linear-gradient(150deg,#c4202a,#7d0c13)!important;animation:none;box-shadow:0 0 0 2px rgba(255,255,255,.85),0 10px 22px rgba(0,0,0,.45)!important}
 @keyframes pf-orb-pulse{0%{box-shadow:0 0 0 0 rgba(179,21,29,.55)}70%,100%{box-shadow:0 0 0 12px rgba(179,21,29,0)}}
