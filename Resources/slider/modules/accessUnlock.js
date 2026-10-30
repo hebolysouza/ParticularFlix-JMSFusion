@@ -102,12 +102,17 @@ function isPlayerActive() {
   return !!document.querySelector("video.htmlvideoplayer, .videoPlayerContainer:not(.hide)");
 }
 
+// Fork ParticularFlix: so as copias do usuario desta pagina (o escopo termina em "|<userId>"). Antes saiam as de todos os
+// perfis, e o administrador voltava sem o cache do slider.
 function clearListCaches() {
+  const uid = liveUserId() || String(lastStatus?.userId || "").replace(/-/g, "").toLowerCase();
   try {
     const prefix = "jms:scoped-json-cache:v1:";
     for (let i = sessionStorage.length - 1; i >= 0; i--) {
       const k = sessionStorage.key(i);
-      if (k && k.startsWith(prefix)) sessionStorage.removeItem(k);
+      if (!k || !k.startsWith(prefix)) continue;
+      const owner = k.slice(k.lastIndexOf("|") + 1).replace(/-/g, "").toLowerCase();
+      if (!uid || owner === uid) sessionStorage.removeItem(k);
     }
   } catch {}
 }

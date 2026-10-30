@@ -196,12 +196,18 @@ namespace Jellyfin.Plugin.JMSFusion.Core
             }
 
             entry.Generation = Math.Max(entry.Generation + 1, now);
-            PruneOldCaches(plugin, entry.Generation);
+            PruneOldCaches(plugin);
         }
 
-        private static void PruneOldCaches(JMSFusionPlugin plugin, long generation)
+        // Fork ParticularFlix: os arquivos de cache tem nome de hash (escopo + geracao) e nao dizem de quem sao. A limpeza
+        // apagava todo arquivo anterior a nova geracao, ou seja, o cache de TODOS os usuarios a cada desbloqueio, bloqueio
+        // ou reaplicacao do perfil restrito; ao voltar para o administrador o slider refazia tudo do zero (~30 s). A
+        // geracao nova ja torna os arquivos antigos do usuario inalcancaveis; aqui so saem os parados ha mais de 14 dias.
+        private static readonly TimeSpan OrphanCacheMaxAge = TimeSpan.FromDays(14);
+
+        private static void PruneOldCaches(JMSFusionPlugin plugin)
         {
-            var cutoff = DateTimeOffset.FromUnixTimeMilliseconds(generation).UtcDateTime;
+            var cutoff = DateTime.UtcNow - OrphanCacheMaxAge;
             foreach (var type in Core.ScopedCacheJsonService.GenerationCacheTypes)
             {
                 try
