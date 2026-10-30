@@ -178,8 +178,24 @@ function readAuthContext() {
   }
 }
 
+// Fork ParticularFlix: depois de uma troca de perfil com token revogado e de um login sem "Lembrar-me", o
+// jellyfin_credentials guarda um token morto e o valido so existe no ApiClient. Gravar com o token guardado dava
+// 401, a configuracao nao chegava ao servidor e o proximo carregamento a trocava pela copia antiga ("reset").
+function readLiveApiClientAuth() {
+  try {
+    const api = window.ApiClient;
+    if (!api) return null;
+    const token = String((typeof api.accessToken === "function" ? api.accessToken() : api._accessToken) || "");
+    const userId = String((typeof api.getCurrentUserId === "function" ? api.getCurrentUserId() : api._currentUserId) || "")
+      .replace(/-/g, "").toLowerCase();
+    return token && userId ? { token, userId } : null;
+  } catch {
+    return null;
+  }
+}
+
 function buildAuthHeaders() {
-  const { token, userId } = readAuthContext();
+  const { token, userId } = readLiveApiClientAuth() || readAuthContext();
   const headers = {};
   if (token) headers["X-Emby-Token"] = token;
   if (userId) headers["X-Emby-UserId"] = userId;
@@ -416,6 +432,8 @@ const bootStartedAt = Date.now();
 
 function isFirstSlideReady() {
   try {
+    // Perfil com tudo bloqueado nao tem slider: sem isto cada gravacao esperava os 12 s inteiros.
+    if (document.documentElement.classList.contains("jms-access-blocked")) return true;
     return performance.getEntriesByName("jms:first-slide-ready").length > 0;
   } catch {
     return true;

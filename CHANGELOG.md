@@ -5,6 +5,19 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 4.0.0.7 (fork build, Jellyfin 12)
+
+Fixes for switching profiles, saving profile settings, the header logo and the custom folder. Same requirements as 4.0.0.6 (Jellyfin 12.x, net10.0); settings are kept.
+
+### Fixes
+- **Profile switch logged the user out**: Jellyfin revokes a user's previous token when that user signs in again from the same browser. The profile chooser kept using the token it had remembered, so a switch through the avatar loaded the page with a revoked token and dropped to the login screen; a login made there without "Remember me" was then lost on the next reload. The chooser now checks the remembered token before using it (a revoked one is forgotten and the profile asks for its password inside the chooser), refreshes the remembered token when that profile signs in through the Jellyfin login screen, and hands the new token to the player too.
+- **Profile settings reset after an unlock**: the settings of a profile were saved with the token stored in the browser, which could be the revoked one; the server refused them, and the next load replaced the local values with the old copy from the server. Settings are now saved with the live session token, a page with every library blocked no longer delays the save, and unlocking or locking waits for a pending save before reloading.
+- **Access status after a login**: signing in through the Jellyfin login screen does not reload the page, so the blocked-profile notice and the unlock button only appeared after a manual reload. The status is checked again when the signed-in user changes.
+- **Header logo (header script)**: the logo styles lived only in the server's custom CSS, which applies after its `@import`s finish downloading; until then the logo showed as plain, lower "PARTICULARFLIX" text on every load and page change. The header script now carries the logo styles itself. FLIX no longer has the 1 px optical offset (`:root{--pf-flix-y:1px}` brings it back).
+
+### New
+- **Custom folder can serve themes and fonts**: files whose name starts with `_` and font files (`.woff2`, `.woff`, `.ttf`, `.otf`) in the JMSFusion `custom` folder are served at `/JMSFusion/custom/<name>` but not injected into the page. `extras/jms-netfin-local12.ps1` uses this to keep the NetFin theme and its Google fonts on the server, so the custom CSS imports them locally (works offline, no external request on every load).
+
 ## 4.0.0.6 (fork build, Jellyfin 12)
 
 Performance follow-up for scrolling the Home, from clean CPU profiles (trailer paused, first and second pass). With 4.0.0.3 to 4.0.0.5 the slider and the trailers became light (about 12% of the main thread idle, 22% with a trailer playing); scrolling the Home was still around 75%.

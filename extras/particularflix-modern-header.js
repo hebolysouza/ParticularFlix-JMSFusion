@@ -55,12 +55,23 @@
         ".pf-logo,.pf-logo-modern,.pf-logo-osd{align-items:center !important;}",
         ".pf-logo .pf-wm,.pf-logo-modern .pf-wm,.pf-logo-osd .pf-wm{display:inline-flex !important;align-items:baseline !important;}",
         ".pf-logo .pf-wm-p,.pf-logo .pf-wm-f,.pf-logo-modern .pf-wm-p,.pf-logo-modern .pf-wm-f,.pf-logo-osd .pf-wm-p,.pf-logo-osd .pf-wm-f{top:0 !important;bottom:auto !important;margin-top:0 !important;margin-bottom:0 !important;vertical-align:baseline !important;text-box:trim-both cap alphabetic;}",
-        // Correcao optica: medido em pixels, FLIX e PARTICULAR ocupam exatamente as mesmas linhas, mas o vermelho sobre o
-        // fundo escuro parece mais alto que o cinza claro. FLIX desce 1px (ajustavel no CSS do tema: :root{--pf-flix-y:2px}).
-        ".pf-logo .pf-wm-f,.pf-logo-modern .pf-wm-f,.pf-logo-osd .pf-wm-f{transform:translateY(var(--pf-flix-y,1px));}",
+        // FLIX e PARTICULAR na mesma linha exata, sem correcao optica (pedido do dono). Ajuste opcional no CSS do tema:
+        // :root{--pf-flix-y:1px}.
+        ".pf-logo .pf-wm-f,.pf-logo-modern .pf-wm-f,.pf-logo-osd .pf-wm-f{transform:translateY(var(--pf-flix-y,0px));}",
         "@supports not (text-box: trim-both cap alphabetic){.pf-logo .pf-wm,.pf-logo-modern .pf-wm,.pf-logo-osd .pf-wm{position:relative;top:0.1em;}}",
         // No Modern o logo fica do tamanho do Legado.
         "html.pf-modern-on header.MuiAppBar-root .MuiToolbar-root > .pf-logo-modern{zoom:1.3;}",
+        // Fork ParticularFlix: o visual do logo vinha so do CSS do branding, que so vale depois de baixar os @import (tema e
+        // fontes). Ate la o logo aparecia como texto "PARTICULARFLIX" sem icone, mais baixo, a cada carga ou troca de
+        // pagina. Os mesmos valores do branding ficam aqui (Modern e Legado), entao o logo ja nasce no lugar certo.
+        ".pf-logo-modern .pf-badge-wrap,.pf-logo .pf-badge-wrap{position:relative;display:block;flex:0 0 auto;width:28px;height:28px;border-radius:6.5px;overflow:hidden;transition:transform 300ms cubic-bezier(0.22,1,0.36,1);}",
+        ".pf-logo-modern .pf-badge,.pf-logo .pf-badge{display:block;position:static;width:100%;height:100%;margin:0;}",
+        ".pf-logo-modern .pf-bar,.pf-logo .pf-bar{transform-box:fill-box;transform-origin:50% 100%;transition:transform 320ms cubic-bezier(0.22,1,0.36,1);}",
+        ".pf-logo-modern .pf-badge-sheen,.pf-logo .pf-badge-sheen{position:absolute;inset:0;border-radius:6.5px;pointer-events:none;background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,0.42) 50%,transparent 62%);transform:translateX(-130%);}",
+        ".pf-logo-modern .pf-wm,.pf-logo .pf-wm{font-family:\"Bebas Neue\",Impact,\"Arial Narrow\",sans-serif;font-size:26px;letter-spacing:1.5px;line-height:1;white-space:nowrap;text-transform:none;}",
+        ".pf-logo-modern .pf-wm-p,.pf-logo .pf-wm-p{color:#F2F2F2;}",
+        ".pf-logo-modern .pf-wm-f,.pf-logo .pf-wm-f{position:relative;color:#E50914;transition:color 240ms ease,text-shadow 240ms ease;}",
+        ".pf-logo-modern .pf-wm-f::after,.pf-logo .pf-wm-f::after{content:\"\";position:absolute;left:0;right:0;bottom:-4px;height:3px;background:#E50914;transform:scaleX(0);transform-origin:left center;transition:transform 380ms ease;}",
         // Selo do Jellyfin Oscars nos detalhes: so o trofeu e o texto, sem contorno nem fundo.
         ".jellyfinOscarsDetailBadge,.jellyfinOscarsDetailBadge.mediaInfoText,.oscarsBadge.mediaInfoText{border:0 !important;outline:0 !important;box-shadow:none !important;background:transparent !important;background-image:none !important;padding:0 !important;border-radius:0 !important;}",
         // Os botoes de icone nascem com 52 px e so caem para 48 px quando o resto do CSS entra; isso mudava a

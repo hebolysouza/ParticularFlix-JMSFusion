@@ -515,8 +515,36 @@ function applyAuthToJellyfinCredentials({ userId, userName, accessToken }) {
   try { localStorage.setItem("accessToken", accessToken); sessionStorage.setItem("accessToken", accessToken); } catch {}
   try { localStorage.setItem("embyToken", accessToken); sessionStorage.setItem("embyToken", accessToken); } catch {}
   try { localStorage.setItem("userId", userId); sessionStorage.setItem("userId", userId); } catch {}
+  // Fork ParticularFlix: o player le primeiro o "api-key" da sessionStorage; sem isto ele seguia com o token do
+  // perfil anterior (ou com um token ja revogado) depois da troca.
+  try { sessionStorage.setItem("api-key", accessToken); } catch {}
 
   return true;
+}
+
+// Fork ParticularFlix: o Jellyfin revoga o token anterior quando o mesmo usuario entra de novo pelo mesmo navegador.
+// Um token lembrado pode estar morto; aplicado assim mesmo, a pagina recarregava com "Invalid token", caia na tela de
+// login e o login feito ali (sem "Lembrar-me") nao sobrevivia ao F5. Devolve false so quando o servidor recusou o
+// token (401); falha de rede ou outro status nao bloqueia a troca.
+async function isRememberedTokenAlive(accessToken) {
+  const token = String(accessToken || "").trim();
+  if (!token) return false;
+  try {
+    // Mesmo cliente e DeviceId da sessao atual, so com o token lembrado no lugar.
+    let base = 'MediaBrowser Client="Jellyfin Web Client"';
+    try { base = String(getAuthHeader?.() || base).replace(/,\s*Token="[^"]*"/, ""); } catch {}
+    const res = await fetchWithTimeout(withServer("/Users/Me"), {
+      headers: {
+        Accept: "application/json",
+        Authorization: `${base}, Token="${token.replace(/"/g, "")}"`
+      },
+      cache: "no-store",
+      credentials: "same-origin"
+    }, 5000);
+    return res.status !== 401;
+  } catch {
+    return true;
+  }
 }
 
 async function fetchWithTimeout(url, opts = {}, timeoutMs = 7000) {
@@ -1476,6 +1504,17 @@ export function initProfileChooser(options = {}) {
       const uid = String(si.userId || "").trim();
       if (!uid) return;
 
+      // Fork ParticularFlix: login feito pela tela do Jellyfin revoga o token que o seletor guardava para este
+      // perfil. Se este perfil ja estava lembrado, o token vivo da sessao passa a ser o lembrado.
+      if (rememberTokens) {
+        const liveToken = String(si.accessToken || "").trim();
+        const known = readTokenStore();
+        const rec = known?.[uid] || null;
+        if (rec?.accessToken && liveToken && rec.accessToken !== liveToken) {
+          rememberUserToken({ userId: uid, name: rec.name || "", accessToken: liveToken });
+        }
+      }
+
       const u = await fetchUserByIdAuthed(uid).catch(() => null);
       if (!u) return;
       const newTag = getUserPrimaryImageTag(u);
@@ -1489,6 +1528,7 @@ export function initProfileChooser(options = {}) {
         accessToken: cur?.accessToken || "",
         name: cur?.name || String(u?.Name || "").trim() || "",
         primaryImageTag: newTag,
+        isAdmin: cur?.isAdmin === true,
         ts: Date.now(),
       };
       writeTokenStore(store);
@@ -1883,6 +1923,11 @@ export function initProfileChooser(options = {}) {
 
     try { overlay?.classList.add("busy"); } catch {}
     try {
+      if (!(await isRememberedTokenAlive(remembered.accessToken))) {
+        forgetRememberedToken(resolvedUserId);
+        return false;
+      }
+
       await rememberCurrentAdminToken().catch(() => {});
 
       applyAuthToJellyfinCredentials({
@@ -1960,10 +2005,16 @@ export function initProfileChooser(options = {}) {
       const adminUserId = String(user.AdminUserId || "").trim();
       const rememberedAdmin = getRememberedToken(adminUserId);
       if (rememberedAdmin?.accessToken) {
-        await switchWithRememberedToken(user, rememberedAdmin, {
+        const switched = await switchWithRememberedToken(user, rememberedAdmin, {
           targetUserId: adminUserId,
           forceAdmin: true,
         });
+        if (switched) return;
+      }
+      // Token do administrador revogado: pede a senha dele aqui mesmo, em vez de derrubar a sessao atual.
+      const adminName = String(rememberedAdmin?.name || "").trim();
+      if (adminName) {
+        showLogin({ Id: adminUserId, Name: adminName, HasPassword: true, PrimaryImageTag: rememberedAdmin?.primaryImageTag || "" }, { hint: L("profilSifreIstiyor", "Bu profil şifre istiyor.") });
       }
       return;
     }
@@ -1976,8 +2027,7 @@ export function initProfileChooser(options = {}) {
 
     const remembered = getRememberedToken(user.Id);
     if (remembered?.accessToken) {
-      await switchWithRememberedToken(user, remembered);
-      return;
+      if (await switchWithRememberedToken(user, remembered)) return;
     }
 
     if (!user.HasPassword) {

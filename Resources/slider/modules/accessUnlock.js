@@ -112,11 +112,53 @@ function clearListCaches() {
   } catch {}
 }
 
+// Fork ParticularFlix: configuracao alterada pouco antes de desbloquear/bloquear ainda podia estar na fila de gravacao;
+// o reload cortava o envio no meio ("Unexpected end of request content") e ela se perdia. Espera a gravacao (no maximo
+// 2,5 s) antes de recarregar.
+async function flushSettingsBeforeReload() {
+  const bridge = window.__JMS_MANAGED_STORAGE__;
+  if (!bridge || typeof bridge.flush !== "function") return;
+  try {
+    await Promise.race([bridge.flush(), new Promise((r) => setTimeout(r, 2500))]);
+  } catch {}
+}
+
 // Recarrega sem que o cache em memoria (antigo) seja gravado de volta no servidor durante o pagehide.
-function reloadClean() {
+async function reloadClean() {
+  await flushSettingsBeforeReload();
   try { blockScopedCacheFlush(); } catch {}
   clearListCaches();
   location.reload();
+}
+
+function liveUserId() {
+  try {
+    const api = window.ApiClient;
+    const id = typeof api?.getCurrentUserId === "function" ? api.getCurrentUserId() : api?._currentUserId;
+    return String(id || "").replace(/-/g, "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+// Fork ParticularFlix: login pela tela do Jellyfin nao recarrega a pagina; o status (aviso de bloqueio, botao de
+// desbloqueio) era do usuario anterior ou de ninguem ate o proximo ciclo de 60 s. A cada troca de rota confere se o
+// usuario logado mudou e, se mudou, consulta de novo.
+let lastUserCheck = 0;
+function refreshIfUserChanged() {
+  const now = Date.now();
+  if (now - lastUserCheck < 1500) return;
+  lastUserCheck = now;
+  const uid = liveUserId();
+  if (!uid) return;
+  const known = String(lastStatus?.userId || "").replace(/-/g, "").toLowerCase();
+  if (known === uid) return;
+  if (lastStatus && known) {
+    document.documentElement.classList.remove("jms-access-blocked");
+    clearEmptyNotice();
+    removeEls();
+  }
+  void refresh();
 }
 
 // Se a geracao de cache do usuario mudou no servidor (permissoes alteradas), esta pagina esta com dados
@@ -389,6 +431,7 @@ export function initAccessUnlock() {
     void refresh();
   });
   window.addEventListener("hashchange", () => {
+    refreshIfUserChanged();
     guardBlockedRoute();
     if (lastStatus) scheduleEmptyHomeCheck(lastStatus);
   });
