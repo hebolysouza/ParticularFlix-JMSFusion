@@ -805,6 +805,23 @@ function clearPersistedIdentity() {
   } catch {}
 }
 
+function dropStaleTokenCopies(usedToken = "") {
+  const api = (typeof window !== "undefined" && window.ApiClient) ? window.ApiClient : null;
+  const live = String((api && (typeof api.accessToken === "function" ? api.accessToken() : api._accessToken)) || "");
+  const used = String(usedToken || "");
+  if (!used || used === live) return;
+  for (const k of ["api-key", "accessToken", "embyToken"]) {
+    for (const store of [sessionStorage, localStorage]) {
+      try {
+        if (store.getItem(k) === used) {
+          if (live) store.setItem(k, live);
+          else store.removeItem(k);
+        }
+      } catch {}
+    }
+  }
+}
+
 function requiresAuth(url = "") {
   try {
     const u = url.startsWith("http") ? new URL(url) : null;
@@ -1280,11 +1297,13 @@ async function safeFetch(url, opts = {}) {
       err.status = 401;
       throw err;
     }
+    // Fork ParticularFlix: aqui o JMS zerava o token do proprio Jellyfin (ApiClient) e o DeviceId a cada 401. Varias
+    // rotas do plugin respondem 401 por regra propria (usuario nao identificado, cabecalho ausente) e uma copia antiga
+    // do token tambem da 401; com o token zerado o Jellyfin ia para a tela de login sem ter saido ("Token is required"),
+    // sobretudo logo apos desbloquear/bloquear o perfil. Sessao realmente invalida o proprio Jellyfin trata. Aqui so
+    // saem as copias do token que o JMS guarda e que ja nao sao o token vivo.
     try {
-      clearCredentials();
-    } catch {}
-    try {
-      clearPersistedIdentity();
+      dropStaleTokenCopies(token);
     } catch {}
     const err = new Error("Oturum geçersiz (401) – kimlik temizlendi, tekrar giriş gerekli.");
     err.status = 401;
