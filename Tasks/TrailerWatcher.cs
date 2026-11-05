@@ -14,9 +14,9 @@ namespace Jellyfin.Plugin.JMSFusion.Tasks;
 /// Fork ParticularFlix 4.0.0.10: antes dependia so do evento ItemAdded do Jellyfin, que chega depois do atraso do
 /// monitor de biblioteca e do escaneamento, e ainda esperava 3 minutos de silencio (4 a 5 minutos no total; o script
 /// antigo no Windows reagia em segundos). Agora:
-/// 1) vigia as pastas das bibliotecas de filmes e series (FileSystemWatcher) e processa a pasta nova 15 s depois do
+/// 1) vigia as pastas das bibliotecas de filmes e series (FileSystemWatcher) e processa a pasta nova 5 s depois do
 ///    ultimo evento, sem esperar o Jellyfin catalogar o titulo (ano e TMDb saem do nome da pasta);
-/// 2) a cada 30 s compara a lista de pastas do primeiro nivel de cada biblioteca, para o caso de o evento de arquivo
+/// 2) a cada 10 s compara a lista de pastas do primeiro nivel de cada biblioteca, para o caso de o evento de arquivo
 ///    nao chegar ao container (montagens do Docker Desktop);
 /// 3) o ItemAdded continua como ultima rede, com 90 s de silencio, rodando a sincronizacao das pastas sem trailer.
 /// A tarefa agendada segue procurando faltantes e trocando trailers AV1 nos horarios dela.
@@ -24,8 +24,12 @@ namespace Jellyfin.Plugin.JMSFusion.Tasks;
 public sealed class TrailerWatcher : IHostedService, IDisposable
 {
     private static readonly TimeSpan QuietPeriod = TimeSpan.FromSeconds(90);
-    private static readonly TimeSpan FolderSettle = TimeSpan.FromSeconds(15);
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
+    // Medido em 05/11/2026 no teste: nas montagens do Docker Desktop o evento de arquivo nao chega ao container (nem
+    // para pasta criada por outro processo dentro dele, como o Radarr faz); quem acha a pasta nova e a varredura. Por
+    // isso ela roda a cada 10 s (listar o primeiro nivel das bibliotecas e barato) e o download comeca 5 s depois.
+    private static readonly TimeSpan FolderSettle = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan RootsRefresh = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan FirstPoll = TimeSpan.FromSeconds(15);
     // Na primeira varredura, pastas alteradas ha menos que isso entram na fila: um titulo que chegou durante a subida
     // do servidor (antes de existir watcher e lista de pastas conhecidas) nao pode ser tomado como antigo.
@@ -49,6 +53,8 @@ public sealed class TrailerWatcher : IHostedService, IDisposable
     private List<(string Root, bool IsSeries)> _roots = new();
     private string _rootsKey = string.Empty;
     private DateTime _lastWatcherRefresh = DateTime.MinValue;
+    private DateTime _lastRootsRead = DateTime.MinValue;
+    private List<(string Root, bool IsSeries)> _cachedRoots = new();
     private Timer? _itemAddedTimer;
     private Timer? _flushTimer;
     private Timer? _pollTimer;
@@ -322,8 +328,14 @@ public sealed class TrailerWatcher : IHostedService, IDisposable
 
         try
         {
-            var roots = ReadRoots();
-            RefreshWatchers(roots);
+            if (DateTime.UtcNow - _lastRootsRead >= RootsRefresh || _cachedRoots.Count == 0)
+            {
+                _cachedRoots = ReadRoots();
+                _lastRootsRead = DateTime.UtcNow;
+                RefreshWatchers(_cachedRoots);
+            }
+
+            var roots = _cachedRoots;
             foreach (var (root, isSeries) in roots)
             {
                 List<string> dirs;
