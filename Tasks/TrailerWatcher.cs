@@ -224,7 +224,7 @@ public sealed class TrailerWatcher : IHostedService, IDisposable
                     w.Renamed += (_, e) => OnFsEvent(r, s, e.FullPath);
                     w.Error += (_, e) =>
                     {
-                        _logger.LogWarning("[JMS trailers] Tempo real: watcher de {Pasta} falhou ({Erro}); a varredura de 30 s continua.", r, e.GetException()?.Message);
+                        _logger.LogWarning("[JMS trailers] Tempo real: watcher de {Pasta} falhou ({Erro}); a varredura de 10 s continua.", r, e.GetException()?.Message);
                         try
                         {
                             w.EnableRaisingEvents = false;
@@ -317,7 +317,7 @@ public sealed class TrailerWatcher : IHostedService, IDisposable
         }
     }
 
-    // A cada 30 s: confere os watchers e procura pastas novas no primeiro nivel de cada biblioteca. A primeira passada
+    // A cada 10 s: confere os watchers e procura pastas novas no primeiro nivel de cada biblioteca. A primeira passada
     // so memoriza o que ja existe; dai em diante, pasta nova vai para a fila (a mesma dos eventos de arquivo).
     private void Poll()
     {
