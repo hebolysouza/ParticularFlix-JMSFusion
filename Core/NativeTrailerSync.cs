@@ -49,9 +49,18 @@ public sealed class NativeTrailerSync
     private const string UpgradeBackupPrefix = ".jms-av1-";
     private const string UpgradeBackupSuffix = ".bak";
     private static readonly TimeSpan UpgradeRetryAfterFailure = TimeSpan.FromHours(12);
-    private static readonly TimeSpan UpgradeRetryAfterNoOtherCodec = TimeSpan.FromDays(7);
     private static readonly ConcurrentDictionary<string, DateTime> UpgradeBlockedUntil = new(StringComparer.Ordinal);
-    private static readonly ConcurrentDictionary<string, (long Size, DateTime Mtime, string Codec)> CodecCache = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, (long Size, DateTime Mtime, string Codec, int Height)> CodecCache = new(StringComparer.Ordinal);
+
+    // Fork ParticularFlix 4.0.0.10: na 4.0.0.8 tres trailers AV1 1080p viraram H.264 240p/360p/480p (o video so tinha
+    // H.264 em baixa resolucao) e os trocados ocupam o dobro do AV1 com o disco da biblioteca quase cheio. Agora:
+    // H.264/VP9 so a partir de 720p (abaixo disso fica o AV1 de maior resolucao), o trailer novo so fica se for melhor
+    // que o antigo, trailers H.264/VP9 abaixo de 720p tambem sao revistos, e nada e baixado sem folga de disco.
+    private const int MinGoodHeight = 720;
+    private const long UpgradeMinFreeMb = 20L * 1024;
+    private const long DownloadMinFreeMb = 2L * 1024;
+    private const string KeepMarkerName = ".jms-trailer-keep";
+    private static readonly TimeSpan KeepMarkerValidity = TimeSpan.FromDays(30);
 
     private readonly ILibraryManager _libraryManager;
     private readonly TrailerAutomationService _tools;
@@ -170,7 +179,7 @@ public sealed class NativeTrailerSync
         }
 
         var upgrades = withTrailer.Count > 0
-            ? await FindAv1TrailersAsync(withTrailer, ct).ConfigureAwait(false)
+            ? await FindTrailersToUpgradeAsync(withTrailer, ct).ConfigureAwait(false)
             : new List<(BaseItem Item, string Folder, string File)>();
         var total = count + upgrades.Count;
 
@@ -215,6 +224,17 @@ public sealed class NativeTrailerSync
         for (var i = 0; i < count; i++)
         {
             ct.ThrowIfCancellationRequested();
+            if (!simulate)
+            {
+                var freeNow = FreeMbFor(GetItemFolder(work[i]) ?? string.Empty);
+                if (freeNow >= 0 && freeNow < DownloadMinFreeMb)
+                {
+                    Log("Downloads de trailer pausados: so " + FormatGb(freeNow) + " livres no disco da biblioteca (minimo "
+                        + FormatGb(DownloadMinFreeMb) + "). Os itens restantes ficam para a proxima execucao.");
+                    break;
+                }
+            }
+
             try
             {
                 var folderKey = GetItemFolder(work[i]) ?? string.Empty;
@@ -250,9 +270,18 @@ public sealed class NativeTrailerSync
         {
             ct.ThrowIfCancellationRequested();
             var up = upgrades[j];
+            var freeUp = FreeMbFor(up.Folder);
+            if (freeUp >= 0 && freeUp < UpgradeMinFreeMb)
+            {
+                Log("Troca de trailers pausada: so " + FormatGb(freeUp) + " livres no disco da biblioteca (minimo "
+                    + FormatGb(UpgradeMinFreeMb) + " para trocar). Volta sozinha quando houver espaco.");
+                break;
+            }
+
             try
             {
-                Log("Trocando trailer AV1 por H.264/VP9: " + new DirectoryInfo(up.Folder).Name);
+                Log("Trocando trailer AV1 ou de baixa resolucao: " + new DirectoryInfo(up.Folder).Name
+                    + " (livre: " + (freeUp >= 0 ? FormatGb(freeUp) : "?") + ")");
                 if (await UpgradeTrailerAsync(up.Item, up.Folder, up.File, toolkit, cookies, tmdbKey, ct).ConfigureAwait(false))
                 {
                     upgraded++;
@@ -567,10 +596,12 @@ public sealed class NativeTrailerSync
         // 720p em H.264 e AV1 continuou entrando (64% dos trailers no inventario de 05/11/2026). Agora o AV1 fica fora do
         // seletor e so entra se o video nao tiver nenhum outro formato; entre os demais, ate 1080p, H.264 antes de VP9
         // ("+codec:avc:m4a" e a forma documentada do yt-dlp para preferir h264 > h265 > vp9 > av01 e audio m4a).
+        // 4.0.0.10: H.264/VP9 so a partir de 720p; sem isso, o melhor video ate 1080p em qualquer codec (AV1 inclusive),
+        // para nunca trocar um 1080p por um 240p.
         args.AddRange(new[]
         {
             "-S", "res:1080,+codec:avc:m4a",
-            "-f", "bestvideo[vcodec!^=av01]+bestaudio[ext=m4a]/bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]/bestvideo+bestaudio[ext=m4a]/best",
+            "-f", "bestvideo[vcodec!^=av01][height>=720]+bestaudio[ext=m4a]/bestvideo[vcodec!^=av01][height>=720]+bestaudio/bestvideo+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
             "--merge-output-format", "mp4", "--postprocessor-args", "Merger:-movflags +faststart"
         });
 
@@ -797,8 +828,9 @@ public sealed class NativeTrailerSync
         return null;
     }
 
-    // Lista os trailers em AV1 (ffprobe, com cache por tamanho e data do arquivo) que podem ser refeitos agora.
-    private async Task<List<(BaseItem Item, string Folder, string File)>> FindAv1TrailersAsync(
+    // Lista os trailers que valem ser refeitos agora: AV1 (CPU) ou H.264/VP9 abaixo de 720p (imagem ruim).
+    // ffprobe com cache por tamanho e data; pastas com marcador valido (nao havia versao melhor) ficam de fora.
+    private async Task<List<(BaseItem Item, string Folder, string File)>> FindTrailersToUpgradeAsync(
         List<(BaseItem Item, string Folder, string File)> candidates,
         CancellationToken ct)
     {
@@ -806,22 +838,45 @@ public sealed class NativeTrailerSync
         var ffprobe = _tools.ResolveFfprobePath();
         if (string.IsNullOrWhiteSpace(ffprobe))
         {
-            Log("Aviso: ffprobe nao encontrado; a troca de trailers AV1 fica para a proxima execucao.");
+            Log("Aviso: ffprobe nao encontrado; a troca de trailers fica para a proxima execucao.");
             return result;
         }
 
         var av1 = 0;
+        var lowRes = 0;
         var blocked = 0;
+        var kept = 0;
         foreach (var c in candidates)
         {
             ct.ThrowIfCancellationRequested();
-            var codec = await ProbeVideoCodecAsync(ffprobe!, c.File, ct).ConfigureAwait(false);
-            if (!string.Equals(codec, "av1", StringComparison.OrdinalIgnoreCase))
+            var info = await ProbeVideoAsync(ffprobe!, c.File, ct).ConfigureAwait(false);
+            if (info is null)
             {
                 continue;
             }
 
-            av1++;
+            var isAv1 = string.Equals(info.Value.Codec, "av1", StringComparison.OrdinalIgnoreCase);
+            var isLow = !isAv1 && info.Value.Height > 0 && info.Value.Height < MinGoodHeight;
+            if (!isAv1 && !isLow)
+            {
+                continue;
+            }
+
+            if (isAv1)
+            {
+                av1++;
+            }
+            else
+            {
+                lowRes++;
+            }
+
+            if (HasValidKeepMarker(c.Folder, c.File))
+            {
+                kept++;
+                continue;
+            }
+
             if (UpgradeBlockedUntil.TryGetValue(c.Folder, out var until) && DateTime.UtcNow < until)
             {
                 blocked++;
@@ -834,9 +889,11 @@ public sealed class NativeTrailerSync
             }
         }
 
-        if (av1 > 0)
+        if (av1 + lowRes > 0)
         {
-            Log("Trailers em AV1 (sem decodificacao por hardware em muitas placas): " + av1.ToString(CultureInfo.InvariantCulture)
+            Log("Trailers em AV1: " + av1.ToString(CultureInfo.InvariantCulture)
+                + "; H.264/VP9 abaixo de 720p: " + lowRes.ToString(CultureInfo.InvariantCulture)
+                + "; sem versao melhor no YouTube (mantidos): " + kept.ToString(CultureInfo.InvariantCulture)
                 + "; refazendo " + result.Count.ToString(CultureInfo.InvariantCulture) + " nesta execucao"
                 + (blocked > 0 ? ", " + blocked.ToString(CultureInfo.InvariantCulture) + " aguardando nova tentativa" : string.Empty) + ".");
         }
@@ -844,7 +901,7 @@ public sealed class NativeTrailerSync
         return result;
     }
 
-    private static async Task<string?> ProbeVideoCodecAsync(string ffprobe, string file, CancellationToken ct)
+    private static async Task<(string Codec, int Height)?> ProbeVideoAsync(string ffprobe, string file, CancellationToken ct)
     {
         try
         {
@@ -856,23 +913,31 @@ public sealed class NativeTrailerSync
 
             if (CodecCache.TryGetValue(file, out var cached) && cached.Size == fi.Length && cached.Mtime == fi.LastWriteTimeUtc)
             {
-                return cached.Codec;
+                return (cached.Codec, cached.Height);
             }
 
             var r = await TrailerAutomationService.RunNativeProcessAsync(
                 ffprobe,
-                new[] { "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name", "-of", "default=nw=1:nk=1", file },
+                new[] { "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,height", "-of", "csv=p=0", file },
                 ct).ConfigureAwait(false);
             if (r.ExitCode != 0)
             {
                 return null;
             }
 
-            var codec = r.Stdout.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+            var line = r.Stdout.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(l => l.Trim())
                 .FirstOrDefault(l => l.Length > 0) ?? string.Empty;
-            CodecCache[file] = (fi.Length, fi.LastWriteTimeUtc, codec);
-            return codec;
+            var parts = line.Split(',');
+            var codec = parts.Length > 0 ? parts[0].Trim() : string.Empty;
+            var height = 0;
+            if (parts.Length > 1)
+            {
+                int.TryParse(parts[1].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out height);
+            }
+
+            CodecCache[file] = (fi.Length, fi.LastWriteTimeUtc, codec, height);
+            return (codec, height);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -884,8 +949,27 @@ public sealed class NativeTrailerSync
         }
     }
 
-    // Baixa o trailer de novo com o seletor sem AV1. O arquivo antigo fica guardado como oculto (.jms-av1-<nome>.bak,
-    // fora do padrao trailer.* que a limpeza do yt-dlp apaga e ignorado pelo Jellyfin) e volta se o download falhar.
+    // O trailer novo so fica se for melhor: sai do AV1 com 720p ou mais, ou sobe de uma resolucao abaixo de 720p.
+    private static bool IsBetterTrailer((string Codec, int Height) oldInfo, (string Codec, int Height) newInfo)
+    {
+        var oldAv1 = string.Equals(oldInfo.Codec, "av1", StringComparison.OrdinalIgnoreCase);
+        var newAv1 = string.Equals(newInfo.Codec, "av1", StringComparison.OrdinalIgnoreCase);
+        if (oldAv1 && !newAv1 && newInfo.Height >= MinGoodHeight)
+        {
+            return true;
+        }
+
+        return oldInfo.Height > 0 && oldInfo.Height < MinGoodHeight && newInfo.Height > oldInfo.Height;
+    }
+
+    private static string Describe((string Codec, int Height)? info)
+    {
+        return info is null ? "?" : info.Value.Codec + " " + info.Value.Height.ToString(CultureInfo.InvariantCulture) + "p";
+    }
+
+    // Baixa o trailer de novo. O arquivo antigo fica guardado como oculto (.jms-av1-<nome>.bak, fora do padrao trailer.*
+    // que a limpeza do yt-dlp apaga e ignorado pelo Jellyfin) e volta se o download falhar ou se o novo nao for melhor;
+    // nesse caso um marcador oculto (.jms-trailer-keep) evita baixar o mesmo video de novo por 30 dias.
     private async Task<bool> UpgradeTrailerAsync(
         BaseItem item,
         string folder,
@@ -897,7 +981,15 @@ public sealed class NativeTrailerSync
     {
         if (!CanWrite(folder))
         {
-            Log("   Pasta somente leitura, trailer AV1 mantido: " + new DirectoryInfo(folder).Name);
+            Log("   Pasta somente leitura, trailer mantido: " + new DirectoryInfo(folder).Name);
+            return false;
+        }
+
+        var ffprobe = _tools.ResolveFfprobePath();
+        var oldInfo = string.IsNullOrWhiteSpace(ffprobe) ? null : await ProbeVideoAsync(ffprobe!, oldFile, ct).ConfigureAwait(false);
+        if (oldInfo is null)
+        {
+            Log("   Nao consegui ler o trailer atual; mantido como esta.");
             return false;
         }
 
@@ -913,44 +1005,145 @@ public sealed class NativeTrailerSync
         }
         catch (Exception ex)
         {
-            Log("   Nao consegui separar o trailer AV1 (" + ex.Message + "); mantido como esta.");
+            Log("   Nao consegui separar o trailer atual (" + ex.Message + "); mantido como esta.");
             return false;
         }
 
         var newFile = Path.Combine(folder, "trailer.mp4");
-        var ok = false;
+        bool downloaded;
         try
         {
-            ok = await ProcessItemAsync(item, tk, cookies, tmdbKey, false, ct).ConfigureAwait(false) && File.Exists(newFile);
+            downloaded = await ProcessItemAsync(item, tk, cookies, tmdbKey, false, ct).ConfigureAwait(false) && File.Exists(newFile);
         }
-        finally
+        catch
         {
-            if (ok)
-            {
-                TryDelete(backup);
-            }
-            else
-            {
-                RestoreBackup(backup, oldFile);
-            }
+            RestoreBackup(backup, oldFile);
+            throw;
         }
 
-        if (!ok)
+        if (!downloaded)
         {
+            RestoreBackup(backup, oldFile);
             Log("   Download novo falhou; o trailer antigo foi mantido.");
             return false;
         }
 
-        var ffprobe = _tools.ResolveFfprobePath();
-        var codec = string.IsNullOrWhiteSpace(ffprobe) ? null : await ProbeVideoCodecAsync(ffprobe!, newFile, ct).ConfigureAwait(false);
-        Log("   Trailer refeito, codec agora: " + (codec ?? "?"));
-        if (string.Equals(codec, "av1", StringComparison.OrdinalIgnoreCase))
+        var newInfo = await ProbeVideoAsync(ffprobe!, newFile, ct).ConfigureAwait(false);
+        if (newInfo is not null && !IsBetterTrailer(oldInfo.Value, newInfo.Value))
         {
-            // O video so existe em AV1: nao adianta tentar de novo tao cedo.
-            UpgradeBlockedUntil[folder] = DateTime.UtcNow + UpgradeRetryAfterNoOtherCodec;
+            if (!string.Equals(newFile, oldFile, StringComparison.Ordinal))
+            {
+                TryDelete(newFile);
+            }
+
+            RestoreBackup(backup, oldFile);
+            WriteKeepMarker(folder, oldFile);
+            Log("   Sem versao melhor (novo " + Describe(newInfo) + ", antigo " + Describe(oldInfo) + "); trailer antigo mantido.");
+            return false;
         }
 
+        TryDelete(backup);
+        TryDelete(Path.Combine(folder, KeepMarkerName));
+        Log("   Trailer refeito, codec agora: " + Describe(newInfo) + " (antes " + Describe(oldInfo) + ")");
         return true;
+    }
+
+    private static void WriteKeepMarker(string folder, string trailer)
+    {
+        try
+        {
+            var fi = new FileInfo(trailer);
+            File.WriteAllText(
+                Path.Combine(folder, KeepMarkerName),
+                fi.Length.ToString(CultureInfo.InvariantCulture) + "|" + fi.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture)
+                + "|" + DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture));
+        }
+        catch
+        {
+        }
+    }
+
+    private static bool HasValidKeepMarker(string folder, string trailer)
+    {
+        try
+        {
+            var path = Path.Combine(folder, KeepMarkerName);
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+
+            var parts = File.ReadAllText(path).Trim().Split('|');
+            var fi = new FileInfo(trailer);
+            if (parts.Length != 3 || !fi.Exists)
+            {
+                return false;
+            }
+
+            var size = long.Parse(parts[0], CultureInfo.InvariantCulture);
+            var mtime = long.Parse(parts[1], CultureInfo.InvariantCulture);
+            var written = new DateTime(long.Parse(parts[2], CultureInfo.InvariantCulture), DateTimeKind.Utc);
+            return size == fi.Length && mtime == fi.LastWriteTimeUtc.Ticks && DateTime.UtcNow - written < KeepMarkerValidity;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    // Espaco livre do disco onde a pasta esta. DriveInfo da raiz ("/") nao serve no container: a biblioteca e um ponto de
+    // montagem proprio (/storage2), entao vale o ponto de montagem mais longo que contem o caminho. -1 = nao deu para medir.
+    private static long FreeMbFor(string path)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return -1;
+            }
+
+            var full = Path.GetFullPath(path);
+            DriveInfo? best = null;
+            var bestLen = -1;
+            foreach (var d in DriveInfo.GetDrives())
+            {
+                string root;
+                try
+                {
+                    if (!d.IsReady)
+                    {
+                        continue;
+                    }
+
+                    root = d.RootDirectory.FullName;
+                }
+                catch
+                {
+                    continue;
+                }
+
+                var rootTrim = root.Length > 1 ? root.TrimEnd('/', '\\') : root;
+                var inside = full.Equals(rootTrim, StringComparison.Ordinal)
+                    || rootTrim == "/"
+                    || (full.StartsWith(rootTrim, StringComparison.Ordinal) && full.Length > rootTrim.Length && (full[rootTrim.Length] == '/' || full[rootTrim.Length] == '\\'));
+                if (inside && rootTrim.Length > bestLen)
+                {
+                    best = d;
+                    bestLen = rootTrim.Length;
+                }
+            }
+
+            return best is null ? -1 : best.AvailableFreeSpace / (1024 * 1024);
+        }
+        catch
+        {
+            return -1;
+        }
+    }
+
+    private static string FormatGb(long mb)
+    {
+        return (mb / 1024.0).ToString("0.0", CultureInfo.InvariantCulture) + " GB";
     }
 
     private void RestoreBackup(string backup, string original)

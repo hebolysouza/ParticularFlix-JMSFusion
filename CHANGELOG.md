@@ -5,6 +5,14 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 4.0.0.10 (fork build, Jellyfin 12)
+
+Follow-up to the AV1 trailer replacement of 4.0.0.8, from the first production run. Same requirements as 4.0.0.9 (Jellyfin 12.x, net10.0); settings are kept.
+
+### Fixes
+- **Replaced trailers never drop below 720p**: in the first run, 3 of 40 AV1 1080p trailers came back as H.264 240p, 360p and 480p, because those videos had H.264 only at low resolution. The downloader now takes H.264 or VP9 only from 720p up; below that it takes the best video up to 1080p in any codec, AV1 included. A replacement is kept only when it is better than the old trailer (out of AV1 at 720p or more, or a higher resolution than an old trailer below 720p); otherwise the old file is put back and a hidden `.jms-trailer-keep` marker skips that folder for 30 days. H.264/VP9 trailers below 720p are now reviewed too, so the 3 trailers above get their 1080p video back.
+- **Trailer downloads respect the free space of the library disk**: H.264 trailers are about twice the size of the AV1 ones (28.4 MB against 13.3 MB on average in the first run), and the library disk had 3.2 GB free. The free space is measured on the mount point that holds the item (the container root says nothing about `/storage2`); replacements pause below 20 GB free and new trailer downloads below 2 GB, and both resume by themselves when there is space again.
+
 ## 4.0.0.9 (fork build, Jellyfin 12)
 
 Follow-up to 4.0.0.8 for the Home Screen Sections rows. Same requirements as 4.0.0.8 (Jellyfin 12.x, net10.0); settings are kept.
