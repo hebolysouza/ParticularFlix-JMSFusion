@@ -17,6 +17,11 @@ public enum NativeTrailerMode
     Real
 }
 
+// Fork ParticularFlix 4.0.0.10: o que o download precisa de um titulo. Vem de um item do Jellyfin (tarefa agendada) ou
+// so da pasta (deteccao em tempo real, antes de o Jellyfin catalogar): sem ano/TMDb, eles saem do nome da pasta e da
+// busca no TMDb, como ja acontecia com itens sem metadados.
+public sealed record TrailerTarget(string Folder, bool IsSeries, int? Year, string? TmdbId);
+
 /// <summary>
 /// Porta fiel do script JMSFusion-trailers-sync.ps1 (v3): TMDb + pt-BR primeiro.
 /// Ordem: A (TMDb pt oficial), B (YouTube pt dublado, depois legendado), C (TMDb en oficial),
@@ -62,6 +67,14 @@ public sealed class NativeTrailerSync
     private const string KeepMarkerName = ".jms-trailer-keep";
     private static readonly TimeSpan KeepMarkerValidity = TimeSpan.FromDays(30);
 
+    // Pastas sendo processadas agora (tarefa agendada ou tempo real), para os dois caminhos nunca baixarem o mesmo trailer.
+    private static readonly ConcurrentDictionary<string, byte> InProgress = new(StringComparer.Ordinal);
+    private static readonly SemaphoreSlim RealtimeLock = new(1, 1);
+    private static readonly HashSet<string> ExtrasFolderNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "extras", "featurettes", "behind the scenes", "deleted scenes", "interviews", "scenes", "shorts", "trailers", "other", "samples", "clips"
+    };
+
     private readonly ILibraryManager _libraryManager;
     private readonly TrailerAutomationService _tools;
     private readonly ILogger _logger;
@@ -99,6 +112,119 @@ public sealed class NativeTrailerSync
         finally
         {
             RunLock.Release();
+        }
+    }
+
+    // Fork ParticularFlix 4.0.0.10: deteccao em tempo real (TrailerWatcher). Baixa so o trailer das pastas novas, sem
+    // esperar o Jellyfin catalogar o titulo e sem atualizar o yt-dlp (isso fica com a tarefa agendada). Roda em paralelo
+    // com a tarefa agendada; uma pasta nunca e processada pelos dois ao mesmo tempo.
+    public async Task RunForFoldersAsync(IReadOnlyList<TrailerTarget> targets, string tmdbKey, CancellationToken ct)
+    {
+        await RealtimeLock.WaitAsync(ct).ConfigureAwait(false);
+        string? cookies = null;
+        try
+        {
+            TrailerAutomationService.NativeToolkit? toolkit = null;
+            foreach (var t in targets)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (string.IsNullOrWhiteSpace(t.Folder) || IsExcludedPath(t.Folder) || !Directory.Exists(t.Folder))
+                {
+                    continue;
+                }
+
+                var leaf = new DirectoryInfo(t.Folder).Name;
+                if (HasFinishedTrailer(t.Folder))
+                {
+                    continue;
+                }
+
+                // Filme: a pasta tem de ser a do proprio filme. Se uma subpasta tiver video, e uma pasta de colecao
+                // (varios filmes dentro) e o trailer nao vai para ela.
+                if (!t.IsSeries && HasVideoInSubfolders(t.Folder))
+                {
+                    continue;
+                }
+
+                var free = FreeMbFor(t.Folder);
+                if (free >= 0 && free < DownloadMinFreeMb)
+                {
+                    Log("Tempo real: " + leaf + " sem trailer, mas so " + FormatGb(free) + " livres; fica para a tarefa agendada.");
+                    continue;
+                }
+
+                if (!CanWrite(t.Folder))
+                {
+                    continue;
+                }
+
+                if (!InProgress.TryAdd(t.Folder, 0))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    Log("Tempo real: titulo novo detectado (" + (t.IsSeries ? "serie" : "filme") + "): " + leaf + "; buscando trailer.");
+                    if (toolkit is null)
+                    {
+                        toolkit = await _tools.PrepareNativeToolkitAsync(false, ct).ConfigureAwait(false);
+                        cookies = CopyCookies();
+                    }
+
+                    if (await ProcessItemAsync(t, toolkit, cookies, tmdbKey, false, ct).ConfigureAwait(false))
+                    {
+                        LastFailure.TryRemove(t.Folder, out _);
+                    }
+                    else
+                    {
+                        LastFailure[t.Folder] = DateTime.UtcNow;
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("[JMS trailers] ERRO em tempo real em {Pasta}: {Erro}", leaf, ex.Message);
+                }
+                finally
+                {
+                    InProgress.TryRemove(t.Folder, out _);
+                }
+            }
+        }
+        finally
+        {
+            if (cookies != null)
+            {
+                TryDelete(cookies);
+            }
+
+            RealtimeLock.Release();
+        }
+    }
+
+    // Copia temporaria do cookies.txt (o yt-dlp regrava o arquivo); null se nao houver cookies ou a copia falhar.
+    private string? CopyCookies()
+    {
+        var original = CookiesCandidates.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c) && File.Exists(c));
+        if (original == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var copy = Path.Combine(Path.GetTempPath(), "jms-cookies-" + Guid.NewGuid().ToString("N") + ".txt");
+            File.Copy(original, copy, true);
+            return copy;
+        }
+        catch (Exception ex)
+        {
+            Log("Aviso: nao consegui copiar o cookies.txt (" + ex.Message + "); seguindo sem cookies.");
+            return null;
         }
     }
 
@@ -238,7 +364,26 @@ public sealed class NativeTrailerSync
             try
             {
                 var folderKey = GetItemFolder(work[i]) ?? string.Empty;
-                if (await ProcessItemAsync(work[i], toolkit, cookies, tmdbKey, simulate, ct).ConfigureAwait(false))
+                if (!simulate && !InProgress.TryAdd(folderKey, 0))
+                {
+                    Log("Pasta ja em processamento pela deteccao em tempo real: " + new DirectoryInfo(folderKey).Name);
+                    continue;
+                }
+
+                bool ok;
+                try
+                {
+                    ok = await ProcessItemAsync(TargetOf(work[i]), toolkit, cookies, tmdbKey, simulate, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (!simulate)
+                    {
+                        InProgress.TryRemove(folderKey, out _);
+                    }
+                }
+
+                if (ok)
                 {
                     found++;
                     LastFailure.TryRemove(folderKey, out _);
@@ -278,6 +423,11 @@ public sealed class NativeTrailerSync
                 break;
             }
 
+            if (!InProgress.TryAdd(up.Folder, 0))
+            {
+                continue;
+            }
+
             try
             {
                 Log("Trocando trailer AV1 ou de baixa resolucao: " + new DirectoryInfo(up.Folder).Name
@@ -305,6 +455,10 @@ public sealed class NativeTrailerSync
                 UpgradeBlockedUntil[up.Folder] = DateTime.UtcNow + UpgradeRetryAfterFailure;
                 _logger.LogWarning("[JMS trailers] ERRO ao trocar o trailer AV1 de {Nome}: {Erro}", up.Item.Name, ex.Message);
             }
+            finally
+            {
+                InProgress.TryRemove(up.Folder, out _);
+            }
 
             progress.Report((count + j + 1) * 100.0 / total);
         }
@@ -326,11 +480,16 @@ public sealed class NativeTrailerSync
         progress.Report(100);
     }
 
-    private async Task<bool> ProcessItemAsync(BaseItem item, TrailerAutomationService.NativeToolkit tk, string? cookies, string tmdbKey, bool simulate, CancellationToken ct)
+    private static TrailerTarget TargetOf(BaseItem item)
     {
-        var isSeries = item is Series;
+        return new TrailerTarget(GetItemFolder(item)!, item is Series, item.ProductionYear, item.GetProviderId(MetadataProvider.Tmdb));
+    }
+
+    private async Task<bool> ProcessItemAsync(TrailerTarget target, TrailerAutomationService.NativeToolkit tk, string? cookies, string tmdbKey, bool simulate, CancellationToken ct)
+    {
+        var isSeries = target.IsSeries;
         var kind = isSeries ? "tv" : "movie";
-        var folder = GetItemFolder(item)!;
+        var folder = target.Folder;
         var leaf = new DirectoryInfo(folder).Name;
 
         if (!isSeries && CountVideoFiles(folder) > 1)
@@ -353,7 +512,7 @@ public sealed class NativeTrailerSync
             }
         }
 
-        var yearInt = item.ProductionYear ?? 0;
+        var yearInt = target.Year ?? 0;
         var m = Regex.Match(leaf, @"\b(19\d\d|20\d\d)\b");
         if (yearInt == 0 && m.Success)
         {
@@ -365,7 +524,7 @@ public sealed class NativeTrailerSync
         cleanTitle = Regex.Replace(cleanTitle, @"(?i)\b(WEBDL|WEB-DL|HDR|BluRay|REMUX|1080p|720p|4K|UHD|AAC|H\.264|x264|x265|DDP5\.1|Atmos)\b.*", string.Empty).Trim();
 
         // 1) ID do TMDb: Jellyfin primeiro, busca por titulo + ano como plano B
-        var tmdbId = item.GetProviderId(MetadataProvider.Tmdb);
+        var tmdbId = target.TmdbId;
         var origem = "Jellyfin";
         if (string.IsNullOrWhiteSpace(tmdbId))
         {
@@ -1013,7 +1172,7 @@ public sealed class NativeTrailerSync
         bool downloaded;
         try
         {
-            downloaded = await ProcessItemAsync(item, tk, cookies, tmdbKey, false, ct).ConfigureAwait(false) && File.Exists(newFile);
+            downloaded = await ProcessItemAsync(TargetOf(item), tk, cookies, tmdbKey, false, ct).ConfigureAwait(false) && File.Exists(newFile);
         }
         catch
         {
@@ -1189,6 +1348,31 @@ public sealed class NativeTrailerSync
         }
         catch
         {
+        }
+    }
+
+    private static bool HasVideoInSubfolders(string folder)
+    {
+        try
+        {
+            foreach (var sub in Directory.EnumerateDirectories(folder))
+            {
+                if (ExtrasFolderNames.Contains(Path.GetFileName(sub)))
+                {
+                    continue;
+                }
+
+                if (Directory.EnumerateFiles(sub).Any(f => VideoExtensions.Contains(Path.GetExtension(f).ToLowerInvariant())))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return true;
         }
     }
 
