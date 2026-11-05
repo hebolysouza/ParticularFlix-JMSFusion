@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/hebolysouza/ParticularFlix-JMSFusion/main/img/icon.png",
     "versions": [
     {
+      "version": "4.0.0.9",
+      "changelog": "v4.0.0.9 (ParticularFlix fork)\n\nFixes and performance release for Jellyfin 12 (net10.0, validated on 12.3), rolling up the unpublished build 4.0.0.8. Same plugin GUID, settings kept. Jellyfin 10.11.x: stay on 3.8.2.45.\n\nTrailers: AV1 is left out of the trailer downloader (H.264 first, then VP9, up to 1080p); the 4.0.0.3 change sorted by resolution before codec, so 1080p AV1 still won. The scheduled task \"JMSFusion: sincronizar trailers\" now replaces the AV1 trailers already on disk, 40 per run, keeping the old file until the new one is ready. GPUs without AV1 hardware decoding (e.g. Radeon RX 6400) no longer decode slider trailers on the CPU.\n\nHome Screen Sections: when Jellyfin's startup trigger fired before its task was registered (\"Unable to find scheduled task of type StartupService\"), the Home was not patched and Because You Watched / Upcoming rows disappeared until the next restart. JMSFusion now runs, once, every startup task that did not run after the server started, and serves the patched Home chunk with no-store so an unpatched copy no longer sticks in the browser cache.\n\nFull notes: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
+      "targetAbi": "12.0.0.0",
+      "sourceUrl": "https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases/download/v4.0.0.9/JMSFusion-4.0.0.9-server.zip",
+      "checksum": "ecb78575209577c0691fc20085472038",
+      "timestamp": "2026-11-05T22:22:37.0000000Z"
+    },
+    {
       "version": "4.0.0.7",
       "changelog": "v4.0.0.7 (ParticularFlix fork)\n\nFixes release for Jellyfin 12 (net10.0, validated on 12.3). Same plugin GUID, settings kept. Jellyfin 10.11.x: stay on 3.8.2.45.\n\nProfiles: switching profiles through the avatar no longer drops to the login screen when the remembered token was revoked, and a profile is no longer signed out right after an unlock or lock (a plugin 401 no longer clears the Jellyfin client token).\n\nProfile settings: saved with the live session token, so they no longer reset after an unlock. The blocked-profile notice appears right after a login.\n\nSpeed: unlocking or locking a restricted profile no longer wipes the list caches of every user, so the slider of the other profiles loads at normal speed after a switch.\n\nNew: the custom folder serves themes and fonts (files starting with _ and .woff2/.woff/.ttf/.otf are served, not injected); extras/jms-netfin-local12.ps1 keeps the NetFin theme and its fonts on the server. Header script (deployed separately): logo styles built in, no flash of plain text.\n\nFull notes: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
       "targetAbi": "12.0.0.0",
