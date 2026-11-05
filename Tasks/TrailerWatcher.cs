@@ -26,7 +26,10 @@ public sealed class TrailerWatcher : IHostedService, IDisposable
     private static readonly TimeSpan QuietPeriod = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan FolderSettle = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan FirstPoll = TimeSpan.FromSeconds(45);
+    private static readonly TimeSpan FirstPoll = TimeSpan.FromSeconds(15);
+    // Na primeira varredura, pastas alteradas ha menos que isso entram na fila: um titulo que chegou durante a subida
+    // do servidor (antes de existir watcher e lista de pastas conhecidas) nao pode ser tomado como antigo.
+    private static readonly TimeSpan SeedRecentWindow = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan WatcherRefresh = TimeSpan.FromMinutes(10);
     private static readonly string[] VideoExtensions = { ".mkv", ".mp4", ".avi", ".m4v", ".mov", ".wmv", ".ts" };
 
@@ -336,6 +339,21 @@ public sealed class TrailerWatcher : IHostedService, IDisposable
                 if (!_knownFolders.TryGetValue(root, out var known))
                 {
                     _knownFolders[root] = new HashSet<string>(dirs, StringComparer.Ordinal);
+                    var limite = DateTime.UtcNow - SeedRecentWindow;
+                    foreach (var d in dirs)
+                    {
+                        try
+                        {
+                            if (Directory.GetLastWriteTimeUtc(d) >= limite && !IsExcluded(d))
+                            {
+                                Enqueue(d, isSeries, "chegou durante a subida");
+                            }
+                        }
+                        catch
+                        {
+                        }
+                    }
+
                     continue;
                 }
 
