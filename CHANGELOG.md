@@ -5,6 +5,13 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 4.0.0.9 (fork build, Jellyfin 12)
+
+Follow-up to 4.0.0.8 for the Home Screen Sections rows. Same requirements as 4.0.0.8 (Jellyfin 12.x, net10.0); settings are kept.
+
+### Fixes
+- **Home Screen Sections rows still missing after the server was fixed**: Home Screen Sections patches, in memory, the jellyfin-web chunk that contains `,loadSections:`. That file has a fixed hashed name and browsers keep it in cache, so a browser that loaded the Home while the patch was not registered (the missed startup task fixed in 4.0.0.8) kept the unpatched copy and showed only the native rows until its cache was cleared, even after the server served the patched file again. JMSFusion now finds that chunk at startup and serves only that file (about 78 KB) with `Cache-Control: no-store`, without `ETag`/`Last-Modified`, and answers a revalidation of an old copy with the full file instead of a 304. Every Home load gets what the server has at that moment; all other files keep their cache.
+
 ## 4.0.0.8 (fork build, Jellyfin 12)
 
 Trailer CPU use and the Home Screen Sections rows that disappeared after some server starts. Same requirements as 4.0.0.7 (Jellyfin 12.x, net10.0); settings are kept.

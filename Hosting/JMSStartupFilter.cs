@@ -33,6 +33,17 @@ namespace Jellyfin.Plugin.JMSFusion
 
                 app.UseMiddleware<PathRewriteMiddleware>();
 
+                // Fork ParticularFlix 4.0.0.9: o chunk da home que o Home Screen Sections modifica sai sem cache
+                // (ver HomeChunkNoStore), para uma copia sem o HSS nao ficar presa no navegador.
+                HomeChunkNoStore.StartDiscovery(
+                    app.ApplicationServices.GetService<MediaBrowser.Common.Configuration.IApplicationPaths>(),
+                    logger);
+                app.Use(async (ctx, nextMiddleware) =>
+                {
+                    HomeChunkNoStore.Apply(ctx);
+                    await nextMiddleware();
+                });
+
                 // Este filtro roda antes do UseResponseCompression do Jellyfin, entao os modulos
                 // de /slider saiam sem gzip/brotli. Comprime so esse caminho, e so se o servico
                 // de compressao do Jellyfin existir (se nao existir, nada muda).
