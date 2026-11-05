@@ -5,6 +5,17 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 4.0.0.8 (fork build, Jellyfin 12)
+
+Trailer CPU use and the Home Screen Sections rows that disappeared after some server starts. Same requirements as 4.0.0.7 (Jellyfin 12.x, net10.0); settings are kept.
+
+### Performance
+- **Slider trailers in AV1 decoded on the CPU**: an inventory of the library found 362 local trailers: 231 AV1 (64%), 48 VP9 and 83 H.264. Many GPUs (the Radeon RX 6400 among them) decode H.264, VP9 and HEVC in hardware but not AV1, so every AV1 trailer in the slider was decoded by the CPU and could take it close to 100%. The 4.0.0.3 change sorted by resolution before codec (`-S res:1080,vcodec:h264`), so a 1080p AV1 stream still won over a 720p H.264 one. The trailer sync now leaves AV1 out of the format selector (it is only used when a video has no other format) and prefers H.264, then VP9, up to 1080p. The same applies to the classic trailer downloader.
+- **Existing AV1 trailers are replaced**: the scheduled task "JMSFusion: sincronizar trailers" now checks the codec of the trailers already on disk (ffprobe, cached by file size and date) and downloads the AV1 ones again with the new selector, up to 40 per run, after the items that have no trailer at all. The old file is kept aside (hidden `.jms-av1-<name>.bak`) and put back if the new download fails; a backup left by an interrupted run is restored or removed on the next run. The task triggered when a new title arrives is unchanged.
+
+### Fixes
+- **Home Screen Sections rows missing after a server start (Because You Watched, Upcoming Movies, Upcoming Shows)**: Jellyfin creates the scheduled tasks in one batch and fires each "on startup" trigger 3 s after the task is created. When the batch takes longer than that, the trigger looks for its task before it is in the list (`Unable to find scheduled task of type "StartupService" in QueueScheduledTask`) and the task does not run until the next start. Without "HomeScreenSections Startup" the Home is not patched by Home Screen Sections and only the native rows remain. A small JMSFusion service now waits for the start to settle (90 s, then again 90 s later) and runs, once, every task with a startup trigger that has not run since the server started. Tasks that already ran or are running are left alone.
+
 ## 4.0.0.7 (fork build, Jellyfin 12)
 
 Fixes for switching profiles, saving profile settings, the header logo and the custom folder. Same requirements as 4.0.0.6 (Jellyfin 12.x, net10.0); settings are kept.

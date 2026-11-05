@@ -25,7 +25,7 @@ public sealed class TrailerSyncTask : IScheduledTask
 
     public string Name => "JMSFusion: sincronizar trailers";
     public string Key => "JMSFusionTrailerSync";
-    public string Description => "Atualiza o yt-dlp e baixa o trailer dos filmes e series que ainda nao tem (pt-BR primeiro). Tambem roda sozinho quando um titulo novo entra na biblioteca. Nao mexe em pastas que ja tem trailer.";
+    public string Description => "Atualiza o yt-dlp e baixa o trailer dos filmes e series que ainda nao tem (pt-BR primeiro). Tambem roda sozinho quando um titulo novo entra na biblioteca. Nas pastas que ja tem trailer, so refaz os que estao em AV1 (ate 40 por execucao, o antigo volta se o novo falhar).";
     public string Category => "JMSFusion";
 
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
@@ -55,6 +55,8 @@ public sealed class TrailerSyncTask : IScheduledTask
         }
 
         var sync = new NativeTrailerSync(_libraryManager, _tools, _logger);
-        await sync.RunAsync(NativeTrailerMode.Real, false, int.MaxValue, apiKey, true, progress, cancellationToken).ConfigureAwait(false);
+        // Fork ParticularFlix 4.0.0.8: so a tarefa agendada troca trailers AV1 (ate 40 por execucao); o TrailerWatcher,
+        // que roda quando um titulo novo entra, continua so baixando o que falta.
+        await sync.RunAsync(NativeTrailerMode.Real, false, int.MaxValue, apiKey, true, progress, cancellationToken, upgradeCodecs: true).ConfigureAwait(false);
     }
 }

@@ -17,6 +17,7 @@ namespace Jellyfin.Plugin.JMSFusion
             services.AddSingleton<ScopedCacheJsonService>();
             services.AddHostedService<TrailerWatcher>();
             services.AddHostedService<AccessRelockService>();
+            services.AddHostedService<StartupTaskGuardService>();
             services.AddTransient<IStartupFilter, JMSStartupFilter>();
         }
     }

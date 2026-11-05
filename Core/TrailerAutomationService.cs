@@ -294,6 +294,12 @@ public sealed class TrailerAutomationService
         return !string.IsNullOrWhiteSpace(ResolveCommandPath(commandName));
     }
 
+    // Fork ParticularFlix 4.0.0.8: a tarefa nativa usa o ffprobe para achar trailers em AV1 ja baixados.
+    public string? ResolveFfprobePath()
+    {
+        return ResolveCommandPath("ffprobe");
+    }
+
     public void StartBackgroundToolBootstrap()
     {
         _ = Task.Run(async () =>
@@ -1361,8 +1367,10 @@ public sealed class TrailerAutomationService
 
     // Fork ParticularFlix 4.0.0.3: H.264 (avc1) first. Without the codec filter yt-dlp picks AV1 when YouTube has it,
     // and browsers without AV1 hardware decoding play those trailers on the CPU.
+    // 4.0.0.8: when there is no H.264 in the resolution range, any codec except AV1 (VP9) comes before AV1; the old
+    // second option accepted AV1 straight away.
     private static string BuildPreferredTrailerFormatSelector(int minResolution, int maxResolution)
-        => $"bestvideo[ext=mp4][vcodec^=avc1][height<={maxResolution}][height>={minResolution}]+bestaudio[ext=m4a]/bestvideo[ext=mp4][height<={maxResolution}][height>={minResolution}]+bestaudio[ext=m4a]/best[ext=mp4][height<={maxResolution}][height>={minResolution}]";
+        => $"bestvideo[ext=mp4][vcodec^=avc1][height<={maxResolution}][height>={minResolution}]+bestaudio[ext=m4a]/bestvideo[vcodec!^=av01][height<={maxResolution}][height>={minResolution}]+bestaudio[ext=m4a]/bestvideo[ext=mp4][height<={maxResolution}][height>={minResolution}]+bestaudio[ext=m4a]/best[ext=mp4][height<={maxResolution}][height>={minResolution}]";
 
     private static string BuildSingleFileTrailerFormatSelector(int minResolution, int maxResolution)
         => $"best[ext=mp4][acodec!=none][vcodec!=none][height<={maxResolution}][height>={minResolution}]/best[ext=mp4][acodec!=none][vcodec!=none][height<={maxResolution}]/best[ext=mp4][acodec!=none][vcodec!=none]";

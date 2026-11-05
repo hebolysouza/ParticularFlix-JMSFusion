@@ -42,6 +42,17 @@ public sealed class NativeTrailerSync
     private static readonly ConcurrentDictionary<string, DateTime> LastFailure = new(StringComparer.Ordinal);
     private static readonly TimeSpan RetryAfterFailure = TimeSpan.FromHours(5);
 
+    // Fork ParticularFlix 4.0.0.8: trailers em AV1 baixados antes da 4.0.0.3 (ou quando o YouTube nao tinha H.264) sao
+    // decodificados na CPU por placas sem AV1 em hardware (RX 6400: 99% de CPU com o trailer do slider). A tarefa
+    // agendada refaz esses trailers, poucos por execucao, guardando o arquivo antigo ate o novo estar pronto.
+    private const int MaxCodecUpgradesPerRun = 40;
+    private const string UpgradeBackupPrefix = ".jms-av1-";
+    private const string UpgradeBackupSuffix = ".bak";
+    private static readonly TimeSpan UpgradeRetryAfterFailure = TimeSpan.FromHours(12);
+    private static readonly TimeSpan UpgradeRetryAfterNoOtherCodec = TimeSpan.FromDays(7);
+    private static readonly ConcurrentDictionary<string, DateTime> UpgradeBlockedUntil = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, (long Size, DateTime Mtime, string Codec)> CodecCache = new(StringComparer.Ordinal);
+
     private readonly ILibraryManager _libraryManager;
     private readonly TrailerAutomationService _tools;
     private readonly ILogger _logger;
@@ -63,7 +74,7 @@ public sealed class NativeTrailerSync
 
     private void Log(string message) => _logger.LogInformation("[JMS trailers] {Mensagem}", message);
 
-    public async Task RunAsync(NativeTrailerMode mode, bool sample, int limit, string tmdbKey, bool retryFailed, IProgress<double> progress, CancellationToken ct)
+    public async Task RunAsync(NativeTrailerMode mode, bool sample, int limit, string tmdbKey, bool retryFailed, IProgress<double> progress, CancellationToken ct, bool upgradeCodecs = false)
     {
         if (!await RunLock.WaitAsync(0, ct).ConfigureAwait(false))
         {
@@ -74,7 +85,7 @@ public sealed class NativeTrailerSync
 
         try
         {
-            await RunCoreAsync(mode, sample, limit, tmdbKey, retryFailed, progress, ct).ConfigureAwait(false);
+            await RunCoreAsync(mode, sample, limit, tmdbKey, retryFailed, upgradeCodecs, progress, ct).ConfigureAwait(false);
         }
         finally
         {
@@ -82,7 +93,7 @@ public sealed class NativeTrailerSync
         }
     }
 
-    private async Task RunCoreAsync(NativeTrailerMode mode, bool sample, int limit, string tmdbKey, bool retryFailed, IProgress<double> progress, CancellationToken ct)
+    private async Task RunCoreAsync(NativeTrailerMode mode, bool sample, int limit, string tmdbKey, bool retryFailed, bool upgradeCodecs, IProgress<double> progress, CancellationToken ct)
     {
         var simulate = mode == NativeTrailerMode.Simulate;
         var all = _libraryManager.GetItemList(new InternalItemsQuery
@@ -93,6 +104,7 @@ public sealed class NativeTrailerSync
         });
 
         var work = new List<BaseItem>();
+        var withTrailer = new List<(BaseItem Item, string Folder, string File)>();
         var skippedReadOnly = 0;
         var skippedRecent = 0;
         foreach (var item in all)
@@ -108,8 +120,22 @@ public sealed class NativeTrailerSync
                 continue;
             }
 
+            if (!simulate)
+            {
+                RecoverUpgradeBackup(folder);
+            }
+
             if (!sample && HasFinishedTrailer(folder))
             {
+                if (upgradeCodecs && !simulate)
+                {
+                    var existing = FindTrailerFile(folder);
+                    if (existing != null)
+                    {
+                        withTrailer.Add((item, folder, existing));
+                    }
+                }
+
                 continue;
             }
 
@@ -143,7 +169,12 @@ public sealed class NativeTrailerSync
                 + skippedRecent.ToString(CultureInfo.InvariantCulture) + " que falharam ha menos de 5 horas.");
         }
 
-        if (count == 0)
+        var upgrades = withTrailer.Count > 0
+            ? await FindAv1TrailersAsync(withTrailer, ct).ConfigureAwait(false)
+            : new List<(BaseItem Item, string Folder, string File)>();
+        var total = count + upgrades.Count;
+
+        if (total == 0)
         {
             progress.Report(100);
             return;
@@ -211,7 +242,48 @@ public sealed class NativeTrailerSync
                 _logger.LogWarning("[JMS trailers] ERRO em {Nome}: {Erro}", work[i].Name, ex.Message);
             }
 
-            progress.Report((i + 1) * 100.0 / count);
+            progress.Report((i + 1) * 100.0 / total);
+        }
+
+        var upgraded = 0;
+        for (var j = 0; j < upgrades.Count; j++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var up = upgrades[j];
+            try
+            {
+                Log("Trocando trailer AV1 por H.264/VP9: " + new DirectoryInfo(up.Folder).Name);
+                if (await UpgradeTrailerAsync(up.Item, up.Folder, up.File, toolkit, cookies, tmdbKey, ct).ConfigureAwait(false))
+                {
+                    upgraded++;
+                }
+                else
+                {
+                    UpgradeBlockedUntil[up.Folder] = DateTime.UtcNow + UpgradeRetryAfterFailure;
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                if (cookies != null)
+                {
+                    TryDelete(cookies);
+                }
+
+                throw;
+            }
+            catch (Exception ex)
+            {
+                UpgradeBlockedUntil[up.Folder] = DateTime.UtcNow + UpgradeRetryAfterFailure;
+                _logger.LogWarning("[JMS trailers] ERRO ao trocar o trailer AV1 de {Nome}: {Erro}", up.Item.Name, ex.Message);
+            }
+
+            progress.Report((count + j + 1) * 100.0 / total);
+        }
+
+        if (upgrades.Count > 0)
+        {
+            Log("Troca de trailers AV1: " + upgraded.ToString(CultureInfo.InvariantCulture) + " de "
+                + upgrades.Count.ToString(CultureInfo.InvariantCulture) + " refeitos nesta execucao (o antigo volta se o novo falhar).");
         }
 
         if (cookies != null)
@@ -491,7 +563,16 @@ public sealed class NativeTrailerSync
         // Fork ParticularFlix 4.0.0.3: a ordem padrao de codec do yt-dlp poe AV1 na frente, e o YouTube serve AV1 em mp4
         // tambem, entao os trailers saiam em AV1. Navegador sem decodificacao AV1 em hardware toca esses arquivos na CPU
         // (pesado no slider, onde um trailer comeca a cada troca de slide). H.264 e decodificado pela GPU quase sempre.
-        args.AddRange(new[] { "-S", "res:1080,vcodec:h264", "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best", "--merge-output-format", "mp4", "--postprocessor-args", "Merger:-movflags +faststart" });
+        // 4.0.0.8: "-S res:1080,vcodec:h264" ordenava pela resolucao antes do codec, entao um 1080p em AV1 ganhava de um
+        // 720p em H.264 e AV1 continuou entrando (64% dos trailers no inventario de 05/11/2026). Agora o AV1 fica fora do
+        // seletor e so entra se o video nao tiver nenhum outro formato; entre os demais, ate 1080p, H.264 antes de VP9
+        // ("+codec:avc:m4a" e a forma documentada do yt-dlp para preferir h264 > h265 > vp9 > av01 e audio m4a).
+        args.AddRange(new[]
+        {
+            "-S", "res:1080,+codec:avc:m4a",
+            "-f", "bestvideo[vcodec!^=av01]+bestaudio[ext=m4a]/bestvideo[vcodec!^=av01]+bestaudio/best[vcodec!^=av01]/bestvideo+bestaudio[ext=m4a]/best",
+            "--merge-output-format", "mp4", "--postprocessor-args", "Merger:-movflags +faststart"
+        });
 
         if (simulate)
         {
@@ -679,23 +760,242 @@ public sealed class NativeTrailerSync
     {
         try
         {
-            foreach (var f in Directory.EnumerateFiles(folder))
-            {
-                var name = Path.GetFileNameWithoutExtension(f);
-                var ext = Path.GetExtension(f).ToLowerInvariant();
-                var isTrailerName = name.Equals("trailer", StringComparison.OrdinalIgnoreCase)
-                    || name.EndsWith("-trailer", StringComparison.OrdinalIgnoreCase);
-                if (isTrailerName && (ext == ".mp4" || ext == ".mkv" || ext == ".webm"))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return FindTrailerFileCore(folder) != null;
         }
         catch
         {
             return true;
+        }
+    }
+
+    private static string? FindTrailerFile(string folder)
+    {
+        try
+        {
+            return FindTrailerFileCore(folder);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? FindTrailerFileCore(string folder)
+    {
+        foreach (var f in Directory.EnumerateFiles(folder))
+        {
+            var name = Path.GetFileNameWithoutExtension(f);
+            var ext = Path.GetExtension(f).ToLowerInvariant();
+            var isTrailerName = name.Equals("trailer", StringComparison.OrdinalIgnoreCase)
+                || name.EndsWith("-trailer", StringComparison.OrdinalIgnoreCase);
+            if (isTrailerName && (ext == ".mp4" || ext == ".mkv" || ext == ".webm"))
+            {
+                return f;
+            }
+        }
+
+        return null;
+    }
+
+    // Lista os trailers em AV1 (ffprobe, com cache por tamanho e data do arquivo) que podem ser refeitos agora.
+    private async Task<List<(BaseItem Item, string Folder, string File)>> FindAv1TrailersAsync(
+        List<(BaseItem Item, string Folder, string File)> candidates,
+        CancellationToken ct)
+    {
+        var result = new List<(BaseItem Item, string Folder, string File)>();
+        var ffprobe = _tools.ResolveFfprobePath();
+        if (string.IsNullOrWhiteSpace(ffprobe))
+        {
+            Log("Aviso: ffprobe nao encontrado; a troca de trailers AV1 fica para a proxima execucao.");
+            return result;
+        }
+
+        var av1 = 0;
+        var blocked = 0;
+        foreach (var c in candidates)
+        {
+            ct.ThrowIfCancellationRequested();
+            var codec = await ProbeVideoCodecAsync(ffprobe!, c.File, ct).ConfigureAwait(false);
+            if (!string.Equals(codec, "av1", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            av1++;
+            if (UpgradeBlockedUntil.TryGetValue(c.Folder, out var until) && DateTime.UtcNow < until)
+            {
+                blocked++;
+                continue;
+            }
+
+            if (result.Count < MaxCodecUpgradesPerRun)
+            {
+                result.Add(c);
+            }
+        }
+
+        if (av1 > 0)
+        {
+            Log("Trailers em AV1 (sem decodificacao por hardware em muitas placas): " + av1.ToString(CultureInfo.InvariantCulture)
+                + "; refazendo " + result.Count.ToString(CultureInfo.InvariantCulture) + " nesta execucao"
+                + (blocked > 0 ? ", " + blocked.ToString(CultureInfo.InvariantCulture) + " aguardando nova tentativa" : string.Empty) + ".");
+        }
+
+        return result;
+    }
+
+    private static async Task<string?> ProbeVideoCodecAsync(string ffprobe, string file, CancellationToken ct)
+    {
+        try
+        {
+            var fi = new FileInfo(file);
+            if (!fi.Exists)
+            {
+                return null;
+            }
+
+            if (CodecCache.TryGetValue(file, out var cached) && cached.Size == fi.Length && cached.Mtime == fi.LastWriteTimeUtc)
+            {
+                return cached.Codec;
+            }
+
+            var r = await TrailerAutomationService.RunNativeProcessAsync(
+                ffprobe,
+                new[] { "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name", "-of", "default=nw=1:nk=1", file },
+                ct).ConfigureAwait(false);
+            if (r.ExitCode != 0)
+            {
+                return null;
+            }
+
+            var codec = r.Stdout.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.Trim())
+                .FirstOrDefault(l => l.Length > 0) ?? string.Empty;
+            CodecCache[file] = (fi.Length, fi.LastWriteTimeUtc, codec);
+            return codec;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // Baixa o trailer de novo com o seletor sem AV1. O arquivo antigo fica guardado como oculto (.jms-av1-<nome>.bak,
+    // fora do padrao trailer.* que a limpeza do yt-dlp apaga e ignorado pelo Jellyfin) e volta se o download falhar.
+    private async Task<bool> UpgradeTrailerAsync(
+        BaseItem item,
+        string folder,
+        string oldFile,
+        TrailerAutomationService.NativeToolkit tk,
+        string? cookies,
+        string tmdbKey,
+        CancellationToken ct)
+    {
+        if (!CanWrite(folder))
+        {
+            Log("   Pasta somente leitura, trailer AV1 mantido: " + new DirectoryInfo(folder).Name);
+            return false;
+        }
+
+        var backup = Path.Combine(folder, UpgradeBackupPrefix + Path.GetFileName(oldFile) + UpgradeBackupSuffix);
+        try
+        {
+            if (File.Exists(backup))
+            {
+                File.Delete(backup);
+            }
+
+            File.Move(oldFile, backup);
+        }
+        catch (Exception ex)
+        {
+            Log("   Nao consegui separar o trailer AV1 (" + ex.Message + "); mantido como esta.");
+            return false;
+        }
+
+        var newFile = Path.Combine(folder, "trailer.mp4");
+        var ok = false;
+        try
+        {
+            ok = await ProcessItemAsync(item, tk, cookies, tmdbKey, false, ct).ConfigureAwait(false) && File.Exists(newFile);
+        }
+        finally
+        {
+            if (ok)
+            {
+                TryDelete(backup);
+            }
+            else
+            {
+                RestoreBackup(backup, oldFile);
+            }
+        }
+
+        if (!ok)
+        {
+            Log("   Download novo falhou; o trailer antigo foi mantido.");
+            return false;
+        }
+
+        var ffprobe = _tools.ResolveFfprobePath();
+        var codec = string.IsNullOrWhiteSpace(ffprobe) ? null : await ProbeVideoCodecAsync(ffprobe!, newFile, ct).ConfigureAwait(false);
+        Log("   Trailer refeito, codec agora: " + (codec ?? "?"));
+        if (string.Equals(codec, "av1", StringComparison.OrdinalIgnoreCase))
+        {
+            // O video so existe em AV1: nao adianta tentar de novo tao cedo.
+            UpgradeBlockedUntil[folder] = DateTime.UtcNow + UpgradeRetryAfterNoOtherCodec;
+        }
+
+        return true;
+    }
+
+    private void RestoreBackup(string backup, string original)
+    {
+        try
+        {
+            if (!File.Exists(backup))
+            {
+                return;
+            }
+
+            if (File.Exists(original))
+            {
+                File.Delete(original);
+            }
+
+            File.Move(backup, original);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("[JMS trailers] Nao consegui devolver o trailer antigo {Arquivo}: {Erro}", original, ex.Message);
+        }
+    }
+
+    // Se o servidor parou no meio de uma troca, devolve o trailer antigo (pasta sem trailer) ou apaga a copia (troca concluida).
+    private void RecoverUpgradeBackup(string folder)
+    {
+        try
+        {
+            foreach (var backup in Directory.EnumerateFiles(folder, UpgradeBackupPrefix + "*" + UpgradeBackupSuffix).ToList())
+            {
+                var name = Path.GetFileName(backup);
+                var original = Path.Combine(folder, name.Substring(UpgradeBackupPrefix.Length, name.Length - UpgradeBackupPrefix.Length - UpgradeBackupSuffix.Length));
+                if (FindTrailerFile(folder) != null)
+                {
+                    TryDelete(backup);
+                }
+                else
+                {
+                    RestoreBackup(backup, original);
+                }
+            }
+        }
+        catch
+        {
         }
     }
 
