@@ -155,6 +155,7 @@ public sealed class NativeTrailerSync
 
                 if (!CanWrite(t.Folder))
                 {
+                    Log("Tempo real: " + leaf + " sem permissao de escrita para o usuario do Jellyfin; trailer nao baixado.");
                     continue;
                 }
 

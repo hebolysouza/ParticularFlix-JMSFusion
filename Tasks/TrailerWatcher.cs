@@ -283,16 +283,19 @@ public sealed class TrailerWatcher : IHostedService, IDisposable
                 return;
             }
 
-            Enqueue(folder!, isSeries);
+            Enqueue(folder!, isSeries, "evento de arquivo");
         }
         catch
         {
         }
     }
 
-    private void Enqueue(string folder, bool isSeries)
+    private void Enqueue(string folder, bool isSeries, string source)
     {
-        _pending[folder] = isSeries;
+        if (_pending.TryAdd(folder, isSeries))
+        {
+            _logger.LogInformation("[JMS trailers] Tempo real: pasta nova ({Origem}): {Pasta}", source, Path.GetFileName(folder));
+        }
         lock (_gate)
         {
             if (_stopped)
@@ -340,7 +343,7 @@ public sealed class TrailerWatcher : IHostedService, IDisposable
                 {
                     if (known.Add(d) && !IsExcluded(d))
                     {
-                        Enqueue(d, isSeries);
+                        Enqueue(d, isSeries, "varredura");
                     }
                 }
 
