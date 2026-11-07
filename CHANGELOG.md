@@ -5,6 +5,19 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 4.0.0.11 (fork build, Jellyfin 12)
+
+First step of the mobile layout redesign (phones in portrait and landscape, tablets), measured in the browser device mode at 360x800, 440x956, 924x412 and 960x1440. Same requirements as 4.0.0.10 (Jellyfin 12.x, net10.0); settings are kept. Goes together with a new `particularflix-modern-header.js` in the JMS `custom` folder (header part below).
+
+### Mobile
+- **One mobile criterion for the CSS**: the plugin already treats a touch screen, or a mobile browser up to 900 px, as the mobile profile, but the slider CSS only looked at the width (768, 720 or 960 px), so a phone in landscape and a tablet got the mobile settings with the desktop CSS. The page now carries `html.jms-mobile` with the same rule as the profile, updated when the screen rotates.
+- **Slide buttons big enough to tap**: on a phone the buttons of the slide (play, trailer, watched, favorite, details) were 41x32 px; they are now at least 44x44 px.
+- **Slider position on mobile**: phones have no navigation dots, so there was no sign of where you are in the slider. A thin bar at the bottom of the slider now shows the current slide out of the total (only on mobile, updated only when the slide changes).
+
+### Header (`extras/particularflix-modern-header.js`, JMS `custom` folder)
+- **Mobile header with only the essentials**: on a 360 to 440 px phone the bar had the full logo (228 px), the navigation pills, the bell, Jellyfin Enhanced, SyncPlay, Cast and the profile switcher on one line, and the last three were off the screen. On the mobile profile the bar now shows the menu button, the animated logo icon (without the word), Search, the bell, the profile switcher as an avatar only, and a "More" button. SyncPlay, Cast, the Jellyfin Enhanced buttons and any other extra button go into the "More" menu; the original buttons stay where the web client and the plugins put them (only hidden), and their own menus open from the top right corner as before. The navigation pills are in the side menu.
+- **Slider settings gear no longer covers the Details button** on phones: on the mobile profile the gear is hidden in the slider and is in the "More" menu ("JMS settings").
+
 ## 4.0.0.10 (fork build, Jellyfin 12)
 
 Follow-up to the AV1 trailer replacement of 4.0.0.8 (from the first production run), real-time trailer downloads for new titles and Portuguese label fixes. Same requirements as 4.0.0.9 (Jellyfin 12.x, net10.0); settings are kept.

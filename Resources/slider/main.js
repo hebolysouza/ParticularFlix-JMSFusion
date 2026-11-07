@@ -1,6 +1,7 @@
 import { saveCredentials, saveApiKey, getAuthToken } from "../Plugins/JMSFusion/runtime/auth.js";
 import {
   getConfig,
+  getDeviceProfileAuto,
   getHomeSectionsRuntimeConfig,
   getPauseFeaturesRuntimeConfig,
   isDetailsModalModuleEnabled,
@@ -2785,6 +2786,21 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     html.jms-access-blocked .monwui-dot-navigation-container {
       display: none !important;
     }
+    /* Fork ParticularFlix 4.0.0.11: no mobile os botoes do slide tinham 41x32 px (abaixo dos 44 px de um alvo de toque). */
+    html.jms-mobile #monwui-slides-container .monwui-btn-container button { min-width: 44px; min-height: 44px; }
+    /* Posicao no slider (slide atual / total) como uma barra fina no pe do slider, so no mobile. */
+    .jms-mob-pos { display: none; }
+    html.jms-mobile #monwui-slides-container > .jms-mob-pos {
+      display: block; position: absolute; left: 50%; bottom: 0; width: min(40%, 180px); height: 3px;
+      transform: translateX(-50%); border-radius: 2px; overflow: hidden; pointer-events: none; z-index: 5;
+      background: rgba(255,255,255,0.22);
+    }
+    html.jms-mobile #monwui-slides-container > .jms-mob-pos::after {
+      content: ""; position: absolute; inset: 0; background: #E50914; transform-origin: 0 50%;
+      transform: scaleX(var(--jms-pos, 0)); transition: transform .35s ease;
+    }
+    html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .jms-mob-pos { display: none !important; }
+    @media (prefers-reduced-motion: reduce) { html.jms-mobile #monwui-slides-container > .jms-mob-pos::after { transition: none; } }
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .jms-slider,
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .homeSlider,
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] #monwui-slides-container {
@@ -2800,6 +2816,20 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
       const uids = (cred.Servers || []).map((sv) => String(sv?.UserId || '').replace(/-/g, '').toLowerCase());
       if (uids.includes(blockedUid)) D.documentElement.classList.add('jms-access-blocked');
     }
+  } catch {}
+  // Fork ParticularFlix 4.0.0.11: perfil mobile no <html> (o mesmo criterio de getDeviceProfileAuto: toque, ou ate 900 px
+  // com navegador de celular). O CSS do slider usava so largura (768, 720, 960 px), entao celular deitado e tablet ficavam
+  // com o perfil mobile mas o CSS de desktop. Atualiza sozinho ao girar a tela ou trocar o modo dispositivo do navegador.
+  try {
+    const mqCoarse = window.matchMedia?.('(pointer: coarse)');
+    const mqSmall = window.matchMedia?.('(max-width: 900px)');
+    const syncMobileClass = () => {
+      const on = getDeviceProfileAuto() === 'mobile';
+      if (on !== D.documentElement.classList.contains('jms-mobile')) D.documentElement.classList.toggle('jms-mobile', on);
+    };
+    syncMobileClass();
+    mqCoarse?.addEventListener?.('change', syncMobileClass);
+    mqSmall?.addEventListener?.('change', syncMobileClass);
   } catch {}
   if (!D.getElementById('jms-critical-css')) {
     const s = D.createElement('style');

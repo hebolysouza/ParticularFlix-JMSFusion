@@ -173,7 +173,7 @@
         if (document.getElementById(STYLE_ID)) return;
         var s = document.createElement("style");
         s.id = STYLE_ID;
-        s.textContent = CSS + DR_CSS;
+        s.textContent = CSS + DR_CSS + "\n" + MOB_CSS;
         (document.head || document.documentElement).appendChild(s);
     }
 
@@ -699,6 +699,195 @@
     function drOnHash() { drClose(); drSync(); }
     window.addEventListener("hashchange", drOnHash);
 
+    // Fork ParticularFlix: cabecalho do perfil mobile (celular em pe ou deitado e tablet; o mesmo criterio do JMSFusion,
+    // getDeviceProfileAuto: toque, ou ate 900 px com navegador de celular). Medido em 07/11/2026: num celular de 360 a 440 px
+    // a barra tinha logo de 228 px, pilulas, sino, Enhanced, SyncPlay, Transmitir e Mudar perfil numa linha so, e os tres
+    // ultimos ficavam fora da tela. Aqui ficam so hamburguer, icone do logo, Busca, sino, avatar do perfil e um botao "Mais";
+    // o resto vai para o menu do "Mais". Os botoes originais NAO saem do lugar no DOM (o React e os plugins continuam donos
+    // deles): ficam invisiveis e parados no canto de cima a direita (para os menus deles abrirem ali), e o item do menu
+    // repassa o clique. So CSS e trocas de classe no place(); leitura de layout so ao abrir o menu.
+    var MOB_TXT = {
+        pt: { more: "Mais", search: "Buscar", jms: "Configurações do JMS" },
+        es: { more: "Más", search: "Buscar", jms: "Configuración de JMS" },
+        en: { more: "More", search: "Search", jms: "JMS settings" }
+    };
+    var MOB_KEEP = ".pf-dr-btn,.pf-logo-modern,.pf-more-btn,#jfNotifBtn,#jfProfileChooserBtn,a[href=\"#/search\"],[aria-controls=\"app-user-menu\"]";
+    var MOB_R = "html.pf-modern-on.pf-mob header.MuiAppBar-root";
+    var MORE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>';
+    var SEARCH_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>';
+    var GEAR_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19.14 12.94a7.07 7.07 0 0 0 0-1.88l2.03-1.58a.48.48 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54A.48.48 0 0 0 13.93 2h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.73 8.47a.47.47 0 0 0 .12.61l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.48.48 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.25.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54a7.03 7.03 0 0 0 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.47.47 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>';
+    var MOB_CSS = [
+        // Pilulas: no mobile ficam so na gaveta (hamburguer), que ja tem Inicio, Favoritos, bibliotecas e as abas do Enhanced.
+        MOB_R + " .MuiToolbar-root > .MuiStack-root{display:none !important;}",
+        MOB_R + " .MuiToolbar-root{flex-wrap:nowrap !important;}",
+        // Logo: so o icone animado (sem a palavra), e ele empurra os botoes para a direita.
+        MOB_R + " .MuiToolbar-root > .pf-logo-modern{margin-right:auto !important;padding:4px 6px 4px 2px;}",
+        MOB_R + " .pf-logo-modern .pf-wm{display:none !important;}",
+        // Botoes que foram para o menu "Mais": invisiveis, fora do fluxo, no canto de cima a direita.
+        MOB_R + " .pf-mob-park{position:fixed !important;top:0 !important;right:0 !important;left:auto !important;bottom:auto !important;width:44px !important;min-width:0 !important;height:48px !important;margin:0 !important;opacity:0 !important;pointer-events:none !important;z-index:-1 !important;}",
+        // A Busca o Jellyfin some em tela estreita; no mobile ela volta (e, se mesmo assim nao aparecer, entra no menu).
+        MOB_R + " a[href=\"#/search\"]{display:inline-flex !important;}",
+        // Mudar perfil: so o avatar, alvo de toque de 44 px.
+        MOB_R + " #jfProfileChooserBtn .jf-profile-header-name," + MOB_R + " #jfProfileChooserBtn .jf-profile-header-caret{display:none !important;}",
+        MOB_R + " #jfProfileChooserBtn{display:inline-flex !important;align-items:center;justify-content:center;width:44px !important;min-width:44px !important;height:44px !important;padding:0 !important;gap:0 !important;margin:0 !important;border:0 !important;background:transparent !important;box-shadow:none !important;}",
+        ".pf-more-btn{display:none;}",
+        MOB_R + " .pf-more-btn{display:inline-flex;order:99;align-items:center;justify-content:center;flex:0 0 auto;width:44px;height:44px;margin:0 2px 0 0;padding:0;border:0;border-radius:50%;background:transparent;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
+        ".pf-more-btn svg{width:24px;height:24px;fill:currentColor;display:block;}",
+        ".pf-more-btn:focus-visible{outline:2px solid #FF3B47;outline-offset:2px;}",
+        // A engrenagem do slider ficava em cima do botao Detalhes; no mobile ela vai para o menu "Mais".
+        "html.pf-mob #monwui-slides-container .monwui-provider-link.settings{display:none !important;}",
+        "#pf-more{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1450;display:none;}",
+        "#pf-more.pf-more-open{display:block;}",
+        "#pf-more .pf-more-back{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.35);}",
+        "#pf-more .pf-more-list{position:absolute;top:calc(env(safe-area-inset-top, 0px) + 52px);right:8px;min-width:220px;max-width:calc(100vw - 16px);max-height:calc(100vh - 70px);overflow-y:auto;box-sizing:border-box;padding:6px 0;background:#181818;border:1px solid rgba(255,255,255,0.12);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,0.55);}",
+        "#pf-more .pf-more-item{display:flex;align-items:center;gap:14px;width:100%;min-height:48px;box-sizing:border-box;padding:6px 16px;border:0;background:transparent;color:#F2F2F2;font:inherit;font-size:15px;line-height:1.3;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
+        "#pf-more .pf-more-item:hover,#pf-more .pf-more-item:focus-visible,#pf-more .pf-more-item:active{background:rgba(255,255,255,0.08);outline:none;}",
+        "#pf-more .pf-more-ic{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:24px;height:24px;overflow:hidden;color:#F2F2F2;font-size:22px;line-height:1;}",
+        "#pf-more .pf-more-ic svg,#pf-more .pf-more-ic img{width:22px !important;height:22px !important;fill:currentColor;display:block;margin:0 !important;}",
+        "#pf-more .pf-more-ic > *{position:static !important;transform:none !important;margin:0 !important;}"
+    ].join("\n");
+
+    function mobT() {
+        var l = ((document.documentElement.lang || navigator.language || "") + "").toLowerCase().slice(0, 2);
+        return MOB_TXT[l] || MOB_TXT.en;
+    }
+
+    var mqCoarse = null, mqSmall = null;
+    try { mqCoarse = window.matchMedia("(pointer: coarse)"); mqSmall = window.matchMedia("(max-width: 900px)"); } catch (e) {}
+    var UA_MOBILE = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    function isMobileProfile() {
+        return !!((mqCoarse && mqCoarse.matches) || (mqSmall && mqSmall.matches && UA_MOBILE));
+    }
+    function syncMobFlag() {
+        var on = isMobileProfile();
+        var root = document.documentElement;
+        if (on !== root.classList.contains("pf-mob")) root.classList.toggle("pf-mob", on);
+        return on;
+    }
+
+    function isNavIconButton(el) {
+        return !!el.querySelector(':scope > svg[data-testid="MenuIcon"], :scope > svg[data-testid="ArrowBackIcon"]');
+    }
+
+    // Marca (ou desmarca) os botoes da barra que vao para o menu "Mais". Sem leitura de layout.
+    function mobPark(toolbar, stack, on) {
+        var all = toolbar.querySelectorAll("button,a");
+        for (var i = 0; i < all.length; i++) {
+            var el = all[i];
+            var park = on && !(stack && stack.contains(el)) && !el.closest(MOB_KEEP) && !isNavIconButton(el) &&
+                !(el.parentElement && el.parentElement.closest("button,a") && toolbar.contains(el.parentElement.closest("button,a")));
+            if (park !== el.classList.contains("pf-mob-park")) el.classList.toggle("pf-mob-park", park);
+        }
+    }
+
+    var moreEl = null;
+    var moreOpener = null;
+
+    function moreClose() {
+        if (!moreEl || !moreEl.classList.contains("pf-more-open")) return;
+        moreEl.classList.remove("pf-more-open");
+        var b = document.querySelector(".pf-more-btn");
+        if (b) b.setAttribute("aria-expanded", "false");
+    }
+
+    function moreItems() {
+        var T = mobT();
+        var out = [];
+        var header = document.querySelector("header.MuiAppBar-root");
+        if (!header) return out;
+        var s = header.querySelector('a[href="#/search"]');
+        if (!s || !s.getClientRects().length) out.push({ label: T.search, html: SEARCH_ICON, run: function () { window.location.hash = "#/search"; } });
+        var parked = header.querySelectorAll(".pf-mob-park");
+        for (var i = 0; i < parked.length; i++) {
+            (function (el) {
+                // Sem caixa = o proprio Jellyfin ou plugin escondeu (ex.: abas do Enhanced recolhidas no "Mais do Jellyfin Enhanced").
+                if (!el.getClientRects().length) return;
+                var label = (el.getAttribute("aria-label") || el.getAttribute("title") || el.textContent || "").replace(/\s+/g, " ").trim();
+                if (!label) return;
+                var ic = el.querySelector("svg, img, .material-icons, [class*=\"material-symbols\"], i");
+                out.push({ label: label, node: ic ? ic.cloneNode(true) : null, run: function () { el.click(); } });
+            })(parked[i]);
+        }
+        var gear = document.querySelector("#monwui-slides-container .monwui-slide.active .monwui-provider-link.settings") ||
+            document.querySelector("#monwui-slides-container .monwui-provider-link.settings");
+        if (gear) out.push({ label: gear.getAttribute("title") || T.jms, html: GEAR_ICON, run: function () { gear.click(); } });
+        return out;
+    }
+
+    function moreOpen() {
+        if (!moreEl || !moreEl.isConnected) {
+            moreEl = document.createElement("div");
+            moreEl.id = "pf-more";
+            moreEl.innerHTML = '<div class="pf-more-back"></div><div class="pf-more-list" role="menu"></div>';
+            moreEl.querySelector(".pf-more-back").addEventListener("click", moreClose);
+            document.body.appendChild(moreEl);
+        }
+        var list = moreEl.querySelector(".pf-more-list");
+        list.innerHTML = "";
+        var items = moreItems();
+        items.forEach(function (it) {
+            var b = document.createElement("button");
+            b.type = "button";
+            b.className = "pf-more-item";
+            b.setAttribute("role", "menuitem");
+            var ic = document.createElement("span");
+            ic.className = "pf-more-ic";
+            ic.setAttribute("aria-hidden", "true");
+            if (it.html) ic.innerHTML = it.html;
+            else if (it.node) ic.appendChild(it.node);
+            var t = document.createElement("span");
+            t.textContent = it.label;
+            b.appendChild(ic);
+            b.appendChild(t);
+            // Fecha antes e repassa o clique no quadro seguinte: o menu do botao original nao recebe este toque como
+            // "clique fora" e abre normalmente, ancorado no canto onde o botao esta parado.
+            b.addEventListener("click", function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                moreClose();
+                setTimeout(function () { try { it.run(); } catch (e) {} }, 30);
+            });
+            list.appendChild(b);
+        });
+        if (!items.length) return;
+        moreEl.classList.add("pf-more-open");
+        if (moreOpener) moreOpener.setAttribute("aria-expanded", "true");
+        var first = list.querySelector(".pf-more-item");
+        if (first) try { first.focus({ preventScroll: true }); } catch (e) {}
+    }
+
+    function mobEnsure(toolbar) {
+        var b = toolbar.querySelector(":scope > .pf-more-btn");
+        if (!b) {
+            // Sempre o mesmo botao: se o React recriar a barra, ele so volta para o lugar.
+            b = moreOpener || document.createElement("button");
+            if (!b.classList.contains("pf-more-btn")) {
+                b.type = "button";
+                b.className = "pf-more-btn";
+                b.setAttribute("aria-label", mobT().more);
+                b.setAttribute("aria-haspopup", "menu");
+                b.setAttribute("aria-expanded", "false");
+                b.innerHTML = MORE_ICON;
+                b.addEventListener("click", function (ev) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (moreEl && moreEl.classList.contains("pf-more-open")) moreClose(); else moreOpen();
+                });
+            }
+            moreOpener = b;
+        }
+        if (toolbar.lastElementChild !== b) toolbar.appendChild(b);
+    }
+
+    function mobRemove(toolbar) {
+        moreClose();
+        var b = toolbar ? toolbar.querySelector(":scope > .pf-more-btn") : null;
+        if (b) b.remove();
+    }
+
+    document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") moreClose(); });
+    window.addEventListener("hashchange", moreClose);
+
     function isVideoRoute() {
         var p = (window.location.hash || "").replace(/^#/, "").split("?")[0];
         return p === "/video" || p === "/video.html";
@@ -770,6 +959,20 @@
         syncLinks(stack);
         if (drWanted()) drEnsure(toolbar); else drRemove();
         drSync();
+        // Fork ParticularFlix: no perfil mobile as pilulas ficam escondidas (so na gaveta), entao a escada do fitNav nao roda
+        // (ela mede a barra a cada mudanca) e os botoes extras vao para o menu "Mais".
+        var mob = syncMobFlag();
+        mobPark(toolbar, stack, mob);
+        if (mob) {
+            mobEnsure(toolbar);
+            if (lastFitSig !== "mob") {
+                lastFitSig = "mob";
+                ["pf-nav-compact", "pf-nav-flow", "pf-nav-icons"].forEach(function (c) { root.classList.remove(c); });
+            }
+            syncModernFlag(header);
+            return;
+        }
+        mobRemove(toolbar);
         var sig = toolbar.clientWidth + "|" + window.innerWidth + "|" + stack.children.length + "|" + stack.textContent.length + "|" + (document.getElementById("jfNotifBtn") ? 1 : 0) + "|" + toolbar.children.length;
         if (sig !== lastFitSig) { lastFitSig = sig; fitNav(toolbar, stack, logo); }
         syncModernFlag(header);
@@ -834,6 +1037,12 @@
         window.addEventListener("hashchange", schedule);
         window.addEventListener("popstate", schedule);
         window.addEventListener("resize", schedule);
+        // Fork ParticularFlix: troca de perfil mobile/desktop sem recarregar (girar a tela, modo dispositivo do navegador).
+        [mqCoarse, mqSmall].forEach(function (mq) {
+            if (!mq) return;
+            var fn = function () { lastFitSig = ""; schedule(); };
+            try { mq.addEventListener("change", fn); } catch (e) { try { mq.addListener(fn); } catch (e2) {} }
+        });
         // Nao interceptamos history.pushState: isso quebrava navegacoes do Enhanced (Catalogo: Em alta, Filmes populares...).
         try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { lastFitSig = ""; schedule(); }); } catch (e) {}
         var lastUrl = location.href;
