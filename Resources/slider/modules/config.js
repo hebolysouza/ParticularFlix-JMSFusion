@@ -353,15 +353,25 @@ export function getDeviceProfileAuto() {
   }
 }
 
-// Fork ParticularFlix 4.0.0.11: celular em pe (perfil mobile e ate 720 px, a mesma largura do CSS mobile do Peak).
-// Nessa tela o slider usa o layout mobile proprio: sem as posicoes manuais do desktop (positionUtils) e sem trailer
-// no slide (slideCreator). Celular deitado e tablet continuam como no desktop.
-export function isMobileNarrowSlider() {
+// Fork ParticularFlix 4.0.0.11: layout do slider para celular. "portrait": perfil mobile ate 720 px de largura (a
+// mesma largura do CSS mobile do Peak); "landscape": perfil mobile com ate 500 px de altura (celular deitado). Tablet
+// e desktop: "". Nos dois modos de celular os blocos do slide ficam empilhados (CSS do main.js, html.jms-phone) e sem
+// as posicoes manuais do desktop (positionUtils); em pe o slide nao tem trailer (slideCreator).
+export function getMobilePhoneSliderMode() {
   try {
-    return getDeviceProfileAuto() === "mobile" && window.matchMedia?.("(max-width: 720px)")?.matches === true;
-  } catch {
-    return false;
-  }
+    if (getDeviceProfileAuto() !== "mobile") return "";
+    if (window.matchMedia?.("(max-width: 720px)")?.matches === true) return "portrait";
+    if (window.matchMedia?.("(max-height: 500px)")?.matches === true) return "landscape";
+  } catch {}
+  return "";
+}
+
+export function isMobileNarrowSlider() {
+  return getMobilePhoneSliderMode() === "portrait";
+}
+
+export function isMobilePhoneSlider() {
+  return getMobilePhoneSliderMode() !== "";
 }
 
 export function getAdminTargetProfile() {

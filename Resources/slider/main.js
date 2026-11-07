@@ -2,6 +2,7 @@ import { saveCredentials, saveApiKey, getAuthToken } from "../Plugins/JMSFusion/
 import {
   getConfig,
   getDeviceProfileAuto,
+  getMobilePhoneSliderMode,
   getHomeSectionsRuntimeConfig,
   getPauseFeaturesRuntimeConfig,
   isDetailsModalModuleEnabled,
@@ -2800,63 +2801,134 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
       transform: scaleX(var(--jms-pos, 0)); transition: transform .35s ease;
     }
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .jms-mob-pos { display: none !important; }
-    /* Fork ParticularFlix 4.0.0.11: celular em pe (perfil mobile ate 720 px; mesma regra de isMobileNarrowSlider).
-       Sem as posicoes manuais do desktop (positionUtils), os blocos seguem o layout mobile do Peak; aqui o card fica
-       quase da largura da tela, o logo volta (como no desktop) e titulo, selos e sinopse cabem no card. */
-    @media (max-width: 720px) {
-      html.jms-mobile[data-css-variant=peakslider] #monwui-slides-container.peak-mode:not(.peak-diagonal) {
-        --slide-w: calc(100vw - 32px); --neighbor-gap: 8px; --neighbor-gap-left: 8px; --neighbor-gap-right: 8px;
-      }
-      html.jms-mobile #monwui-slides-container .monwui-slide .intro-video-container,
-      html.jms-mobile #monwui-slides-container .monwui-auto-trailer-toggle,
-      html.jms-mobile #monwui-slides-container .monwui-preview-volume-control,
-      html.jms-mobile #monwui-slides-container .monwui-preview-fullscreen-toggle { display: none !important; }
-      html.jms-mobile #monwui-slides-container .monwui-slide .monwui-backdrop { opacity: 1 !important; }
-      html.jms-mobile #monwui-slides-container .monwui-meta-container,
-      html.jms-mobile #monwui-slides-container .monwui-format-container,
-      html.jms-mobile #monwui-slides-container .monwui-rating-container {
-        left: 0 !important; right: 0 !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box !important;
-        padding: 0 10px !important; display: flex !important; flex-wrap: wrap !important; justify-content: center !important;
-        align-items: center !important; gap: 4px !important; zoom: .85;
-      }
-      html.jms-mobile #monwui-slides-container .monwui-meta-container { top: 4% !important; bottom: auto !important; }
-      html.jms-mobile #monwui-slides-container .monwui-meta-container > *,
-      html.jms-mobile #monwui-slides-container .monwui-format-container > * { flex-wrap: wrap !important; justify-content: center !important; white-space: nowrap; }
-      html.jms-mobile #monwui-slides-container .monwui-logo-container:has(img.monwui-logo) {
-        display: flex !important; position: absolute !important; top: 15% !important; left: 0 !important; right: 0 !important;
-        width: 100% !important; height: 17% !important; padding: 0 12% !important; box-sizing: border-box !important;
-        align-items: center !important; justify-content: center !important; transform: none !important;
-      }
-      html.jms-mobile #monwui-slides-container .monwui-logo-container img.monwui-logo {
-        max-width: 100% !important; max-height: 100% !important; width: auto !important; height: auto !important; object-fit: contain !important;
-      }
-      html.jms-mobile #monwui-slides-container .monwui-slide:has(.monwui-logo-container img.monwui-logo) .monwui-baslik { display: none !important; }
-      html.jms-mobile #monwui-slides-container .monwui-rating-container { top: 34% !important; bottom: auto !important; }
-      html.jms-mobile #monwui-slides-container .monwui-title-container {
-        left: 0 !important; right: 0 !important; width: 100% !important; top: 42% !important; padding: 0 14px !important; box-sizing: border-box !important;
-      }
-      html.jms-mobile #monwui-slides-container .monwui-baslik,
-      html.jms-mobile #monwui-slides-container .monwui-slogan {
-        width: 100% !important; white-space: normal !important; overflow-wrap: anywhere; text-align: center;
-        display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
-      }
-      html.jms-mobile #monwui-slides-container .monwui-baslik { font-size: clamp(1.3rem, 6.5vw, 1.9rem) !important; line-height: 1.1 !important; }
-      html.jms-mobile #monwui-slides-container .monwui-plot-container {
-        left: 0 !important; right: 0 !important; width: 100% !important; justify-content: flex-start !important; padding: 0 14px !important;
-        box-sizing: border-box !important; min-height: 0 !important;
-      }
-      html.jms-mobile #monwui-slides-container .monwui-plot {
-        width: 100% !important; text-align: left !important; text-transform: none !important; font-size: .9rem !important;
-        line-height: 1.45 !important; -webkit-line-clamp: 4 !important;
-      }
-      html.jms-mobile #monwui-slides-container .monwui-info-container {
-        left: 0 !important; right: 0 !important; width: 100% !important; transform: none !important; padding: 0 10px !important;
-        box-sizing: border-box !important; flex-wrap: wrap !important; justify-content: center !important; overflow: hidden;
-      }
-      html.jms-mobile #monwui-slides-container .monwui-button-container {
-        left: 0 !important; right: 0 !important; width: 100% !important; justify-content: center !important; transform: none !important;
-      }
+    /* Fork ParticularFlix 4.0.0.11: slider no celular (html.jms-phone, ver getMobilePhoneSliderMode). Os blocos do slide
+       eram absolutos em % de uma tela de desktop e se sobrepunham (selos em cima das notas, titulo para fora do card).
+       Aqui eles viram uma pilha: selos e notas no topo, logo, frase, sinopse com o progresso, diretor, botoes e
+       generos embaixo; cada bloco ocupa so a altura que tem, entao nada fica por cima de nada. */
+    html.jms-phone[data-css-variant=peakslider] #monwui-slides-container.peak-mode:not(.peak-diagonal) {
+      --slide-w: calc(100vw - 32px); --neighbor-gap: 8px; --neighbor-gap-left: 8px; --neighbor-gap-right: 8px;
     }
+    html.jms-phone #monwui-slides-container .monwui-slide {
+      display: flex !important; flex-direction: column !important; box-sizing: border-box !important; padding: 10px 0 8px !important;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-bckdrp-cntnr { position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-format-container,
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container,
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container,
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-director-container,
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-button-container,
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-info-container,
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-logo-container,
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-title-container,
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-plot-container {
+      position: relative !important; top: auto !important; right: auto !important; bottom: auto !important; left: auto !important;
+      transform: none !important; width: 100% !important; max-width: 100% !important; height: auto !important; min-height: 0 !important;
+      margin: 0 !important; box-sizing: border-box !important; flex: 0 0 auto !important; opacity: 1 !important; animation: none !important;
+      aspect-ratio: auto !important;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-format-container { order: 1; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container { order: 2; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container { order: 3; margin-top: auto !important; display: flex !important; flex-direction: column !important; gap: 6px; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-director-container { order: 4; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-button-container { order: 5; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-info-container { order: 6; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-provider-container { display: none !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-format-container,
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container {
+      display: flex !important; flex-direction: column !important; align-items: center !important; gap: 4px !important;
+      padding: 0 10px 4px !important; zoom: .85;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-format-container,
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container > * {
+      flex-direction: row !important; flex-wrap: wrap !important; justify-content: center !important; gap: 4px !important;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-format-container { flex-direction: row !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-format-container > *,
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container > * > * { flex-wrap: wrap !important; justify-content: center !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container > * {
+      position: static !important; display: flex !important; width: auto !important; max-width: 100% !important; margin: 0 !important;
+      top: auto !important; left: auto !important; transform: none !important; opacity: 1 !important; animation: none !important;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container > .monwui-language-container:empty { display: none !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-logo-container { display: none !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-logo-container:has(img.monwui-logo) {
+      display: flex !important; justify-content: center !important; align-items: center !important; padding: 0 12% !important;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide .monwui-logo-container img.monwui-logo {
+      max-width: 100% !important; max-height: 90px !important; width: auto !important; height: auto !important; object-fit: contain !important;
+      position: static !important; transform: none !important;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide:has(.monwui-logo-container img.monwui-logo) .monwui-baslik { display: none !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-title-container {
+      display: flex !important; flex-direction: column !important; align-items: center !important; padding: 0 14px !important; gap: 2px;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide .monwui-baslik, html.jms-phone #monwui-slides-container .monwui-slide .monwui-slogan, html.jms-phone #monwui-slides-container .monwui-slide .monwui-o-baslik {
+      width: 100% !important; white-space: normal !important; overflow-wrap: anywhere; text-align: center !important;
+      display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide .monwui-o-baslik { -webkit-line-clamp: 1; }
+    html.jms-phone #monwui-slides-container .monwui-slide .monwui-baslik { font-size: clamp(1.3rem, 6.5vw, 1.9rem) !important; line-height: 1.1 !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide .monwui-slogan { font-size: .85rem !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-plot-container {
+      display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important;
+      padding: 0 14px !important; gap: 6px;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide .monwui-plot {
+      width: 100% !important; text-align: left !important; text-transform: none !important; font-size: .9rem !important;
+      line-height: 1.45 !important; -webkit-line-clamp: 4 !important;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide .monwui-playing-progress-container { position: static !important; width: 100% !important; transform: none !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-director-container {
+      display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: 2px 10px; padding: 4px 14px 0 !important;
+      font-size: .8rem !important; text-align: center !important;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-director-container:empty { display: none !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-director-container > * { position: static !important; width: auto !important; max-width: 100% !important; transform: none !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-button-container { display: flex !important; justify-content: center !important; padding: 8px 10px 0 !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-info-container {
+      display: flex !important; flex-wrap: wrap !important; justify-content: center !important; align-items: center !important;
+      padding: 6px 10px 0 !important; overflow: hidden;
+    }
+    /* Em pe: sem trailer (slideCreator); um trailer criado deitado fica escondido e parado ao girar. */
+    html.jms-phone-portrait #monwui-slides-container .monwui-slide .intro-video-container,
+    html.jms-phone-portrait #monwui-slides-container .monwui-auto-trailer-toggle,
+    html.jms-phone-portrait #monwui-slides-container .monwui-preview-volume-control,
+    html.jms-phone-portrait #monwui-slides-container .monwui-preview-fullscreen-toggle { display: none !important; }
+    html.jms-phone-portrait #monwui-slides-container .monwui-slide .monwui-backdrop { opacity: 1 !important; }
+    /* Deitado: o trailer ocupa o card inteiro (no Peak ele ficava nos 75% da direita, num canto do card baixo) e os
+       blocos ficam numa coluna a esquerda, alinhados a esquerda, mais compactos (o card tem ~250 px de altura). */
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide .intro-video-container {
+      left: 0 !important; right: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important;
+    }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide .intro-video-container::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(90deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.4) 45%, rgba(0,0,0,0) 70%);
+    }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide { padding: 8px 0 6px !important; }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > :is(.monwui-format-container, .monwui-meta-container, .monwui-main-content-container, .monwui-director-container, .monwui-button-container, .monwui-info-container) {
+      width: 60% !important; max-width: 60% !important; align-self: flex-start !important;
+    }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > :is(.monwui-format-container, .monwui-meta-container) { align-items: flex-start !important; zoom: .75; }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-meta-container { flex-direction: row !important; flex-wrap: wrap !important; justify-content: flex-start !important; }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-logo-container:has(img.monwui-logo) { justify-content: flex-start !important; padding: 0 12px !important; }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-format-container,
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > :is(.monwui-format-container, .monwui-meta-container) > *,
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > :is(.monwui-director-container, .monwui-button-container, .monwui-info-container) {
+      justify-content: flex-start !important;
+    }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-main-content-container { gap: 3px; }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-main-content-container > :is(.monwui-logo-container, .monwui-title-container) {
+      align-items: flex-start !important; justify-content: flex-start !important; padding: 0 12px !important;
+    }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide .monwui-logo-container img.monwui-logo { max-height: 36px !important; }
+    /* Deitado o diretor nao cabe no card baixo junto com o resto (fica nos Detalhes e no celular em pe). */
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-director-container { display: none !important; }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide :is(.monwui-baslik, .monwui-slogan, .monwui-o-baslik) { text-align: left !important; -webkit-line-clamp: 1; }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide .monwui-baslik { font-size: 1.2rem !important; }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide .monwui-plot { font-size: .8rem !important; line-height: 1.35 !important; -webkit-line-clamp: 2 !important; }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-director-container { font-size: .72rem !important; padding: 2px 12px 0 !important; }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-button-container { padding: 2px 12px 0 !important; }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-info-container { padding: 2px 12px 0 !important; font-size: .75rem !important; }
     @media (prefers-reduced-motion: reduce) { html.jms-mobile #monwui-slides-container > .jms-mob-pos::after { transition: none; } }
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .jms-slider,
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .homeSlider,
@@ -2878,23 +2950,28 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
   // com navegador de celular). O CSS do slider usava so largura (768, 720, 960 px), entao celular deitado e tablet ficavam
   // com o perfil mobile mas o CSS de desktop. Atualiza sozinho ao girar a tela ou trocar o modo dispositivo do navegador.
   try {
-    const mqCoarse = window.matchMedia?.('(pointer: coarse)');
-    const mqSmall = window.matchMedia?.('(max-width: 900px)');
-    const mqNarrow = window.matchMedia?.('(max-width: 720px)');
+    const mqs = ['(pointer: coarse)', '(max-width: 900px)', '(max-width: 720px)', '(max-height: 500px)']
+      .map((q) => window.matchMedia?.(q)).filter(Boolean);
     const syncMobileClass = () => {
+      const root = D.documentElement;
       const on = getDeviceProfileAuto() === 'mobile';
-      if (on !== D.documentElement.classList.contains('jms-mobile')) D.documentElement.classList.toggle('jms-mobile', on);
-      // Girar de deitado para em pe: o trailer ja criado fica escondido pelo CSS; aqui ele tambem para e fica mudo.
-      if (on && mqNarrow?.matches) {
-        try {
+      if (on !== root.classList.contains('jms-mobile')) root.classList.toggle('jms-mobile', on);
+      // Celular: blocos do slide empilhados (CSS abaixo). Em pe sem trailer; deitado com o trailer no card inteiro.
+      const phone = getMobilePhoneSliderMode();
+      const toggles = { 'jms-phone': !!phone, 'jms-phone-portrait': phone === 'portrait', 'jms-phone-landscape': phone === 'landscape' };
+      Object.keys(toggles).forEach((c) => { if (toggles[c] !== root.classList.contains(c)) root.classList.toggle(c, toggles[c]); });
+      try {
+        if (phone === 'portrait') {
+          // Girar de deitado para em pe: o trailer ja criado fica escondido pelo CSS; aqui ele tambem para e fica mudo.
           D.querySelectorAll('#monwui-slides-container .intro-video-container video').forEach((v) => { v.muted = true; v.pause(); });
-        } catch {}
-      }
+        } else {
+          // Girar de em pe para deitado: os slides criados em pe ganham o trailer agora.
+          D.querySelectorAll('#monwui-slides-container .monwui-slide').forEach((sl) => { try { sl.__initTrailer?.(); } catch {} });
+        }
+      } catch {}
     };
     syncMobileClass();
-    mqCoarse?.addEventListener?.('change', syncMobileClass);
-    mqSmall?.addEventListener?.('change', syncMobileClass);
-    mqNarrow?.addEventListener?.('change', syncMobileClass);
+    mqs.forEach((mq) => mq.addEventListener?.('change', syncMobileClass));
   } catch {}
   if (!D.getElementById('jms-critical-css')) {
     const s = D.createElement('style');

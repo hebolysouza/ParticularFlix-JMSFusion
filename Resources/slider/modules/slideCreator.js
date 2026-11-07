@@ -811,10 +811,13 @@ async function createSlide(item, options = {}) {
   // Fork ParticularFlix 4.0.0.11: no celular em pe o trailer tocava na faixa da direita do card (75% de largura no
   // Peak), fora da parte visivel, e gastava dados e bateria. Ali o slide fica com a imagem e o logo, como no desktop
   // antes do trailer; deitado ou no tablet o trailer continua.
-  if (!slide.__trailerInit && !isMobileNarrowSlider()) {
-   slide.__trailerInit = true;
-   createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId, allowAutoTrailer: true });
- }
+  // Se o celular for girado para deitado depois, o main.js cria o trailer que ficou para tras (__initTrailer).
+  slide.__initTrailer = () => {
+    if (slide.__trailerInit || !slide.isConnected) return;
+    slide.__trailerInit = true;
+    createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId, allowAutoTrailer: true });
+  };
+  if (!slide.__trailerInit && !isMobileNarrowSlider()) slide.__initTrailer();
 
   const logoContainer = createLogoContainer();
   const order = config.showDiscOnly

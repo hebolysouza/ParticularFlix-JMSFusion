@@ -1,4 +1,4 @@
-import { getConfig, isMobileNarrowSlider } from "./config.js";
+import { getConfig, isMobilePhoneSlider } from "./config.js";
 import { forceHomeSectionsTop } from './positionOverrides.js';
 
 const HEADER_OFFSET_VAR = '--jms-slider-header-offset-px';
@@ -581,10 +581,11 @@ export function applyContainerStyles(container, type = '') {
     prefix = 'slide';
   }
 
-  // Fork ParticularFlix 4.0.0.11: no celular em pe as posicoes manuais (Top/Left/Width... em %, ajustadas numa tela de
+  // Fork ParticularFlix 4.0.0.11: no celular as posicoes manuais (Top/Left/Width... em %, ajustadas numa tela de
   // desktop) entravam como estilo inline !important e venciam o CSS mobile do layout: sinopse numa coluna de ~90 px,
-  // titulo e selos cortados na borda do card. Nessa tela os blocos ficam sem elas (o resize as devolve ao girar).
-  if (type && type !== 'progress' && type !== 'progressSeconds' && isMobileNarrowSlider()) {
+  // titulo e selos cortados na borda do card. No celular (em pe ou deitado) os blocos ficam sem elas e seguem a pilha
+  // do CSS mobile (main.js); no tablet e no desktop nada muda (o resize as devolve ao girar).
+  if (type && type !== 'progress' && type !== 'progressSeconds' && isMobilePhoneSlider()) {
     ['top', 'left', 'width', 'height', 'display', 'flex-direction', 'justify-content', 'align-items', 'flex-wrap']
       .forEach((prop) => setImportantStyle(container, prop, ''));
     return;
