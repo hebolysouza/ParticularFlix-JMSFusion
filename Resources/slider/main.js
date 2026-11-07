@@ -2800,6 +2800,63 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
       transform: scaleX(var(--jms-pos, 0)); transition: transform .35s ease;
     }
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .jms-mob-pos { display: none !important; }
+    /* Fork ParticularFlix 4.0.0.11: celular em pe (perfil mobile ate 720 px; mesma regra de isMobileNarrowSlider).
+       Sem as posicoes manuais do desktop (positionUtils), os blocos seguem o layout mobile do Peak; aqui o card fica
+       quase da largura da tela, o logo volta (como no desktop) e titulo, selos e sinopse cabem no card. */
+    @media (max-width: 720px) {
+      html.jms-mobile[data-css-variant=peakslider] #monwui-slides-container.peak-mode:not(.peak-diagonal) {
+        --slide-w: calc(100vw - 32px); --neighbor-gap: 8px; --neighbor-gap-left: 8px; --neighbor-gap-right: 8px;
+      }
+      html.jms-mobile #monwui-slides-container .monwui-slide .intro-video-container,
+      html.jms-mobile #monwui-slides-container .monwui-auto-trailer-toggle,
+      html.jms-mobile #monwui-slides-container .monwui-preview-volume-control,
+      html.jms-mobile #monwui-slides-container .monwui-preview-fullscreen-toggle { display: none !important; }
+      html.jms-mobile #monwui-slides-container .monwui-slide .monwui-backdrop { opacity: 1 !important; }
+      html.jms-mobile #monwui-slides-container .monwui-meta-container,
+      html.jms-mobile #monwui-slides-container .monwui-format-container,
+      html.jms-mobile #monwui-slides-container .monwui-rating-container {
+        left: 0 !important; right: 0 !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box !important;
+        padding: 0 10px !important; display: flex !important; flex-wrap: wrap !important; justify-content: center !important;
+        align-items: center !important; gap: 4px !important; zoom: .85;
+      }
+      html.jms-mobile #monwui-slides-container .monwui-meta-container { top: 4% !important; bottom: auto !important; }
+      html.jms-mobile #monwui-slides-container .monwui-meta-container > *,
+      html.jms-mobile #monwui-slides-container .monwui-format-container > * { flex-wrap: wrap !important; justify-content: center !important; white-space: nowrap; }
+      html.jms-mobile #monwui-slides-container .monwui-logo-container:has(img.monwui-logo) {
+        display: flex !important; position: absolute !important; top: 15% !important; left: 0 !important; right: 0 !important;
+        width: 100% !important; height: 17% !important; padding: 0 12% !important; box-sizing: border-box !important;
+        align-items: center !important; justify-content: center !important; transform: none !important;
+      }
+      html.jms-mobile #monwui-slides-container .monwui-logo-container img.monwui-logo {
+        max-width: 100% !important; max-height: 100% !important; width: auto !important; height: auto !important; object-fit: contain !important;
+      }
+      html.jms-mobile #monwui-slides-container .monwui-slide:has(.monwui-logo-container img.monwui-logo) .monwui-baslik { display: none !important; }
+      html.jms-mobile #monwui-slides-container .monwui-rating-container { top: 34% !important; bottom: auto !important; }
+      html.jms-mobile #monwui-slides-container .monwui-title-container {
+        left: 0 !important; right: 0 !important; width: 100% !important; top: 42% !important; padding: 0 14px !important; box-sizing: border-box !important;
+      }
+      html.jms-mobile #monwui-slides-container .monwui-baslik,
+      html.jms-mobile #monwui-slides-container .monwui-slogan {
+        width: 100% !important; white-space: normal !important; overflow-wrap: anywhere; text-align: center;
+        display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+      }
+      html.jms-mobile #monwui-slides-container .monwui-baslik { font-size: clamp(1.3rem, 6.5vw, 1.9rem) !important; line-height: 1.1 !important; }
+      html.jms-mobile #monwui-slides-container .monwui-plot-container {
+        left: 0 !important; right: 0 !important; width: 100% !important; justify-content: flex-start !important; padding: 0 14px !important;
+        box-sizing: border-box !important; min-height: 0 !important;
+      }
+      html.jms-mobile #monwui-slides-container .monwui-plot {
+        width: 100% !important; text-align: left !important; text-transform: none !important; font-size: .9rem !important;
+        line-height: 1.45 !important; -webkit-line-clamp: 4 !important;
+      }
+      html.jms-mobile #monwui-slides-container .monwui-info-container {
+        left: 0 !important; right: 0 !important; width: 100% !important; transform: none !important; padding: 0 10px !important;
+        box-sizing: border-box !important; flex-wrap: wrap !important; justify-content: center !important; overflow: hidden;
+      }
+      html.jms-mobile #monwui-slides-container .monwui-button-container {
+        left: 0 !important; right: 0 !important; width: 100% !important; justify-content: center !important; transform: none !important;
+      }
+    }
     @media (prefers-reduced-motion: reduce) { html.jms-mobile #monwui-slides-container > .jms-mob-pos::after { transition: none; } }
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .jms-slider,
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .homeSlider,
@@ -2823,13 +2880,21 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
   try {
     const mqCoarse = window.matchMedia?.('(pointer: coarse)');
     const mqSmall = window.matchMedia?.('(max-width: 900px)');
+    const mqNarrow = window.matchMedia?.('(max-width: 720px)');
     const syncMobileClass = () => {
       const on = getDeviceProfileAuto() === 'mobile';
       if (on !== D.documentElement.classList.contains('jms-mobile')) D.documentElement.classList.toggle('jms-mobile', on);
+      // Girar de deitado para em pe: o trailer ja criado fica escondido pelo CSS; aqui ele tambem para e fica mudo.
+      if (on && mqNarrow?.matches) {
+        try {
+          D.querySelectorAll('#monwui-slides-container .intro-video-container video').forEach((v) => { v.muted = true; v.pause(); });
+        } catch {}
+      }
     };
     syncMobileClass();
     mqCoarse?.addEventListener?.('change', syncMobileClass);
     mqSmall?.addEventListener?.('change', syncMobileClass);
+    mqNarrow?.addEventListener?.('change', syncMobileClass);
   } catch {}
   if (!D.getElementById('jms-critical-css')) {
     const s = D.createElement('style');

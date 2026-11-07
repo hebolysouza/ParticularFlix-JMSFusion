@@ -1,6 +1,6 @@
 import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, createTrailerIframe, debounce, getHighResImageUrls, prefetchImages, getHighestQualityBackdropIndex, createImageWarmQueue } from "./utils.js";
 import { updateFavoriteStatus, updatePlayedStatus, getSessionInfo, fetchLocalTrailers, pickBestLocalTrailer } from "../../Plugins/JMSFusion/runtime/api.js";
-import { getConfig } from "./config.js";
+import { getConfig, isMobileNarrowSlider } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
 import { createSlidesContainer, createHorizontalGradientOverlay, createLogoContainer, createStatusContainer, createFormatContainer, createActorSlider, createInfoContainer, createDirectorContainer, createRatingContainer, createLanguageContainer, createMetaContainer, createMainContentContainer, createPlotContainer, createTitleContainer } from "./containerUtils.js";
 import { createButtons, createProviderContainer } from './buttons.js';
@@ -808,7 +808,10 @@ async function createSlide(item, options = {}) {
   slide.__backdropContainer = backdropContainer;
   slide.append(backdropContainer);
 
-  if (!slide.__trailerInit) {
+  // Fork ParticularFlix 4.0.0.11: no celular em pe o trailer tocava na faixa da direita do card (75% de largura no
+  // Peak), fora da parte visivel, e gastava dados e bateria. Ali o slide fica com a imagem e o logo, como no desktop
+  // antes do trailer; deitado ou no tablet o trailer continua.
+  if (!slide.__trailerInit && !isMobileNarrowSlider()) {
    slide.__trailerInit = true;
    createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId, allowAutoTrailer: true });
  }

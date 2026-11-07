@@ -1,4 +1,4 @@
-import { getConfig } from "./config.js";
+import { getConfig, isMobileNarrowSlider } from "./config.js";
 import { forceHomeSectionsTop } from './positionOverrides.js';
 
 const HEADER_OFFSET_VAR = '--jms-slider-header-offset-px';
@@ -579,6 +579,15 @@ export function applyContainerStyles(container, type = '') {
     prefix = `${type}Container`;
   } else {
     prefix = 'slide';
+  }
+
+  // Fork ParticularFlix 4.0.0.11: no celular em pe as posicoes manuais (Top/Left/Width... em %, ajustadas numa tela de
+  // desktop) entravam como estilo inline !important e venciam o CSS mobile do layout: sinopse numa coluna de ~90 px,
+  // titulo e selos cortados na borda do card. Nessa tela os blocos ficam sem elas (o resize as devolve ao girar).
+  if (type && type !== 'progress' && type !== 'progressSeconds' && isMobileNarrowSlider()) {
+    ['top', 'left', 'width', 'height', 'display', 'flex-direction', 'justify-content', 'align-items', 'flex-wrap']
+      .forEach((prop) => setImportantStyle(container, prop, ''));
+    return;
   }
 
   // Nos layouts cinema e mosaic os blocos ficam em pilha (position:relative), entao Top/Left
