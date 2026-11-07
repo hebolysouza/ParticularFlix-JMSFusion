@@ -2816,7 +2816,7 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container,
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container,
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-director-container,
-    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-button-container,
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-button-container,
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-info-container,
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-logo-container,
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-title-container,
@@ -2830,7 +2830,7 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container { order: 2; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container { order: 3; margin-top: auto !important; display: flex !important; flex-direction: column !important; gap: 6px; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-director-container { order: 4; }
-    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-button-container { order: 5; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-button-container { order: 5; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-info-container { order: 6; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-provider-container { display: none !important; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-format-container,
@@ -2850,6 +2850,11 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
       top: auto !important; left: auto !important; transform: none !important; opacity: 1 !important; animation: none !important;
     }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container > .monwui-language-container:empty { display: none !important; }
+    /* Mais ar entre a linha de qualidade e as linhas de status/notas; as notas tinham 14 px e margem propria
+       (.monwui-rating-container div) e ficavam maiores que os outros selos. */
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container { margin-top: 6px !important; gap: 6px !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container > * { font-size: 13px !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container > .monwui-rating-container > * { font-size: 13px !important; margin: 0 !important; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-logo-container { display: none !important; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-logo-container:has(img.monwui-logo) {
       display: flex !important; justify-content: center !important; align-items: center !important; padding: 0 12% !important;
@@ -2884,11 +2889,23 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-director-container:empty { display: none !important; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-director-container > * { position: static !important; width: auto !important; max-width: 100% !important; transform: none !important; }
-    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-button-container { display: flex !important; justify-content: center !important; padding: 8px 10px 0 !important; }
-    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-info-container {
-      display: flex !important; flex-wrap: wrap !important; justify-content: center !important; align-items: center !important;
-      padding: 6px 10px 0 !important; overflow: hidden;
+    /* Os botoes ficam num .monwui-main-button-container (filho do slide); o .monwui-button-container de dentro era
+       absoluto (bottom 2%) e nao ocupava lugar na pilha: a sinopse caia por cima dos botoes. */
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-button-container { display: block !important; padding: 10px 10px 0 !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-button-container > .monwui-button-container {
+      position: static !important; top: auto !important; bottom: auto !important; left: auto !important; right: auto !important;
+      transform: none !important; width: 100% !important; margin: 0 !important; display: flex !important; justify-content: center !important;
     }
+    /* Generos, ano e pais numa linha so, como antes (so os generos encurtam com reticencias). */
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-info-container {
+      display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; justify-content: center !important;
+      align-items: center !important; gap: 6px; padding: 8px 10px 0 !important; overflow: hidden; white-space: nowrap;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-info-container > * {
+      position: static !important; flex: 0 0 auto !important; width: auto !important; margin: 0 !important; transform: none !important;
+      white-space: nowrap !important;
+    }
+    html.jms-phone #monwui-slides-container .monwui-slide > .monwui-info-container > :first-child { flex: 0 1 auto !important; min-width: 0 !important; overflow: hidden; text-overflow: ellipsis; }
     /* Em pe: sem trailer (slideCreator); um trailer criado deitado fica escondido e parado ao girar. */
     html.jms-phone-portrait #monwui-slides-container .monwui-slide .intro-video-container,
     html.jms-phone-portrait #monwui-slides-container .monwui-auto-trailer-toggle,
@@ -2905,7 +2922,7 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
       background: linear-gradient(90deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.4) 45%, rgba(0,0,0,0) 70%);
     }
     html.jms-phone-landscape #monwui-slides-container .monwui-slide { padding: 8px 0 6px !important; }
-    html.jms-phone-landscape #monwui-slides-container .monwui-slide > :is(.monwui-format-container, .monwui-meta-container, .monwui-main-content-container, .monwui-director-container, .monwui-button-container, .monwui-info-container) {
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > :is(.monwui-format-container, .monwui-meta-container, .monwui-main-content-container, .monwui-director-container, .monwui-main-button-container, .monwui-info-container) {
       width: 60% !important; max-width: 60% !important; align-self: flex-start !important;
     }
     html.jms-phone-landscape #monwui-slides-container .monwui-slide > :is(.monwui-format-container, .monwui-meta-container) { align-items: flex-start !important; zoom: .75; }
@@ -2913,7 +2930,8 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-logo-container:has(img.monwui-logo) { justify-content: flex-start !important; padding: 0 12px !important; }
     html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-format-container,
     html.jms-phone-landscape #monwui-slides-container .monwui-slide > :is(.monwui-format-container, .monwui-meta-container) > *,
-    html.jms-phone-landscape #monwui-slides-container .monwui-slide > :is(.monwui-director-container, .monwui-button-container, .monwui-info-container) {
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > :is(.monwui-director-container, .monwui-info-container),
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-main-button-container > .monwui-button-container {
       justify-content: flex-start !important;
     }
     html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-main-content-container { gap: 3px; }
@@ -2927,7 +2945,8 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     html.jms-phone-landscape #monwui-slides-container .monwui-slide .monwui-baslik { font-size: 1.2rem !important; }
     html.jms-phone-landscape #monwui-slides-container .monwui-slide .monwui-plot { font-size: .8rem !important; line-height: 1.35 !important; -webkit-line-clamp: 2 !important; }
     html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-director-container { font-size: .72rem !important; padding: 2px 12px 0 !important; }
-    html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-button-container { padding: 2px 12px 0 !important; }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-main-button-container { padding: 4px 12px 0 !important; }
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-meta-container { margin-top: 2px !important; gap: 3px !important; }
     html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-info-container { padding: 2px 12px 0 !important; font-size: .75rem !important; }
     @media (prefers-reduced-motion: reduce) { html.jms-mobile #monwui-slides-container > .jms-mob-pos::after { transition: none; } }
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .jms-slider,
