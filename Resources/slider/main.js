@@ -2855,6 +2855,12 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container { margin-top: 6px !important; gap: 6px !important; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container > * { font-size: 13px !important; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-meta-container > .monwui-rating-container > * { font-size: 13px !important; margin: 0 !important; }
+    /* O coracao do percentual tinha caixa fixa de 24x24 px (.monwui-match-rating) e deixava o selo mais alto que o da
+       estrela; no celular ele fica do tamanho do icone, como a estrela. */
+    html.jms-phone #monwui-slides-container .monwui-slide .monwui-rating-container .monwui-match-rating { width: 1.33em !important; height: 1.33em !important; }
+    /* Cards vizinhos (beiradas do Peak): so a imagem e o logo; selos, textos e botoes so no card do meio. */
+    html.jms-phone #monwui-slides-container .monwui-slide:not(.active) > :is(.monwui-format-container, .monwui-meta-container, .monwui-director-container, .monwui-main-button-container, .monwui-info-container),
+    html.jms-phone #monwui-slides-container .monwui-slide:not(.active) > .monwui-main-content-container > :not(.monwui-logo-container) { visibility: hidden !important; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-logo-container { display: none !important; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-logo-container:has(img.monwui-logo) {
       display: flex !important; justify-content: center !important; align-items: center !important; padding: 0 12% !important;
@@ -2985,7 +2991,7 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
           D.querySelectorAll('#monwui-slides-container .intro-video-container video').forEach((v) => { v.muted = true; v.pause(); });
         } else {
           // Girar de em pe para deitado: os slides criados em pe ganham o trailer agora.
-          D.querySelectorAll('#monwui-slides-container .monwui-slide').forEach((sl) => { try { sl.__initTrailer?.(); } catch {} });
+          D.querySelectorAll('#monwui-slides-container .monwui-slide').forEach((sl) => { try { if (sl.isConnected) sl.__initTrailer?.(); } catch {} });
         }
       } catch {}
     };

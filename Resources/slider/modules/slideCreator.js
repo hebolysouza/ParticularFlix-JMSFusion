@@ -812,8 +812,9 @@ async function createSlide(item, options = {}) {
   // Peak), fora da parte visivel, e gastava dados e bateria. Ali o slide fica com a imagem e o logo, como no desktop
   // antes do trailer; deitado ou no tablet o trailer continua.
   // Se o celular for girado para deitado depois, o main.js cria o trailer que ficou para tras (__initTrailer).
+  // (Aqui o slide ainda nao esta na pagina; o main.js so chama para slides ja montados.)
   slide.__initTrailer = () => {
-    if (slide.__trailerInit || !slide.isConnected) return;
+    if (slide.__trailerInit) return;
     slide.__trailerInit = true;
     createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId, allowAutoTrailer: true });
   };
