@@ -2915,31 +2915,14 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
       white-space: nowrap !important;
     }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-info-container > :first-child { flex: 0 1 auto !important; min-width: 0 !important; overflow: hidden; text-overflow: ellipsis; }
-    /* Em pe: sem trailer (slideCreator); um trailer criado deitado fica escondido e parado ao girar. */
-    html.jms-phone-portrait #monwui-slides-container .monwui-slide .intro-video-container,
-    html.jms-phone-portrait #monwui-slides-container .monwui-slide .monwui-bckdrp-cntnr > iframe,
-    html.jms-phone-portrait #monwui-slides-container .monwui-auto-trailer-toggle,
-    html.jms-phone-portrait #monwui-slides-container .monwui-preview-volume-control,
-    html.jms-phone-portrait #monwui-slides-container .monwui-preview-fullscreen-toggle { display: none !important; }
-    html.jms-phone-portrait #monwui-slides-container .monwui-slide .monwui-backdrop { opacity: 1 !important; }
-    /* Deitado: o trailer ocupa o card inteiro (no Peak ele ficava nos 75% da direita, num canto do card baixo) e os
-       blocos ficam numa coluna a esquerda, alinhados a esquerda, mais compactos (o card tem ~250 px de altura). */
-    html.jms-phone-landscape #monwui-slides-container .monwui-slide .intro-video-container {
-      left: 0 !important; right: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important;
-    }
-    /* O trailer do YouTube e um iframe solto na caixa do fundo (.monwui-bckdrp-cntnr > iframe, estilo inline com 70% de
-       largura a direita, e o Peak ainda tem .monwui-slide iframe { width: 75% !important }): o video continuava num canto.
-       Video e iframe cobrem o card, centralizados (16:9 cobre o card deitado, que e mais largo que 16:9; o que sobra em
-       cima e embaixo e cortado). O display continua com o JS do trailer. */
-    html.jms-phone-landscape #monwui-slides-container .monwui-slide :is(.intro-video-container video, .intro-video-container iframe, .monwui-bckdrp-cntnr > iframe) {
-      position: absolute !important; left: 50% !important; top: 50% !important; right: auto !important; bottom: auto !important;
-      width: 100% !important; height: auto !important; min-width: 100% !important; min-height: 100% !important;
-      aspect-ratio: 16 / 9; transform: translate(-50%, -50%) !important; object-fit: cover !important; max-width: none !important;
-    }
-    html.jms-phone-landscape #monwui-slides-container .monwui-slide .intro-video-container::after {
-      content: ""; position: absolute; inset: 0; pointer-events: none;
-      background: linear-gradient(90deg, rgba(0,0,0,.6) 0%, rgba(0,0,0,.25) 35%, rgba(0,0,0,0) 55%);
-    }
+    /* Celular: sem trailer no slide (slideCreator); um trailer criado antes (tablet/desktop) fica escondido e parado. */
+    html.jms-phone #monwui-slides-container .monwui-slide .intro-video-container,
+    html.jms-phone #monwui-slides-container .monwui-slide .monwui-bckdrp-cntnr > iframe,
+    html.jms-phone #monwui-slides-container .monwui-auto-trailer-toggle,
+    html.jms-phone #monwui-slides-container .monwui-preview-volume-control,
+    html.jms-phone #monwui-slides-container .monwui-preview-fullscreen-toggle { display: none !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide .monwui-backdrop { opacity: 1 !important; }
+    /* Deitado: os blocos ficam numa coluna a esquerda, alinhados a esquerda, mais compactos (o card tem ~250 px). */
     html.jms-phone-landscape #monwui-slides-container .monwui-slide { padding: 8px 0 6px !important; }
     html.jms-phone-landscape #monwui-slides-container .monwui-slide > :is(.monwui-format-container, .monwui-meta-container, .monwui-main-content-container, .monwui-director-container, .monwui-main-button-container, .monwui-info-container) {
       width: 60% !important; max-width: 60% !important; align-self: flex-start !important;
@@ -2999,11 +2982,12 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
       const toggles = { 'jms-phone': !!phone, 'jms-phone-portrait': phone === 'portrait', 'jms-phone-landscape': phone === 'landscape' };
       Object.keys(toggles).forEach((c) => { if (toggles[c] !== root.classList.contains(c)) root.classList.toggle(c, toggles[c]); });
       try {
-        if (phone === 'portrait') {
-          // Girar de deitado para em pe: o trailer ja criado fica escondido pelo CSS; aqui ele tambem para e fica mudo.
+        if (phone) {
+          // Celular (em pe ou deitado): sem trailer no slide. Um trailer ja criado (a pagina abriu como tablet/desktop)
+          // fica escondido pelo CSS; aqui ele tambem para e fica mudo.
           D.querySelectorAll('#monwui-slides-container .intro-video-container video').forEach((v) => { v.muted = true; v.pause(); });
         } else {
-          // Girar de em pe para deitado: os slides criados em pe ganham o trailer agora.
+          // Saiu do celular (tablet/desktop): os slides criados no celular ganham o trailer agora.
           D.querySelectorAll('#monwui-slides-container .monwui-slide').forEach((sl) => { try { if (sl.isConnected) sl.__initTrailer?.(); } catch {} });
         }
       } catch {}

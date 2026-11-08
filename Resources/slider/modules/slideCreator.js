@@ -1,6 +1,6 @@
 import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, createTrailerIframe, debounce, getHighResImageUrls, prefetchImages, getHighestQualityBackdropIndex, createImageWarmQueue } from "./utils.js";
 import { updateFavoriteStatus, updatePlayedStatus, getSessionInfo, fetchLocalTrailers, pickBestLocalTrailer } from "../../Plugins/JMSFusion/runtime/api.js";
-import { getConfig, isMobileNarrowSlider } from "./config.js";
+import { getConfig, isMobilePhoneSlider } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
 import { createSlidesContainer, createHorizontalGradientOverlay, createLogoContainer, createStatusContainer, createFormatContainer, createActorSlider, createInfoContainer, createDirectorContainer, createRatingContainer, createLanguageContainer, createMetaContainer, createMainContentContainer, createPlotContainer, createTitleContainer } from "./containerUtils.js";
 import { createButtons, createProviderContainer } from './buttons.js';
@@ -808,17 +808,17 @@ async function createSlide(item, options = {}) {
   slide.__backdropContainer = backdropContainer;
   slide.append(backdropContainer);
 
-  // Fork ParticularFlix 4.0.0.11: no celular em pe o trailer tocava na faixa da direita do card (75% de largura no
-  // Peak), fora da parte visivel, e gastava dados e bateria. Ali o slide fica com a imagem e o logo, como no desktop
-  // antes do trailer; deitado ou no tablet o trailer continua.
-  // Se o celular for girado para deitado depois, o main.js cria o trailer que ficou para tras (__initTrailer).
-  // (Aqui o slide ainda nao esta na pagina; o main.js so chama para slides ja montados.)
+  // Fork ParticularFlix 4.0.0.11: no celular (em pe ou deitado) o slide fica com a imagem e o logo, sem trailer. Em pe o
+  // Peak tocava o trailer nos 75% da direita do card, fora da parte visivel; deitado, mesmo cobrindo o card, ele seguia
+  // fora do quadro no teste, e o dono preferiu so o backdrop. Tablet e desktop seguem com trailer.
+  // Se o celular virar tablet/desktop (modo dispositivo do navegador), o main.js cria o trailer que ficou para tras.
+  // (Aqui o slide ainda nao esta na pagina; o main.js so chama __initTrailer para slides ja montados.)
   slide.__initTrailer = () => {
     if (slide.__trailerInit) return;
     slide.__trailerInit = true;
     createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId, allowAutoTrailer: true });
   };
-  if (!slide.__trailerInit && !isMobileNarrowSlider()) slide.__initTrailer();
+  if (!slide.__trailerInit && !isMobilePhoneSlider()) slide.__initTrailer();
 
   const logoContainer = createLogoContainer();
   const order = config.showDiscOnly
