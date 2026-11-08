@@ -1686,6 +1686,12 @@ export function initProfileChooser(options = {}) {
           const adminReturnEntry = buildAdminReturnEntry(currentUserId, L);
           if (adminReturnEntry) currentList.push(adminReturnEntry);
         }
+      } else if (!currentUserIsAdmin && rememberTokens && !currentList.some((u) => u.IsAdmin === true)) {
+        // Fork ParticularFlix 4.0.0.11: desde que o /Users devolve a quem nao e admin so a propria conta
+        // (UsersListGuard), o card do admin nao vem mais na lista; com o token do admin lembrado neste navegador,
+        // entra o mesmo "Voltar ao administrador" do modo que esconde os usuarios.
+        const adminReturnEntry = buildAdminReturnEntry(currentUserId, L);
+        if (adminReturnEntry) currentList.push(adminReturnEntry);
       }
 
       presenceByUserId.clear();
