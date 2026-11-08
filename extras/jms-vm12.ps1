@@ -67,12 +67,24 @@ def sha(path):
     return h.hexdigest().upper()
 
 def plugin_dir():
+    # 1) volume ou bind proprio do plugin (como na producao: /config/data/plugins/JMSFusion_4.0.0.0);
+    # 2) senao, a pasta do plugin dentro do appdata (/config), que e como a VM foi montada.
     r = run(['docker', 'inspect', CONT])
     if r.returncode != 0: raise SystemExit('ERRO=container_%s_nao_encontrado' % CONT)
     mounts = json.loads(r.stdout.decode('utf-8'))[0].get('Mounts') or []
     alvo = [m for m in mounts if str(m.get('Destination', '')).startswith('/config/data/plugins/JMSFusion')]
-    if len(alvo) != 1: raise SystemExit('ERRO=esperava_1_mount_do_plugin_achei_%d' % len(alvo))
-    return alvo[0].get('Source'), alvo[0].get('Destination'), alvo[0].get('Name') or '-'
+    if len(alvo) > 1: raise SystemExit('ERRO=mais_de_1_mount_do_plugin')
+    if len(alvo) == 1:
+        return alvo[0].get('Source'), alvo[0].get('Destination'), 'mount ' + (alvo[0].get('Name') or '-')
+    cfg = [m for m in mounts if m.get('Destination') == '/config']
+    if len(cfg) != 1: raise SystemExit('ERRO=mount_do_config_nao_encontrado')
+    base = os.path.join(cfg[0].get('Source'), 'data', 'plugins')
+    achadas = sorted(d for d in glob.glob(os.path.join(base, 'JMSFusion*')) if os.path.isfile(os.path.join(d, FILES[0])))
+    if len(achadas) != 1:
+        p('PASTAS_JMSFUSION=%s' % (','.join(os.path.basename(d) for d in achadas) or 'nenhuma'))
+        raise SystemExit('ERRO=esperava_1_pasta_JMSFusion_com_a_DLL_em_%s_achei_%d' % (base, len(achadas)))
+    d = achadas[0]
+    return d, '/config/data/plugins/' + os.path.basename(d), 'pasta no appdata'
 
 def chave_api():
     try: txt = open(XMLK, encoding='utf-8').read()
@@ -126,7 +138,7 @@ def preparar(tmp, versao, url_zip, md5_esperado, url_header):
 
 def resumo():
     src, dst, vol = plugin_dir()
-    p('PLUGIN_MOUNT=%s -> %s (volume %s)' % (src, dst, vol))
+    p('PLUGIN_DIR=%s -> %s (%s)' % (src, dst, vol))
     try: p('VERSAO_NO_VOLUME=%s' % json.load(open(os.path.join(src, 'meta.json'), encoding='utf-8-sig')).get('version'))
     except Exception as e: p('VERSAO_NO_VOLUME=erro_%s' % e)
     dll = os.path.join(src, FILES[0])
