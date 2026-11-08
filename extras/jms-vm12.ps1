@@ -265,7 +265,8 @@ function Invoke-Manutencao {
   $argsM = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $m, '-Aplicar', '-Minutos', [string]$Minutos)
   if ($Forcar) { $argsM += '-Forcar' }
   if ($VmIp) { $argsM += @('-VmIp', $VmIp) }
-  & pwsh @argsM
+  # A saida vai direto para a tela; so o codigo de saida volta (senao a saida inteira virava o "codigo").
+  & pwsh @argsM | ForEach-Object { Write-Host $_ }
   return $LASTEXITCODE
 }
 
