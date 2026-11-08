@@ -2859,8 +2859,11 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
        estrela; no celular ele fica do tamanho do icone, como a estrela. */
     html.jms-phone #monwui-slides-container .monwui-slide .monwui-rating-container .monwui-match-rating { width: 1.33em !important; height: 1.33em !important; }
     /* Cards vizinhos (beiradas do Peak): so a imagem e o logo; selos, textos e botoes so no card do meio. */
+    /* (o * tambem: o .monwui-button-container do Peak tem visibility:visible !important e aparecia mesmo com o pai oculto) */
     html.jms-phone #monwui-slides-container .monwui-slide:not(.active) > :is(.monwui-format-container, .monwui-meta-container, .monwui-director-container, .monwui-main-button-container, .monwui-info-container),
-    html.jms-phone #monwui-slides-container .monwui-slide:not(.active) > .monwui-main-content-container > :not(.monwui-logo-container) { visibility: hidden !important; }
+    html.jms-phone #monwui-slides-container .monwui-slide:not(.active) > :is(.monwui-format-container, .monwui-meta-container, .monwui-director-container, .monwui-main-button-container, .monwui-info-container) *,
+    html.jms-phone #monwui-slides-container .monwui-slide:not(.active) > .monwui-main-content-container > :not(.monwui-logo-container),
+    html.jms-phone #monwui-slides-container .monwui-slide:not(.active) > .monwui-main-content-container > :not(.monwui-logo-container) * { visibility: hidden !important; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-logo-container { display: none !important; }
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-main-content-container > .monwui-logo-container:has(img.monwui-logo) {
       display: flex !important; justify-content: center !important; align-items: center !important; padding: 0 12% !important;
@@ -2914,6 +2917,7 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     html.jms-phone #monwui-slides-container .monwui-slide > .monwui-info-container > :first-child { flex: 0 1 auto !important; min-width: 0 !important; overflow: hidden; text-overflow: ellipsis; }
     /* Em pe: sem trailer (slideCreator); um trailer criado deitado fica escondido e parado ao girar. */
     html.jms-phone-portrait #monwui-slides-container .monwui-slide .intro-video-container,
+    html.jms-phone-portrait #monwui-slides-container .monwui-slide .monwui-bckdrp-cntnr > iframe,
     html.jms-phone-portrait #monwui-slides-container .monwui-auto-trailer-toggle,
     html.jms-phone-portrait #monwui-slides-container .monwui-preview-volume-control,
     html.jms-phone-portrait #monwui-slides-container .monwui-preview-fullscreen-toggle { display: none !important; }
@@ -2923,9 +2927,18 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     html.jms-phone-landscape #monwui-slides-container .monwui-slide .intro-video-container {
       left: 0 !important; right: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important;
     }
+    /* O trailer do YouTube e um iframe solto na caixa do fundo (.monwui-bckdrp-cntnr > iframe, estilo inline com 70% de
+       largura a direita, e o Peak ainda tem .monwui-slide iframe { width: 75% !important }): o video continuava num canto.
+       Video e iframe cobrem o card, centralizados (16:9 cobre o card deitado, que e mais largo que 16:9; o que sobra em
+       cima e embaixo e cortado). O display continua com o JS do trailer. */
+    html.jms-phone-landscape #monwui-slides-container .monwui-slide :is(.intro-video-container video, .intro-video-container iframe, .monwui-bckdrp-cntnr > iframe) {
+      position: absolute !important; left: 50% !important; top: 50% !important; right: auto !important; bottom: auto !important;
+      width: 100% !important; height: auto !important; min-width: 100% !important; min-height: 100% !important;
+      aspect-ratio: 16 / 9; transform: translate(-50%, -50%) !important; object-fit: cover !important; max-width: none !important;
+    }
     html.jms-phone-landscape #monwui-slides-container .monwui-slide .intro-video-container::after {
       content: ""; position: absolute; inset: 0; pointer-events: none;
-      background: linear-gradient(90deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.4) 45%, rgba(0,0,0,0) 70%);
+      background: linear-gradient(90deg, rgba(0,0,0,.6) 0%, rgba(0,0,0,.25) 35%, rgba(0,0,0,0) 55%);
     }
     html.jms-phone-landscape #monwui-slides-container .monwui-slide { padding: 8px 0 6px !important; }
     html.jms-phone-landscape #monwui-slides-container .monwui-slide > :is(.monwui-format-container, .monwui-meta-container, .monwui-main-content-container, .monwui-director-container, .monwui-main-button-container, .monwui-info-container) {
