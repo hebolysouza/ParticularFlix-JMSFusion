@@ -261,6 +261,20 @@ export function createSettingsModal() {
     ].filter(Boolean);
     tabContent.append(...panels);
 
+    // Fork ParticularFlix 4.0.0.11: quem nao e admin (testadores, visitantes) so ve o que e da propria conta:
+    // aparencia, layout, slider, estudios, posicoes, pausa, previas, detalhes, lista, notificacoes, avatar e Sobre.
+    // Abas de servidor ou de modulo (consulta da API, player de musica, seletor de perfis, pre-roll, download de
+    // trailers, banco de dados, backup e restauracao) ficam ocultas. Elas NAO saem do formulario: o salvar le os
+    // campos e, sem eles, gravaria "desligado"; ocultas, continuam enviando os valores atuais.
+    if (config?.currentUserIsAdmin !== true) {
+        [queryTab, musicTab, profileChooserTab, cinemaPreRollTab, trailersTab, dbManagementTab, exporterTab]
+            .filter(Boolean)
+            .forEach((tab) => {
+                tab.dataset.jmsAdminOnly = '1';
+                tab.style.setProperty('display', 'none', 'important');
+            });
+    }
+
     const interactiveTabs = [
         mainTab, sliderTab, queryTab, musicTab, studioTab, profileChooserTab,
         pauseTab, watchlistSettingsTab, hoverTab, cinemaPreRollTab, trailersTab, notificationsTab, serrTab, detailsModalTab,
@@ -665,7 +679,8 @@ function activateSettingsPanel(modal, tab = 'monwui') {
     const targetTab = modal.querySelector(`.settings-tab[data-tab="${tab}"]`);
     const targetPanel = modal.querySelector(`#${tab}-panel`);
 
-    if (targetTab && targetPanel) {
+    // Fork ParticularFlix 4.0.0.11: aba so de admin (oculta para quem nao e admin) nao abre por atalho; cai na principal.
+    if (targetTab && targetPanel && targetTab.dataset.jmsAdminOnly !== '1') {
         targetTab.classList.add('active');
         targetPanel.style.display = 'block';
         if (tabContent) {
@@ -1284,6 +1299,16 @@ function createMainSettingsPanel(labels, panels) {
     trailerAudioSection.append(startMutedControl, volumeLimitControl, volumePercentControl);
 
     hotkeySection.appendChild(createSettingsHotkeyField(labels, config.settingsHotkey));
+
+    // Fork ParticularFlix 4.0.0.11: para quem nao e admin, as ativacoes de modulos (que valem para o servidor: PIN e
+    // controle de acesso, pre-roll, Seerr/Arr, transmitir, splash, seletor de perfis, player) e a chave do TMDB ficam
+    // ocultas, mas continuam no formulario para o salvar manter os valores atuais.
+    if (config?.currentUserIsAdmin !== true) {
+        enablesSection.style.setProperty('display', 'none', 'important');
+        // So o campo da chave (o idioma das resenhas do TMDB e escolha de cada um e continua visivel).
+        const tmdbKeyField = basicsSection.querySelector('#tmdbKeyForReviews')?.closest('.fsetting-item');
+        if (tmdbKeyField) tmdbKeyField.style.setProperty('display', 'none', 'important');
+    }
 
     panel.append(basicsSection, enablesSection, trailerAudioSection, hotkeySection);
     return panel;
