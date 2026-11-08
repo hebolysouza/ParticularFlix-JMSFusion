@@ -299,11 +299,10 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             return StatusCode(202, new { ok = true, started = true });
         }
 
+        // Fork ParticularFlix 4.0.0.11: identidade so pela claim do token validado pelo Jellyfin (nao o cabecalho forjavel).
         private Guid ReadUserId()
         {
-            var h = Request.Headers["X-Emby-UserId"].FirstOrDefault()
-                    ?? Request.Headers["X-MediaBrowser-UserId"].FirstOrDefault();
-            Guid.TryParse(h, out var uid);
+            RequestAuth.TryGetAuthenticatedUserId(HttpContext, out var uid);
             return uid;
         }
 

@@ -2029,17 +2029,28 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             cfg.WatchlistRevision = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         }
 
+        // Fork ParticularFlix 4.0.0.11: o ID vem so da claim do token validado pelo Jellyfin; o cabecalho X-Emby-UserId
+        // qualquer cliente escreve (ler a lista de outro usuario, comentar no nome dele). Formato "N" (32 hex sem tracos),
+        // o mesmo que o navegador mandava, entao os registros salvos continuam batendo.
         private UserContext ReadUserContext()
         {
-            var userId =
-                Request.Headers["X-Emby-UserId"].FirstOrDefault() ??
-                Request.Headers["X-MediaBrowser-UserId"].FirstOrDefault() ??
-                "";
+            var userId = RequestAuth.TryGetAuthenticatedUserId(HttpContext, out var claimUserId)
+                ? claimUserId.ToString("N")
+                : "";
 
             var userName =
                 Request.Headers["X-JMSFusion-UserName"].FirstOrDefault() ??
                 Request.Headers["X-Emby-UserName"].FirstOrDefault() ??
                 "";
+            if (!string.IsNullOrEmpty(userId))
+            {
+                // O nome mostrado nos compartilhamentos tambem vem do usuario real, nao do cabecalho.
+                var realName = _users.GetUserById(claimUserId)?.Username;
+                if (!string.IsNullOrWhiteSpace(realName))
+                {
+                    userName = realName;
+                }
+            }
 
             return new UserContext
             {

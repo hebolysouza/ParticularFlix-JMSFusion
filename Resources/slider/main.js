@@ -2950,6 +2950,17 @@ function whenFirstSlideReadyOrTimeout(cb, timeoutMs = 7000) {
     html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-main-button-container { padding: 4px 12px 0 !important; }
     html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-meta-container { margin-top: 2px !important; gap: 3px !important; }
     html.jms-phone-landscape #monwui-slides-container .monwui-slide > .monwui-info-container { padding: 2px 12px 0 !important; font-size: .75rem !important; }
+    /* Fork ParticularFlix 4.0.0.11: fileiras da Home (nativas e Home Screen Sections) no celular. Medido em 07/11/2026:
+       cards horizontais de 200 px (a 360 px so 1 inteiro e meio cortado) e posteres de 132 a 166 px. Em pe: ~2,2 cards
+       horizontais e ~3,3 posteres por tela (sempre aparece um pedaco do proximo, sinal de que a fileira rola); deitado:
+       ~4,3 e ~6,5. As setas das fileiras (script de marca, .pf-row-arrow) nao servem no toque: o gesto e arrastar. */
+    html.jms-mobile .pf-row-arrow { display: none !important; }
+    html.jms-phone-portrait .homeSectionsContainer .overflowBackdropCard { width: calc((100vw - 24px) / 2.25) !important; }
+    html.jms-phone-portrait .homeSectionsContainer :is(.overflowPortraitCard, .overflowSquareCard) { width: calc((100vw - 24px) / 3.3) !important; }
+    html.jms-phone-landscape .homeSectionsContainer .overflowBackdropCard { width: calc((100vw - 48px) / 4.3) !important; }
+    html.jms-phone-landscape .homeSectionsContainer :is(.overflowPortraitCard, .overflowSquareCard) { width: calc((100vw - 48px) / 6.5) !important; }
+    html.jms-phone .homeSectionsContainer .sectionTitle { font-size: 1.05rem !important; }
+    html.jms-phone .homeSectionsContainer .verticalSection { margin-bottom: .6em !important; }
     @media (prefers-reduced-motion: reduce) { html.jms-mobile #monwui-slides-container > .jms-mob-pos::after { transition: none; } }
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .jms-slider,
     html[data-jms-home-slider-only="1"][data-jms-home-tab-active="0"] .homeSlider,

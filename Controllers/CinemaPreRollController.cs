@@ -62,15 +62,12 @@ public class CinemaPreRollController : ControllerBase
         return _users.GetUserById(userId);
     }
 
+    // Fork ParticularFlix 4.0.0.11: identidade so pela claim do token validado pelo Jellyfin (RequestAuth). O cabecalho
+    // X-Emby-UserId (e o ?userId=) qualquer cliente escreve, e estas rotas nao exigem login: com o ID do admin, mesmo sem
+    // conta, dava para agir como admin (ler chaves do Radarr/Sonarr, pedir filmes, mudar configuracoes).
     private bool TryGetRequestUserId(out Guid userId)
     {
-        var raw =
-            Request.Headers["X-Emby-UserId"].FirstOrDefault()
-            ?? Request.Headers["X-MediaBrowser-UserId"].FirstOrDefault()
-            ?? Request.Query["UserId"].FirstOrDefault()
-            ?? Request.Query["userId"].FirstOrDefault();
-
-        return Guid.TryParse(raw, out userId) && userId != Guid.Empty;
+        return RequestAuth.TryGetAuthenticatedUserId(HttpContext, out userId);
     }
 
     private static bool IsAllowedByMaxParentalRating(

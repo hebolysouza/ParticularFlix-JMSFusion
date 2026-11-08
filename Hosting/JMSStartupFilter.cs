@@ -44,6 +44,18 @@ namespace Jellyfin.Plugin.JMSFusion
                     await nextMiddleware();
                 });
 
+                // Fork ParticularFlix 4.0.0.11: GET /Users de quem nao e admin volta so com o proprio usuario (UsersListGuard).
+                app.Use(async (ctx, nextMiddleware) =>
+                {
+                    if (!UsersListGuard.Applies(ctx))
+                    {
+                        await nextMiddleware();
+                        return;
+                    }
+
+                    await UsersListGuard.RunAsync(ctx, nextMiddleware, logger);
+                });
+
                 // Este filtro roda antes do UseResponseCompression do Jellyfin, entao os modulos
                 // de /slider saiam sem gzip/brotli. Comprime so esse caminho, e so se o servico
                 // de compressao do Jellyfin existir (se nao existir, nada muda).
