@@ -4,7 +4,8 @@ Jellyfin plugin (C#, net10.0, Jellyfin 12.x, targetAbi 12.0.0.0) that injects th
 
 ## Before doing anything
 
-- Load the `particularflix-fork-release` skill. It holds the environment map (containers, volumes, paths), the Jellyfin 12 test/production/release scripts (`jms-teste12.ps1`, `jms-janela12.ps1`, `jms-release12.ps1`, `jms-limpeza12.ps1`, `jms-comparar12.ps1`) and the working rules. This session cannot see the owner's PC or claude.ai project notes; never guess the environment.
+- Read `docs/contexto-projeto.md` (project state: production, test, VM, last release, pending items, code pitfalls).
+- Load the `particularflix-fork-release` skill (project skill in `.claude/skills/`). It holds the environment map (containers, volumes, paths), the Jellyfin 12 test/production/release scripts (`jms-teste12.ps1`, `jms-janela12.ps1`, `jms-release12.ps1`, `jms-limpeza12.ps1`, `jms-comparar12.ps1`) and the working rules. This session cannot see the owner's PC or claude.ai project notes; never guess the environment.
 - To close a version (test, production, zip, manifest, GitHub release, VM), follow the project skill `.claude/skills/jms-ciclo-release` (it runs end to end only in a Claude Code session on the owner's PC; the VM step uses `extras/jms-vm12.ps1`).
 - Reply to the owner in Portuguese, without em dashes. Public texts (CHANGELOG, README, release notes, manifest) are in English.
 
