@@ -7,23 +7,88 @@ NAO contem senhas, chaves de API, tokens, IP da VM nem dados de acesso SSH. Ele 
 
 ---
 
-## 0. Como usar este arquivo na conta nova
+## 0. Como comecar na conta nova (PRIMEIRO, antes de tudo)
 
-1. Crie a conta pessoal, assine o Pro e, no claude.ai, crie um projeto "ParticularFlix" e anexe este arquivo como
-   conhecimento do projeto. Anexe tambem os documentos que estao no projeto antigo (secao 13), se conseguir exporta-los.
-2. Claude Code no PC: ja esta instalado (`C:\Users\hdsou\.local\bin\claude.exe`, versao 2.1.319, ja no PATH do usuario).
-   Em `D:\JellyfinDownloads\jms-fork\ParticularFlix-JMSFusion`, rode `claude`, depois `/login` e entre com a conta
-   PESSOAL (opcao de assinatura Claude, nao a de API). O cabecalho deve deixar de mostrar "API Usage Billing".
-3. O repositorio ja carrega sozinho no Claude Code: `CLAUDE.md` (regras) e a skill de projeto
-   `.claude/skills/jms-ciclo-release/SKILL.md` (ciclo completo de release).
-4. A skill `particularflix-fork-release` (mapa do ambiente e regras de ouro) esta no repositorio em
-   `.claude/skills/particularflix-fork-release/SKILL.md` (copia atualizada da que existia so na conta antiga).
-   O documento de contexto geral da VM do Heboly (sem dados de acesso) NAO esta no repositorio (e publico): fica no
-   projeto do claude.ai / com o Heboly.
-5. Para sessoes do Claude Code na nuvem (claude.ai/code), conecte o GitHub da conta pessoal e de acesso ao repositorio
-   `hebolysouza/ParticularFlix-JMSFusion` (app do Claude no GitHub).
-6. Primeira mensagem sugerida para a sessao nova: "Leia o contexto (arquivo de contexto e CLAUDE.md), carregue as skills
-   e me diga o estado atual e as pendencias antes de fazer qualquer coisa."
+### 0.1 O que so o Heboly faz (uma vez, antes de o Claude rodar)
+
+O login nao pode ser feito pelo Claude: e o que liga o Claude ao PC. Sao 4 passos.
+
+1. **Conta**: em https://claude.ai, criar a conta com o e-mail PESSOAL e assinar o Pro.
+2. **Login no Claude Code (CLI ja instalado no PC, versao 2.1.319, ja no PATH)**. Num PowerShell novo:
+   ```powershell
+   Set-Location "D:\JellyfinDownloads\jms-fork\ParticularFlix-JMSFusion"
+   claude
+   ```
+   Dentro do Claude Code, digitar `/logout` (sai da cobranca por API da conta antiga), depois `/login`, escolher
+   **Claude account with subscription** (Pro/Max, NAO a opcao de API/Console) e entrar no navegador com a conta pessoal.
+   O cabecalho deve mostrar o plano (e nao "API Usage Billing"). Se perguntar se confia na pasta, responder sim.
+3. **GitHub**: o git do PC ja esta logado como `hebolysouza` (Git Credential Manager; os `git fetch`/`checkout` funcionam).
+   Nada a fazer para o Claude Code no PC. So para usar o Claude Code na NUVEM (claude.ai/code), conectar o GitHub em
+   claude.ai, Settings, Connectors (ou na primeira sessao do claude.ai/code) e dar acesso ao repositorio
+   `hebolysouza/ParticularFlix-JMSFusion`.
+4. **Primeira mensagem para o Claude**: anexar este arquivo (ou dizer "leia docs/contexto-projeto.md") e escrever:
+   > Leia este arquivo inteiro e execute a secao 0.2 (preparacao). Depois me diga o estado atual e as pendencias.
+
+### 0.2 Roteiro de preparacao para o Claude (executar sozinho ao receber este arquivo)
+
+Claude: rode estes passos no PC do Heboly (PowerShell, a partir de `D:\JellyfinDownloads\jms-fork\ParticularFlix-JMSFusion`),
+um por vez, mostrando o resultado. Sao leituras, exceto onde diz "pedir SIM". Nao altere producao, teste nem VM.
+
+1. Ferramentas (leitura):
+   ```powershell
+   & {
+     foreach ($t in @("git", "pwsh", "docker", "ssh", "scp", "gh", "claude")) {
+       $c = Get-Command $t -ErrorAction SilentlyContinue
+       if ($c) { "{0}: {1}" -f $t, $c.Source } else { "{0}: NAO encontrado" -f $t }
+     }
+     git --version ; claude --version
+   }
+   ```
+2. Repositorio (leitura; o clone deve estar limpo no `main`, igual ao GitHub):
+   ```powershell
+   & {
+     Set-Location "D:\JellyfinDownloads\jms-fork\ParticularFlix-JMSFusion"
+     git remote -v
+     git fetch origin
+     git status -sb
+     git log --oneline -3 origin/main
+     if (-not (Test-Path ".claude\skills\particularflix-fork-release\SKILL.md")) { "AVISO: skill particularflix-fork-release ausente (rode git checkout -B main origin/main)" }
+     if (-not (Test-Path ".claude\skills\jms-ciclo-release\SKILL.md")) { "AVISO: skill jms-ciclo-release ausente" }
+     if (-not (Test-Path "docs\contexto-projeto.md")) { "AVISO: docs\contexto-projeto.md ausente" }
+   }
+   ```
+   Se o clone estiver limpo mas atras do `main`: `git checkout -B main origin/main` (pedir SIM antes se houver
+   alteracoes locais; nunca descartar alteracoes do Heboly).
+3. Carregar as skills de projeto `particularflix-fork-release` e `jms-ciclo-release` e ler `CLAUDE.md`.
+4. Estado dos servidores (leitura):
+   ```powershell
+   & {
+     docker ps -a --filter "name=jellyfin" --format "{{.Names}}: {{.Status}} ({{.Image}})"
+     try { $i = Invoke-RestMethod "http://127.0.0.1:8096/System/Info/Public" -TimeoutSec 10 ; "Producao: Jellyfin " + $i.Version } catch { "Producao: sem resposta em 8096" }
+     docker run --rm --entrypoint sh -v jms-prod-plugin-40000:/p lscr.io/linuxserver/jellyfin:12.3.0-validado -c 'sha256sum /p/Jellyfin.Plugin.JMSFusion.dll; grep version /p/meta.json'
+     Get-ChildItem "D:\JellyfinDownloads\jms-fork\backups-teste12" -Directory | Select-Object -ExpandProperty Name
+   }
+   ```
+   Esperado em 08/11/2026: `jellyfin` Up (imagem `12.3.0-validado`), `jellyfin-jms-teste-12` Exited (0), producao 12.3.0,
+   DLL `9c92e558...8138e813`, versao 4.0.0.11.
+5. VM (leitura, so se o Heboly quiser conferir agora): `pwsh -NoProfile -ExecutionPolicy Bypass -File "D:\JellyfinDownloads\jms-fork\jms-vm12.ps1" -SoValidar -Versao 4.0.0.11`
+   (esperado: "VALIDADO: JMSFusion 4.0.0.11 ativo e header servido igual ao da tag").
+6. GitHub CLI (opcional, para criar releases sem navegador). Se o passo 1 mostrar `gh: NAO encontrado`, pedir SIM e rodar:
+   ```powershell
+   winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements
+   ```
+   (em 08/11/2026 o download deu 504 tres vezes; se falhar, seguir sem `gh`: o release e feito pelo navegador, secao 7).
+   Depois de instalado, o HEBOLY roda num terminal novo `gh auth login` (GitHub.com, HTTPS, login pelo navegador) e
+   `gh auth status`; o Claude nao faz esse login.
+7. Responder ao Heboly, em portugues e sem travessoes: o que conferiu, o que esta diferente do esperado, e as pendencias
+   da secao 10. Nao iniciar nenhum ciclo sem pedido.
+
+### 0.3 Onde esta o resto
+
+- Skills de projeto: `.claude/skills/particularflix-fork-release/SKILL.md` (mapa do ambiente, regras, Jackett) e
+  `.claude/skills/jms-ciclo-release/SKILL.md` (ciclo de release).
+- O documento de contexto geral da VM do Heboly (sem dados de acesso) NAO esta no repositorio (e publico): fica com o
+  Heboly, anexado ao projeto do claude.ai.
 
 ---
 
