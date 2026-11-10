@@ -1,6 +1,6 @@
 # ParticularFlix: contexto do projeto (fork JMSFusion, producao, teste e VM)
 
-Estado em 08/11/2026, no fim do ciclo da versao 4.0.0.11. Leitura obrigatoria para qualquer sessao nova (Claude Code no
+Estado em 10/11/2026, no fim do ciclo da versao 4.0.0.12 (secoes 2, 6 e 10 atualizadas; o resto descreve a 4.0.0.11). Leitura obrigatoria para qualquer sessao nova (Claude Code no
 PC ou na nuvem) antes de mexer no fork. Atualize este arquivo no fim de cada ciclo (versao, hashes, backups, pendencias).
 
 NAO contem senhas, chaves de API, tokens, IP da VM nem dados de acesso SSH. Ele diz ONDE cada coisa fica.
@@ -131,7 +131,22 @@ um por vez, mostrando o resultado. Sao leituras, exceto onde diz "pedir SIM". Na
 - Sessao na nuvem nao tem SDK .NET: revisar C# com cuidado; `node --check` em todo JS alterado antes do commit. O
   primeiro build real e o `jms-teste12.ps1` no PC.
 
-### Estado do repositorio em 08/11/2026
+### Estado do repositorio em 10/11/2026 (4.0.0.12)
+
+- `main` = `fee176c` (manifest com a 4.0.0.12), feito no branch `hebolysouza/dazzling-maxwell-u1y37q`.
+- Tag e release publicado: `v4.0.0.12` em `fee176c` (Latest). Notas: `docs/releases/v4.0.0.12.md`.
+
+| Item 4.0.0.12 | Valor |
+|---|---|
+| DLL SHA256 | `ce9c4973aa7eaf6afd6c7a4c8aa520fa7f6d7bc2b4b944e179c5a0dbe73b792c` |
+| Zip | `JMSFusion-4.0.0.12-server.zip`, 57890292 bytes, MD5 `b391149b9ce36df91550d70101b20ae0` (em `jms-fork\release-4.0.0.12`) |
+| timestamp (manifest) | `2026-11-10T02:19:38.0000000Z` |
+| Cabecalho (custom) | SHA256 `74E1E7...1EC161` (LF, tag) |
+| Producao | trocada em 09/11 23:51; rollback `backups-teste12\volume-prod-20261109-235015` (4.0.0.11) e `backups-teste12\custom-prod-antes-4.0.0.12-20261109-235000` (cabecalho) |
+| VM | trocada em 10/11 ~00:05 (BRT); rollback `~/backups/jms-plugin-20261110-030010` (4.0.0.11) |
+| Teste | backup do cabecalho anterior: `backups-teste12\custom-teste-antes-4.0.0.12-20261109-232223` |
+
+### Estado do repositorio em 08/11/2026 (historico)
 
 - `main` = `5748f00` (igual ao branch `claude/mobile-layout-audit-bjbjad`, que pode ser descartado ou reaproveitado).
 - Tag e release publicado: `v4.0.0.11` no commit `bfd8f8a` (Latest).
@@ -275,7 +290,11 @@ Rodar sempre com `pwsh -NoProfile -ExecutionPolicy Bypass -File ".\<script>" ...
   `pf-vm-manutencao.ps1`; validacao: JMSFusion Active na versao nova e cabecalho servido igual ao da tag.
   Modos: simulacao (`-Versao X`), `-Aplicar -Minutos N`, `-Reverter -Minutos N`, `-SoValidar`.
   Ele acha a pasta do plugin num mount proprio OU dentro do `/config`; com mais de uma pasta JMSFusion, recusa e lista.
-- Estado da VM em 08/11: JMSFusion 4.0.0.11 Active; rollback em `~/backups/jms-plugin-20261108-105044` (4.0.0.10).
+- Estado da VM em 10/11: JMSFusion 4.0.0.12 Active (rollback `~/backups/jms-plugin-20261110-030010`, 4.0.0.11).
+  Force continua ligado: usuario comum recebe o global; o admin le e edita o PROPRIO snapshot e muda o global so com
+  "Publicar como padrao para todos" (F2 ou pagina do plugin), com "Desfazer". Auditoria: `GET /Plugins/JMSFusion/UserSettings/Audit`.
+  Home do HSS: escolher `admin` como usuario modelo na pagina do plugin (copia para quem nao tem Home propria em ate 1
+  min, sem reiniciar; substitui o `pf-vm-modularhome-todos.ps1 -Reiniciar`).
 - Pendencias da VM (do documento de contexto do Heboly, operacao dele): retorno do Victor; usuario da mae do Heboly
   (`pf-vm-usuario.ps1 -Usuario <nome> -Aplicar` e `pf-vm-senha-auto.ps1 -Usuario <nome> -Aplicar`); esconder as abas
   Solicitacoes e Catalogo do SeerrFin para nao admins; staging na VM; monitorar disco; notificacao de conteudo novo;
@@ -427,8 +446,8 @@ o icone animado (estilo Netflix); barra de progresso fina; sem trailer no celula
 
 ## 10. Pendencias e ideias (fork)
 
-- Nenhuma pendencia aberta da 4.0.0.11.
-- 4.0.0.12 (branch `hebolysouza/dazzling-maxwell-u1y37q`, em teste): layout por usuario e padrao global so por gesto
+- 4.0.0.12 PUBLICADA (producao, release e VM em 09-10/11). Validada no teste (8197); na producao o Heboly dispensou a
+  conferencia visual. Resumo: layout por usuario e padrao global so por gesto
   explicito. Causa das sobrescritas do global na VM (471/519 chaves): com Force ligado, (1) Salvar/Aplicar e o botao de
   tema mandavam o objeto do `getConfig()` (~471 chaves) por cima do global; (2) leitura do servidor que falhava (Jellyfin
   reiniciando) deixava o navegador semear o servidor com o localStorage local, sem clique; (3) o botao da pagina do plugin
@@ -436,7 +455,13 @@ o icone animado (estilo Netflix); barra de progresso fina; sem trailer no celula
   `POST UserSettings/PublishGlobal` (origem = snapshot do admin no servidor, confirmacao com contagens) e `RevertGlobal`;
   recusa de gravacao sem estado carregado (`loaded`) e de queda > 10% de chaves; trilha em `GET UserSettings/Audit`
   (admin). Tambem: limpa o cache do Home Screen Sections do usuario ao marcar assistido/nao assistido ou terminar de ver.
-  Depois de implantar na VM, pode-se pensar em desligar o Force (`pf-vm-force.ps1`), decisao do Heboly.
+  Tambem: cabecalho mobile corrigido para celular real (abaixo de 900 px nao ha pilulas e o place() parava antes;
+  Busca do 12.3 e `#/search?`); usuario modelo do HSS (`/Plugins/JMSFusion/HomeSections`, reflexao no
+  IHomeScreenManager; o HSS grava o ModularHomeSettings.json na hora e le a cada pedido, o que segurava a Home era o
+  cache de 1 h). IUserManager do 12 nao tem `Users`: listar sempre pelo `UserAccessor`.
+  Pendente: desligar o Force na VM (`pf-vm-force.ps1`) quando o Heboly quiser; traducao pt-BR do HSS (falta no repo
+  dele, PR upstream); invalidar o scoped-cache ao remover itens (decisao: custa refazer o slider de todos);
+  gestor de acessos (fase 1, combinar nome e repositorio); limpeza do ciclo (zips e backups superados).
 - Seletor de perfis: o Heboly decidiu NAO fazer "esconder usuarios do admin" nem mudar o padrao da opcao para novas
   instalacoes (cada testador so tem o proprio perfil).
 - Log da producao: erros de banco (`GET /Items`, EntityFramework) em 07/11 16:20, 19:15, 19:20 (antes desta versao) e
