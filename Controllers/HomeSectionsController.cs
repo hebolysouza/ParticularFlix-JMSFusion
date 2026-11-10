@@ -41,6 +41,12 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                 : StatusCode(403, new { ok = false, error = "This action is only available to administrators." });
         }
 
+        private List<(Guid Id, string Name)> AllUsers()
+            => UserAccessor.List(_users)
+                .Select(u => (UserAccessor.IdOf(u), UserAccessor.NameOf(u)))
+                .Where(u => u.Item1 != Guid.Empty)
+                .ToList();
+
         private void NoCache()
         {
             Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
@@ -56,15 +62,16 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             var withEntry = HomeSectionsBridge.UsersWithEntry(_paths);
             var template = JMSFusionPlugin.Instance.Configuration.HomeSectionsTemplateUserId ?? string.Empty;
 
-            var users = _users.Users
-                .OrderBy(u => u.Username, StringComparer.OrdinalIgnoreCase)
+            // IUserManager do Jellyfin 12 nao tem a propriedade Users na interface: lista pelo UserAccessor (reflexao).
+            var users = AllUsers()
+                .OrderBy(u => u.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(u =>
                 {
                     var sections = available ? HomeSectionsBridge.GetEnabledSections(manager, managerType, u.Id) : null;
                     return new
                     {
                         id = u.Id.ToString("N"),
-                        name = u.Username,
+                        name = u.Name,
                         hasOwnHome = withEntry.Contains(u.Id.ToString("N")),
                         enabledSections = sections?.Count ?? 0,
                         sections
@@ -146,42 +153,41 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             var onlyMissing = req.OnlyMissing != false;
             var withEntry = HomeSectionsBridge.UsersWithEntry(_paths);
 
-            IEnumerable<Jellyfin.Database.Implementations.Entities.User> targets;
+            List<(Guid Id, string Name)> targets;
             if (req.AllUsers == true)
             {
-                targets = _users.Users.ToList();
+                targets = AllUsers();
             }
             else
             {
-                var list = new List<Jellyfin.Database.Implementations.Entities.User>();
+                targets = new List<(Guid Id, string Name)>();
                 foreach (var raw in req.TargetUserIds ?? new List<string>())
                 {
-                    if (Guid.TryParse(raw, out var tid) && _users.GetUserById(tid) is { } u) list.Add(u);
+                    if (Guid.TryParse(raw, out var tid) && _users.GetUserById(tid) is { } u) targets.Add((tid, u.Username));
                 }
-
-                targets = list;
             }
 
             var results = new List<object>();
             foreach (var user in targets)
             {
                 if (user.Id == sourceId) continue;
-                var has = withEntry.Contains(user.Id.ToString("N"));
+                var key = user.Id.ToString("N");
+                var has = withEntry.Contains(key);
                 if (onlyMissing && has)
                 {
-                    results.Add(new { id = user.Id.ToString("N"), name = user.Username, result = "skipped-has-own-home" });
+                    results.Add(new { id = key, name = user.Name, result = "skipped-has-own-home", error = (string?)null });
                     continue;
                 }
 
                 if (req.DryRun == true)
                 {
-                    results.Add(new { id = user.Id.ToString("N"), name = user.Username, result = has ? "would-overwrite" : "would-copy" });
+                    results.Add(new { id = key, name = user.Name, result = has ? "would-overwrite" : "would-copy", error = (string?)null });
                     continue;
                 }
 
                 var ok = HomeSectionsBridge.Copy(manager, managerType, sourceId, user.Id, out var error);
-                _logger.LogInformation("[JMSFusion] Home Screen Sections: copia da Home para {User}: {Result}", user.Username, ok ? "ok" : error);
-                results.Add(new { id = user.Id.ToString("N"), name = user.Username, result = ok ? (has ? "overwritten" : "copied") : "failed", error });
+                _logger.LogInformation("[JMSFusion] Home Screen Sections: copia da Home para {User}: {Result}", user.Name, ok ? "ok" : error);
+                results.Add(new { id = key, name = user.Name, result = ok ? (has ? "overwritten" : "copied") : "failed", error });
             }
 
             NoCache();

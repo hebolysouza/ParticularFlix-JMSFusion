@@ -217,21 +217,24 @@ namespace Jellyfin.Plugin.JMSFusion.Core
             }
 
             var withEntry = HomeSectionsBridge.UsersWithEntry(_paths);
-            foreach (var user in _users.Users.ToList())
+            // IUserManager do Jellyfin 12 nao tem a propriedade Users na interface: lista pelo UserAccessor (reflexao).
+            foreach (var user in UserAccessor.List(_users))
             {
-                if (user.Id == templateId || withEntry.Contains(user.Id.ToString("N")) || _failed.Contains(user.Id))
+                var userId = UserAccessor.IdOf(user);
+                var userName = UserAccessor.NameOf(user);
+                if (userId == Guid.Empty || userId == templateId || withEntry.Contains(userId.ToString("N")) || _failed.Contains(userId))
                 {
                     continue;
                 }
 
-                if (HomeSectionsBridge.Copy(manager, managerType, templateId, user.Id, out var error))
+                if (HomeSectionsBridge.Copy(manager, managerType, templateId, userId, out var error))
                 {
-                    _logger.LogInformation("[JMSFusion] Home Screen Sections: Home do modelo copiada para {User}", user.Username);
+                    _logger.LogInformation("[JMSFusion] Home Screen Sections: Home do modelo copiada para {User}", userName);
                 }
                 else
                 {
-                    _failed.Add(user.Id);
-                    _logger.LogWarning("[JMSFusion] Home Screen Sections: nao foi possivel copiar a Home do modelo para {User}: {Error}", user.Username, error);
+                    _failed.Add(userId);
+                    _logger.LogWarning("[JMSFusion] Home Screen Sections: nao foi possivel copiar a Home do modelo para {User}: {Error}", userName, error);
                 }
             }
         }
