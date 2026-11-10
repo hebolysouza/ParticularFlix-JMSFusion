@@ -5,7 +5,9 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## Unreleased (4.0.0.13)
+## 4.0.0.13 (fork build, Jellyfin 12)
+
+Security release: list caches, the cinema pre-roll cache and diagnostics now require sign-in, and regular users no longer receive other users' data in the configuration. Same requirements as 4.0.0.12 (Jellyfin 12.x, net10.0); settings are kept.
 
 ### Security
 - **List caches required no sign-in**: the server cache of the slider, the home rows and the personal recommendations (`/Plugins/JMSFusion/ScopedCache`) could be read, overwritten or deleted by anyone who could reach the server, for any user, without signing in. It now requires a signed-in user, and a regular user can only reach the scope that ends with their own user id; administrators and API keys keep full access (cache backup page). Writes are capped at 16 MB. The browser now sends the session token on these calls.
