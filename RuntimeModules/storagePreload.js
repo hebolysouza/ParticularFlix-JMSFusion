@@ -146,6 +146,14 @@ let lastPersistedJson = null;
 let suspendSync = false;
 let bootstrappedLocal = false;
 let snapshotLoaded = false;
+// Fork ParticularFlix 4.0.0.12: so grava depois de ter carregado o estado do servidor NESTA pagina. Se a leitura
+// falhou (Jellyfin reiniciando, rede caindo), o localStorage pode ter um estado velho (471/519 chaves em vez de 612)
+// e gravar republicava esse estado por cima do servidor. Sem leitura, nada e gravado ate recarregar a pagina.
+let serverStateLoaded = false;
+let persistBlockedReason = "";
+let persistBlockedWarned = false;
+let allowShrinkPending = false;
+let lastPersistError = null;
 let lastLifecycleFlushAt = 0;
 // Fork ParticularFlix: contador de alteracoes do localStorage. Quem guarda copias de
 // configuracao (config.js) o usa para saber se precisa reler os valores.
@@ -350,9 +358,23 @@ function buildSnapshotFromStorage() {
   return out;
 }
 
+function persistBlockedResult() {
+  if (!persistBlockedWarned) {
+    persistBlockedWarned = true;
+    console.warn(
+      "[JMSFusion] Configuracoes NAO serao gravadas nesta pagina: o estado do servidor nao foi carregado (" +
+      (persistBlockedReason || "not-loaded") + "). Recarregue a pagina."
+    );
+  }
+  return { ok: false, skipped: true, reason: "not-loaded", profile, rev };
+}
+
 async function persistSnapshot(snapshot, options = {}) {
   if (userChangedSinceLoad()) {
     return { ok: true, skipped: true, reason: "user-changed", profile, rev };
+  }
+  if (!serverStateLoaded) {
+    return persistBlockedResult();
   }
   const payload = normalizeSnapshot(snapshot);
   const payloadJson = JSON.stringify(payload);
@@ -371,10 +393,18 @@ async function persistSnapshot(snapshot, options = {}) {
     return { ok: true, skipped: true, profile, rev };
   }
 
+  // Fork ParticularFlix 4.0.0.12: o servidor so aceita gravacao de quem carregou o estado (loaded) e recusa
+  // queda grande de chaves sem allowShrink (so o Resetar pede). baseRev vai para a trilha de auditoria.
+  const allowShrink = allowShrinkPending === true || options?.allowShrink === true;
+  allowShrinkPending = false;
+
   // Fork ParticularFlix 3.8.2.41: navegadores recusam keepalive acima de 64 KB ("Failed to fetch").
   const bodyText = JSON.stringify({
     global: payload,
-    profile
+    profile,
+    loaded: true,
+    baseRev: rev,
+    allowShrink
   });
   const requestInit = {
     keepalive: options?.keepalive === true && bodyText.length < 60000,
@@ -392,15 +422,28 @@ async function persistSnapshot(snapshot, options = {}) {
   savePromise = fetch(`${SAVE_URL}?profile=${encodeURIComponent(profile)}&ts=${Date.now()}`, requestInit).then(async response => {
     if (!response.ok) {
       const raw = await response.text().catch(() => "");
-      throw new Error(raw || `UserSettings publish HTTP ${response.status}`);
+      let info = null;
+      try { info = JSON.parse(raw); } catch {}
+      const err = new Error(
+        info?.error === "shrink"
+          ? `JMSFusion: gravacao recusada pelo servidor (${info.keysBefore} -> ${info.keysAfter} chaves). Recarregue a pagina.`
+          : info?.error === "not-loaded"
+            ? "JMSFusion: gravacao recusada (estado do servidor nao carregado). Recarregue a pagina."
+            : (raw || `UserSettings publish HTTP ${response.status}`)
+      );
+      err.jmsCode = info?.error || `http-${response.status}`;
+      err.jmsInfo = info;
+      throw err;
     }
     return response.json().catch(() => ({}));
   }).then(result => {
+    lastPersistError = null;
     rev = Number(result?.rev || rev || 0);
     bridge.bootstrapOverride = { forceGlobal, global: payload, rev, profile };
     lastPersistedJson = payloadJson;
     return result;
   }).catch(error => {
+    lastPersistError = error;
     console.warn("[JMSFusion] Managed storage persist failed:", error);
     throw error;
   }).finally(() => {
@@ -523,8 +566,10 @@ async function loadServerSnapshot() {
     lastPersistedJson = serializeSnapshot(snapshot);
     applySnapshotToStorage(snapshot);
     bridge.bootstrapOverride = { forceGlobal, global: snapshot, rev, profile };
+    serverStateLoaded = true;
   } catch (error) {
-    console.warn("[JMSFusion] Managed storage preload failed:", error);
+    persistBlockedReason = String(error?.message || error || "load-failed");
+    console.warn("[JMSFusion] Managed storage preload failed (gravacao bloqueada nesta pagina):", error);
     bridge.bootstrapOverride = { forceGlobal: false, global: {}, rev: 0, profile };
   } finally {
     snapshotLoaded = true;
@@ -582,6 +627,9 @@ const bridge = {
   bootstrapOverride: { forceGlobal: false, global: {}, rev: 0, profile },
   registerKeys,
   maybeBootstrapFromLocal(snapshot) {
+    // So semeia o servidor com o estado local quando ele foi lido e esta realmente vazio; leitura que falhou
+    // tambem deixa serverSnapshotEmpty verdadeiro e era um dos caminhos da sobrescrita automatica.
+    if (!serverStateLoaded) return;
     if (!serverSnapshotEmpty || bootstrappedLocal) return;
     const normalized = normalizeSnapshot(snapshot);
     if (!Object.keys(normalized).length) return;
@@ -590,12 +638,34 @@ const bridge = {
     state = normalized;
     schedulePersist();
   },
-  async flush() {
+  async flush(options = {}) {
     if (saveTimer) {
       clearTimeout(saveTimer);
       saveTimer = null;
     }
-    await persistSnapshot(buildSnapshotFromStorage());
+    if (!serverStateLoaded) {
+      persistBlockedResult();
+      const err = new Error("JMSFusion: as configuracoes nao foram gravadas porque o estado do servidor nao carregou nesta pagina. Recarregue a pagina e tente de novo.");
+      err.jmsCode = "not-loaded";
+      throw err;
+    }
+    return persistSnapshot(buildSnapshotFromStorage(), options);
+  },
+  // Fork ParticularFlix 4.0.0.12: o Resetar apaga muitas chaves de proposito; libera a proxima gravacao.
+  allowShrinkNext() {
+    allowShrinkPending = true;
+  },
+  get loaded() {
+    return serverStateLoaded;
+  },
+  get persistBlocked() {
+    return !serverStateLoaded;
+  },
+  get lastError() {
+    return lastPersistError;
+  },
+  get rev() {
+    return rev;
   },
   get profile() {
     return profile;

@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Database.Implementations.Enums;
 using MediaBrowser.Controller.Library;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JMSFusion.Controllers
 {
@@ -17,11 +18,23 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
     {
         private const int MaxUserSnapshotEntries = 500;
 
-        private readonly IUserManager _users;
+        // Fork ParticularFlix 4.0.0.12: protecao contra regressao. Uma gravacao que derruba mais de 10% das chaves
+        // de um snapshot com pelo menos 20 chaves (ex.: 612 -> 471, o estado velho de um navegador) e recusada, a
+        // menos que o cliente peca explicitamente (Resetar, ou confirmacao do admin ao publicar o padrao).
+        private const double MaxKeyDropRatio = 0.10;
+        private const int MinKeysForDropGuard = 20;
+        private const int MaxAuditEntries = 100;
 
-        public UserSettingsController(IUserManager users)
+        // Gravacoes concorrentes (duas abas, dois aparelhos) mexem na mesma configuracao em memoria.
+        private static readonly object ConfigGate = new();
+
+        private readonly IUserManager _users;
+        private readonly ILogger<UserSettingsController> _logger;
+
+        public UserSettingsController(IUserManager users, ILogger<UserSettingsController> logger)
         {
             _users = users;
+            _logger = logger;
         }
 
         // Fork ParticularFlix: identifica o usuario Jellyfin que fez a requisicao.
@@ -207,6 +220,119 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             plugin.UpdateConfiguration(cfg);
         }
 
+        private static int CountKeys(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return 0;
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind != JsonValueKind.Object) return 0;
+                var count = 0;
+                foreach (var _ in doc.RootElement.EnumerateObject()) count++;
+                return count;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private static bool IsLargeKeyDrop(int before, int after)
+            => before >= MinKeysForDropGuard && after < before * (1.0 - MaxKeyDropRatio);
+
+        private static string GlobalJson(JMSFusionConfiguration cfg, string prof)
+            => prof == "mobile" ? (cfg.GlobalUserSettingsJsonMobile ?? "{}") : (cfg.GlobalUserSettingsJsonDesktop ?? "{}");
+
+        private static long GlobalRev(JMSFusionConfiguration cfg, string prof)
+            => prof == "mobile" ? cfg.GlobalUserSettingsRevisionMobile : cfg.GlobalUserSettingsRevisionDesktop;
+
+        private static string Trunc(string? value, int max)
+        {
+            var v = (value ?? string.Empty).Trim();
+            return v.Length <= max ? v : v.Substring(0, max);
+        }
+
+        // Fork ParticularFlix 4.0.0.12: registra no log do Jellyfin e na trilha do XML de onde veio cada gravacao
+        // importante. Nunca grava o conteudo do snapshot, tokens ou cabecalhos de autenticacao.
+        private bool Audit(
+            JMSFusionConfiguration cfg,
+            string action,
+            string result,
+            string prof,
+            Guid userId,
+            int keysBefore,
+            int keysAfter,
+            long revBefore,
+            long revAfter,
+            long baseRev,
+            string? detail,
+            bool persistInConfig)
+        {
+            var userName = userId == Guid.Empty ? null : _users.GetUserById(userId)?.Username;
+            var host = Trunc(Request?.Host.Value, 120);
+            var origin = Trunc(Request?.Headers["Origin"].ToString(), 160);
+            if (string.IsNullOrEmpty(origin))
+            {
+                origin = Trunc(Request?.Headers["Referer"].ToString(), 160);
+            }
+
+            var ip = Trunc(HttpContext?.Connection?.RemoteIpAddress?.ToString(), 64);
+            var ua = Trunc(Request?.Headers.UserAgent.ToString(), 200);
+
+            var level = result == "ok" || result == "skipped" ? LogLevel.Information : LogLevel.Warning;
+            _logger.Log(
+                level,
+                "[JMSFusion] UserSettings {Action} {Result}: profile={Profile} user={User} host={Host} origin={Origin} ip={Ip} keys {Before}->{After} rev {RevBefore}->{RevAfter} baseRev={BaseRev} {Detail} ua={UserAgent}",
+                action, result, prof, userName ?? userId.ToString("N"), host, origin, ip, keysBefore, keysAfter, revBefore, revAfter, baseRev, detail ?? string.Empty, ua);
+
+            if (!persistInConfig) return false;
+
+            cfg.UserSettingsAudit ??= new();
+            var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var userKey = userId == Guid.Empty ? null : userId.ToString("N");
+
+            // Recusas repetidas (uma aba antiga gravando a cada mudanca) viram uma linha so a cada 10 minutos,
+            // para nao empurrar as publicacoes reais para fora da trilha.
+            if (result.StartsWith("refused", StringComparison.Ordinal) && cfg.UserSettingsAudit.Count > 0)
+            {
+                var last = cfg.UserSettingsAudit[cfg.UserSettingsAudit.Count - 1];
+                if (string.Equals(last.Action, action, StringComparison.Ordinal)
+                    && string.Equals(last.Result, result, StringComparison.Ordinal)
+                    && string.Equals(last.Profile, prof, StringComparison.Ordinal)
+                    && string.Equals(last.UserId, userKey, StringComparison.Ordinal)
+                    && (nowMs - last.AtUtc) < 600000)
+                {
+                    return false;
+                }
+            }
+
+            cfg.UserSettingsAudit.Add(new UserSettingsAuditEntry
+            {
+                AtUtc = nowMs,
+                Action = action,
+                Result = result,
+                Profile = prof,
+                UserId = userKey,
+                UserName = userName,
+                Host = host,
+                Origin = origin,
+                RemoteIp = ip,
+                UserAgent = ua,
+                KeysBefore = keysBefore,
+                KeysAfter = keysAfter,
+                RevisionBefore = revBefore,
+                RevisionAfter = revAfter,
+                BaseRevision = baseRev,
+                Detail = detail
+            });
+            if (cfg.UserSettingsAudit.Count > MaxAuditEntries)
+            {
+                cfg.UserSettingsAudit.RemoveRange(0, cfg.UserSettingsAudit.Count - MaxAuditEntries);
+            }
+
+            return true;
+        }
+
         [HttpGet]
         public IActionResult Get([FromQuery] string? profile = null)
         {
@@ -216,24 +342,29 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             EnsureMigrated(cfg, plugin);
 
             var prof = NormalizeProfile(profile);
-            var json = prof == "mobile"
-                ? (cfg.GlobalUserSettingsJsonMobile ?? "{}")
-                : (cfg.GlobalUserSettingsJsonDesktop ?? "{}");
-            var rev = prof == "mobile"
-                ? cfg.GlobalUserSettingsRevisionMobile
-                : cfg.GlobalUserSettingsRevisionDesktop;
+            var globalJson = GlobalJson(cfg, prof);
+            var globalRev = GlobalRev(cfg, prof);
+            var json = globalJson;
+            var rev = globalRev;
 
-            // Fork ParticularFlix: com "forcar configuracoes globais" desligado, cada usuario
-            // le o proprio snapshot. O snapshot global vira apenas o modelo inicial.
+            // Fork ParticularFlix: cada usuario le o proprio snapshot; o global e o padrao de quem ainda nao tem um.
+            // 4.0.0.12: com "forcar configuracoes globais" ligado, o usuario comum recebe sempre o global, mas o
+            // administrador le o PROPRIO snapshot (edita o dele e publica o padrao de proposito).
             var personal = false;
-            if (!cfg.ForceGlobalUserSettings && TryResolveUserId(out var requestUserId))
+            var isAdmin = false;
+            var hasUser = TryResolveUserId(out var requestUserId);
+            if (hasUser)
             {
-                var entry = FindEntry(cfg, requestUserId.ToString("D"), prof);
-                if (entry is not null)
+                isAdmin = IsAdmin(requestUserId);
+                if (!cfg.ForceGlobalUserSettings || isAdmin)
                 {
-                    json = entry.Json ?? "{}";
-                    rev = entry.Revision;
-                    personal = true;
+                    var entry = FindEntry(cfg, requestUserId.ToString("D"), prof);
+                    if (entry is not null)
+                    {
+                        json = entry.Json ?? "{}";
+                        rev = entry.Revision;
+                        personal = true;
+                    }
                 }
             }
 
@@ -256,6 +387,10 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                 rev,
                 forceGlobal = cfg.ForceGlobalUserSettings,
                 personal,
+                isAdmin,
+                keys = CountKeys(sanitizedJson),
+                globalRev,
+                globalKeys = CountKeys(globalJson),
                 global = globalObj
             });
         }
@@ -264,8 +399,17 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         {
             public object? Global { get; set; }
             public string? Profile { get; set; }
+
+            // Fork ParticularFlix 4.0.0.12: o navegador so grava depois de ter carregado o estado do servidor nesta
+            // pagina (Loaded) e informa a revisao que carregou (BaseRev). Clientes antigos, sem esses campos, sao
+            // recusados: eram eles que republicavam o estado velho do localStorage.
+            public bool? Loaded { get; set; }
+            public long? BaseRev { get; set; }
+            public bool? AllowShrink { get; set; }
         }
 
+        // Fork ParticularFlix 4.0.0.12: "Salvar" e o salvamento automatico gravam SOMENTE o snapshot do usuario
+        // logado, com ou sem "forcar configuracoes globais". O padrao global so muda por PublishGlobal.
         [HttpPost("Publish")]
         public IActionResult Publish([FromBody] PublishReq req, [FromQuery] string? profile = null)
         {
@@ -274,85 +418,328 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
 
             EnsureMigrated(cfg, plugin);
 
+            req ??= new PublishReq();
             var prof = NormalizeProfile(req.Profile ?? profile);
             var json = SerializeSanitizedSnapshot(req.Global);
-            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var newKeys = CountKeys(json);
+            var baseRev = req.BaseRev ?? 0;
 
-            var hasUser = TryResolveUserId(out var requestUserId);
-
-            if (cfg.ForceGlobalUserSettings)
-            {
-                // Com configuracoes globais forcadas, so o administrador publica o snapshot global.
-                if (!hasUser || !IsAdmin(requestUserId))
-                {
-                    NoCache();
-                    return Ok(new { ok = true, profile = prof, ignored = true });
-                }
-
-                if (prof == "mobile")
-                {
-                    if (string.Equals(cfg.GlobalUserSettingsJsonMobile ?? "{}", json, StringComparison.Ordinal))
-                    {
-                        NoCache();
-                        return Ok(new { ok = true, profile = prof, rev = cfg.GlobalUserSettingsRevisionMobile, skipped = true });
-                    }
-
-                    cfg.GlobalUserSettingsJsonMobile = json;
-                    cfg.GlobalUserSettingsRevisionMobile = now;
-                }
-                else
-                {
-                    if (string.Equals(cfg.GlobalUserSettingsJsonDesktop ?? "{}", json, StringComparison.Ordinal))
-                    {
-                        NoCache();
-                        return Ok(new { ok = true, profile = prof, rev = cfg.GlobalUserSettingsRevisionDesktop, skipped = true });
-                    }
-
-                    cfg.GlobalUserSettingsJsonDesktop = json;
-                    cfg.GlobalUserSettingsRevisionDesktop = now;
-                }
-
-                plugin.UpdateConfiguration(cfg);
-                NoCache();
-                return Ok(new { ok = true, profile = prof, rev = now });
-            }
-
-            // Fork ParticularFlix: cada usuario grava somente o proprio snapshot.
-            if (!hasUser)
+            if (!TryResolveUserId(out var requestUserId))
             {
                 NoCache();
                 return Unauthorized(new { ok = false, error = "Usuario nao identificado." });
             }
 
-            var userId = requestUserId.ToString("D");
-            var existing = FindEntry(cfg, userId, prof);
-            if (existing is not null && string.Equals(existing.Json ?? "{}", json, StringComparison.Ordinal))
+            var isAdmin = IsAdmin(requestUserId);
+            if (cfg.ForceGlobalUserSettings && !isAdmin)
             {
+                // Com configuracoes globais forcadas, o usuario comum nao tem snapshot proprio.
                 NoCache();
-                return Ok(new { ok = true, profile = prof, rev = existing.Revision, skipped = true, personal = true });
+                return Ok(new { ok = true, profile = prof, ignored = true });
             }
 
-            if (existing is null)
+            lock (ConfigGate)
             {
-                if (cfg.UserSettingsSnapshots.Count >= MaxUserSnapshotEntries)
+                var userId = requestUserId.ToString("D");
+                var existing = FindEntry(cfg, userId, prof);
+                var baselineJson = existing?.Json ?? GlobalJson(cfg, prof);
+                var baselineKeys = CountKeys(baselineJson);
+                var baselineRev = existing?.Revision ?? GlobalRev(cfg, prof);
+
+                if (req.Loaded != true)
                 {
+                    if (Audit(cfg, "save", "refused-not-loaded", prof, requestUserId, baselineKeys, newKeys, baselineRev, baselineRev, baseRev, "cliente sem estado do servidor", persistInConfig: true))
+                    {
+                        plugin.UpdateConfiguration(cfg);
+                    }
                     NoCache();
-                    return StatusCode(StatusCodes.Status507InsufficientStorage, new { ok = false, error = "Limite de snapshots atingido." });
+                    return Conflict(new { ok = false, error = "not-loaded", profile = prof, keysBefore = baselineKeys, keysAfter = newKeys });
                 }
 
-                existing = new UserSettingsSnapshotEntry { UserId = userId, Profile = prof };
-                cfg.UserSettingsSnapshots.Add(existing);
+                if (existing is not null && string.Equals(existing.Json ?? "{}", json, StringComparison.Ordinal))
+                {
+                    NoCache();
+                    return Ok(new { ok = true, profile = prof, rev = existing.Revision, skipped = true, personal = true });
+                }
+
+                if (IsLargeKeyDrop(baselineKeys, newKeys) && req.AllowShrink != true)
+                {
+                    if (Audit(cfg, "save", "refused-shrink", prof, requestUserId, baselineKeys, newKeys, baselineRev, baselineRev, baseRev, null, persistInConfig: true))
+                    {
+                        plugin.UpdateConfiguration(cfg);
+                    }
+                    NoCache();
+                    return Conflict(new { ok = false, error = "shrink", profile = prof, keysBefore = baselineKeys, keysAfter = newKeys });
+                }
+
+                if (existing is null)
+                {
+                    if (cfg.UserSettingsSnapshots.Count >= MaxUserSnapshotEntries)
+                    {
+                        NoCache();
+                        return StatusCode(StatusCodes.Status507InsufficientStorage, new { ok = false, error = "Limite de snapshots atingido." });
+                    }
+
+                    existing = new UserSettingsSnapshotEntry { UserId = userId, Profile = prof };
+                    cfg.UserSettingsSnapshots.Add(existing);
+                }
+
+                var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                existing.UserName = _users.GetUserById(requestUserId)?.Username;
+                existing.Json = json;
+                existing.Revision = now;
+                existing.UpdatedAtUtc = now;
+
+                Audit(cfg, "save", "ok", prof, requestUserId, baselineKeys, newKeys, baselineRev, now, baseRev,
+                    req.AllowShrink == true ? "allowShrink" : null, persistInConfig: false);
+                plugin.UpdateConfiguration(cfg);
+
+                NoCache();
+                return Ok(new { ok = true, profile = prof, rev = now, personal = true, keys = newKeys });
+            }
+        }
+
+        public sealed class PublishGlobalReq
+        {
+            // Perfil do padrao global que sera trocado (desktop ou mobile).
+            public string? Profile { get; set; }
+
+            // Perfil do snapshot do proprio admin usado como origem (padrao: o mesmo de Profile).
+            public string? SourceProfile { get; set; }
+
+            // So calcula e devolve os numeros, sem gravar (para a tela de confirmacao).
+            public bool? DryRun { get; set; }
+
+            // Confirmacao forte do admin quando o novo padrao tem muito menos chaves que o atual.
+            public bool? AllowShrink { get; set; }
+
+            // Revisao do snapshot de origem mostrada na confirmacao; se mudou no meio, pede nova confirmacao.
+            public long? SourceRev { get; set; }
+        }
+
+        private IActionResult? RequireAdminUser(out Guid userId)
+        {
+            if (!TryResolveUserId(out userId))
+            {
+                NoCache();
+                return Unauthorized(new { ok = false, error = "Usuario nao identificado." });
             }
 
-            existing.UserName = _users.GetUserById(requestUserId)?.Username;
-            existing.Json = json;
-            existing.Revision = now;
-            existing.UpdatedAtUtc = now;
+            if (!IsAdmin(userId))
+            {
+                NoCache();
+                return StatusCode(StatusCodes.Status403Forbidden, new { ok = false, error = "Somente administradores." });
+            }
 
-            plugin.UpdateConfiguration(cfg);
+            return null;
+        }
+
+        // Fork ParticularFlix 4.0.0.12: publicar o padrao global e um gesto separado e explicito do admin. A origem e o
+        // snapshot do admin JA GRAVADO NO SERVIDOR (nunca o localStorage do navegador), e a tela mostra antes o
+        // numero de chaves do padrao atual e do novo.
+        [HttpPost("PublishGlobal")]
+        public IActionResult PublishGlobal([FromBody] PublishGlobalReq req)
+        {
+            var denied = RequireAdminUser(out var adminId);
+            if (denied is not null) return denied;
+
+            var plugin = JMSFusionPlugin.Instance;
+            var cfg = plugin.Configuration;
+            EnsureMigrated(cfg, plugin);
+
+            req ??= new PublishGlobalReq();
+            var prof = NormalizeProfile(req.Profile);
+            var sourceProf = NormalizeProfile(req.SourceProfile ?? prof);
+
+            lock (ConfigGate)
+            {
+                var source = FindEntry(cfg, adminId.ToString("D"), sourceProf);
+                var oldJson = GlobalJson(cfg, prof);
+                var oldKeys = CountKeys(oldJson);
+                var oldRev = GlobalRev(cfg, prof);
+
+                if (source is null)
+                {
+                    NoCache();
+                    return Conflict(new { ok = false, error = "no-source", profile = prof, sourceProfile = sourceProf, keysBefore = oldKeys });
+                }
+
+                var newJson = SanitizeSnapshotJson(source.Json);
+                var newKeys = CountKeys(newJson);
+                var same = string.Equals(SanitizeSnapshotJson(oldJson), newJson, StringComparison.Ordinal);
+                var shrink = IsLargeKeyDrop(oldKeys, newKeys);
+
+                if (req.DryRun == true)
+                {
+                    NoCache();
+                    return Ok(new
+                    {
+                        ok = true,
+                        dryRun = true,
+                        profile = prof,
+                        sourceProfile = sourceProf,
+                        keysBefore = oldKeys,
+                        keysAfter = newKeys,
+                        revBefore = oldRev,
+                        sourceRev = source.Revision,
+                        sourceUpdatedAt = source.UpdatedAtUtc,
+                        same,
+                        shrink,
+                        forceGlobal = cfg.ForceGlobalUserSettings
+                    });
+                }
+
+                if (req.SourceRev.HasValue && req.SourceRev.Value != source.Revision)
+                {
+                    NoCache();
+                    return Conflict(new { ok = false, error = "source-changed", profile = prof, sourceRev = source.Revision });
+                }
+
+                if (same)
+                {
+                    NoCache();
+                    return Ok(new { ok = true, profile = prof, skipped = true, rev = oldRev, keys = newKeys });
+                }
+
+                if (shrink && req.AllowShrink != true)
+                {
+                    if (Audit(cfg, "publish-global", "refused-shrink", prof, adminId, oldKeys, newKeys, oldRev, oldRev, source.Revision, "origem " + sourceProf, persistInConfig: true))
+                    {
+                        plugin.UpdateConfiguration(cfg);
+                    }
+                    NoCache();
+                    return Conflict(new { ok = false, error = "shrink", profile = prof, keysBefore = oldKeys, keysAfter = newKeys });
+                }
+
+                var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                if (prof == "mobile")
+                {
+                    cfg.GlobalUserSettingsPreviousJsonMobile = oldJson;
+                    cfg.GlobalUserSettingsPreviousRevisionMobile = oldRev;
+                    cfg.GlobalUserSettingsJsonMobile = newJson;
+                    cfg.GlobalUserSettingsRevisionMobile = now;
+                }
+                else
+                {
+                    cfg.GlobalUserSettingsPreviousJsonDesktop = oldJson;
+                    cfg.GlobalUserSettingsPreviousRevisionDesktop = oldRev;
+                    cfg.GlobalUserSettingsJsonDesktop = newJson;
+                    cfg.GlobalUserSettingsRevisionDesktop = now;
+                }
+
+                Audit(cfg, "publish-global", "ok", prof, adminId, oldKeys, newKeys, oldRev, now, source.Revision,
+                    "origem " + sourceProf + (shrink ? ", queda confirmada" : string.Empty), persistInConfig: true);
+                plugin.UpdateConfiguration(cfg);
+
+                NoCache();
+                return Ok(new { ok = true, profile = prof, rev = now, keysBefore = oldKeys, keysAfter = newKeys });
+            }
+        }
+
+        public sealed class RevertGlobalReq
+        {
+            public string? Profile { get; set; }
+            public bool? DryRun { get; set; }
+        }
+
+        // Fork ParticularFlix 4.0.0.12: devolve o padrao global anterior a ultima publicacao (troca atual e anterior,
+        // entao um segundo "Desfazer" refaz).
+        [HttpPost("RevertGlobal")]
+        public IActionResult RevertGlobal([FromBody] RevertGlobalReq req)
+        {
+            var denied = RequireAdminUser(out var adminId);
+            if (denied is not null) return denied;
+
+            var plugin = JMSFusionPlugin.Instance;
+            var cfg = plugin.Configuration;
+            req ??= new RevertGlobalReq();
+            var prof = NormalizeProfile(req.Profile);
+
+            lock (ConfigGate)
+            {
+                var current = GlobalJson(cfg, prof);
+                var currentRev = GlobalRev(cfg, prof);
+                var previous = prof == "mobile" ? cfg.GlobalUserSettingsPreviousJsonMobile : cfg.GlobalUserSettingsPreviousJsonDesktop;
+                var previousRev = prof == "mobile" ? cfg.GlobalUserSettingsPreviousRevisionMobile : cfg.GlobalUserSettingsPreviousRevisionDesktop;
+
+                if (string.IsNullOrWhiteSpace(previous))
+                {
+                    NoCache();
+                    return Conflict(new { ok = false, error = "no-previous", profile = prof, keysBefore = CountKeys(current) });
+                }
+
+                if (req.DryRun == true)
+                {
+                    NoCache();
+                    return Ok(new { ok = true, dryRun = true, profile = prof, keysBefore = CountKeys(current), keysAfter = CountKeys(previous), revBefore = currentRev, previousRev });
+                }
+
+                var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                if (prof == "mobile")
+                {
+                    cfg.GlobalUserSettingsPreviousJsonMobile = current;
+                    cfg.GlobalUserSettingsPreviousRevisionMobile = currentRev;
+                    cfg.GlobalUserSettingsJsonMobile = previous;
+                    cfg.GlobalUserSettingsRevisionMobile = now;
+                }
+                else
+                {
+                    cfg.GlobalUserSettingsPreviousJsonDesktop = current;
+                    cfg.GlobalUserSettingsPreviousRevisionDesktop = currentRev;
+                    cfg.GlobalUserSettingsJsonDesktop = previous;
+                    cfg.GlobalUserSettingsRevisionDesktop = now;
+                }
+
+                Audit(cfg, "revert-global", "ok", prof, adminId, CountKeys(current), CountKeys(previous), currentRev, now, previousRev, null, persistInConfig: true);
+                plugin.UpdateConfiguration(cfg);
+
+                NoCache();
+                return Ok(new { ok = true, profile = prof, rev = now, keysBefore = CountKeys(current), keysAfter = CountKeys(previous) });
+            }
+        }
+
+        // Fork ParticularFlix 4.0.0.12: estado dos padroes e trilha de auditoria (somente admin, sem conteudo dos
+        // snapshots). Diagnostico em um comando: GET /Plugins/JMSFusion/UserSettings/Audit
+        [HttpGet("Audit")]
+        public IActionResult GetAudit()
+        {
+            var denied = RequireAdminUser(out _);
+            if (denied is not null) return denied;
+
+            var cfg = JMSFusionPlugin.Instance.Configuration;
+            var entries = (cfg.UserSettingsAudit ?? new()).AsEnumerable().Reverse().ToList();
+            var snapshots = (cfg.UserSettingsSnapshots ?? new())
+                .Select(e => new
+                {
+                    userId = e.UserId,
+                    userName = e.UserName,
+                    profile = NormalizeProfile(e.Profile),
+                    keys = CountKeys(e.Json),
+                    rev = e.Revision
+                })
+                .ToList();
 
             NoCache();
-            return Ok(new { ok = true, profile = prof, rev = now, personal = true });
+            return Ok(new
+            {
+                forceGlobal = cfg.ForceGlobalUserSettings,
+                desktop = new
+                {
+                    keys = CountKeys(cfg.GlobalUserSettingsJsonDesktop),
+                    rev = cfg.GlobalUserSettingsRevisionDesktop,
+                    previousKeys = CountKeys(cfg.GlobalUserSettingsPreviousJsonDesktop),
+                    previousRev = cfg.GlobalUserSettingsPreviousRevisionDesktop
+                },
+                mobile = new
+                {
+                    keys = CountKeys(cfg.GlobalUserSettingsJsonMobile),
+                    rev = cfg.GlobalUserSettingsRevisionMobile,
+                    previousKeys = CountKeys(cfg.GlobalUserSettingsPreviousJsonMobile),
+                    previousRev = cfg.GlobalUserSettingsPreviousRevisionMobile
+                },
+                snapshots,
+                entries
+            });
         }
     }
 }

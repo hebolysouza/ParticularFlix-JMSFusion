@@ -65,6 +65,7 @@
       actions: {
         save: "Save",
         publishGlobal: "Publish admin settings globally",
+        revertGlobal: "Undo last default publication",
         reloadMonwuiSettings: "Reload MonWUI Settings",
         refreshEnv: "Refresh Web Path & Permissions",
         copyAcl: "Copy permission commands",
@@ -377,6 +378,7 @@
 
     setText(view, "#saveBtn", t("webConfig.actions.save", "Save"));
     setText(view, "#publishGlobalBtn", t("webConfig.actions.publishGlobal", "Publish admin settings globally"));
+    setText(view, "#revertGlobalBtn", t("webConfig.actions.revertGlobal", "Undo last default publication"));
     setText(view, "#reloadMonwuiSettingsBtn", t("webConfig.actions.reloadMonwuiSettings", "Reload MonWUI Settings"));
     setText(view, "#refreshEnvBtn", t("webConfig.actions.refreshEnv", "Refresh Web Path & Permissions"));
     setText(view, "#copyAclBtn", t("webConfig.actions.copyAcl", "Copy permission commands"));
@@ -739,23 +741,60 @@
       }
     });
 
+    // Fork ParticularFlix 4.0.0.12: este botao mandava o localStorage INTEIRO desta origem como padrao global (um
+    // navegador com estado velho derrubava o global de 612 para 471 chaves). Agora publica o layout desktop do admin
+    // ja gravado no servidor, mostrando antes as contagens, e pede confirmacao forte se houver queda grande.
+    const postUserSettings = async (action, body) => {
+      const r = await fetch(api(`UserSettings/${action}`), {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", Accept: "application/json", ...authHeaders() },
+        body: JSON.stringify(body || {})
+      });
+      const data = await r.json().catch(() => ({}));
+      return { status: r.status, ok: r.ok && data?.ok !== false, ...data };
+    };
+    const fill = (text, values) => String(text || "").replace(/\{(\w+)\}/g, (m, k) => (values[k] !== undefined ? String(values[k]) : m));
+
     view.querySelector("#publishGlobalBtn")?.addEventListener("click", async () => {
       try {
-        const snapshot = {};
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          snapshot[key] = localStorage.getItem(key);
+        const profile = "desktop";
+        const dry = await postUserSettings("PublishGlobal", { profile, sourceProfile: profile, dryRun: true });
+        if (!dry.ok) {
+          throw new Error(dry.error === "no-source"
+            ? t("webConfig.messages.publishNoSource", "There is no saved desktop layout of yours yet. Save your settings in the JMS settings first.")
+            : `Publish failed (${dry.error || dry.status})`);
         }
+        if (dry.same) {
+          showMessage(view, t("webConfig.messages.publishSame", "The default is already identical to your layout."), "ok");
+          return;
+        }
+        const values = { before: dry.keysBefore, after: dry.keysAfter };
+        if (!window.confirm(fill(t("webConfig.messages.publishConfirm", "Publish your desktop layout ({after} keys) as the default for everyone? Current default: {before} keys."), values))) return;
+        if (dry.shrink && !window.confirm(fill(t("webConfig.messages.publishShrinkConfirm", "WARNING: the new default has far fewer keys ({before} -> {after}). This usually means an outdated layout. Publish anyway?"), values))) return;
 
-        const r = await fetch(api("UserSettings/Publish"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...authHeaders() },
-          body: JSON.stringify({ global: snapshot })
-        });
+        const res = await postUserSettings("PublishGlobal", { profile, sourceProfile: profile, allowShrink: dry.shrink === true, sourceRev: dry.sourceRev });
+        if (!res.ok) throw new Error(`Publish failed (${res.error || res.status})`);
+        showMessage(view, fill(t("webConfig.messages.publishDoneCounts", "Default published: {before} -> {after} keys."), { before: res.keysBefore, after: res.keysAfter }), "ok");
+      } catch (e) {
+        showMessage(view, e.message || String(e), "err");
+      }
+    });
 
-        if (!r.ok) throw new Error("Publish failed");
-        await fetch(`${jfRoot}/Plugins/JMSFusion/UserSettings`, { cache: "no-store" }).catch(() => null);
-        showMessage(view, t("webConfig.messages.publishDone", "Global settings published successfully."), "ok");
+    view.querySelector("#revertGlobalBtn")?.addEventListener("click", async () => {
+      try {
+        const profile = "desktop";
+        const dry = await postUserSettings("RevertGlobal", { profile, dryRun: true });
+        if (!dry.ok) {
+          throw new Error(dry.error === "no-previous"
+            ? t("webConfig.messages.revertNoPrevious", "There is no previous default to restore.")
+            : `Undo failed (${dry.error || dry.status})`);
+        }
+        const values = { before: dry.keysBefore, after: dry.keysAfter };
+        if (!window.confirm(fill(t("webConfig.messages.revertConfirm", "Restore the previous desktop default ({after} keys)? Current default: {before} keys."), values))) return;
+        const res = await postUserSettings("RevertGlobal", { profile });
+        if (!res.ok) throw new Error(`Undo failed (${res.error || res.status})`);
+        showMessage(view, fill(t("webConfig.messages.revertDone", "Default restored: {before} -> {after} keys."), values), "ok");
       } catch (e) {
         showMessage(view, e.message || String(e), "err");
       }

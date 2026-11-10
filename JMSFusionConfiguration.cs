@@ -25,6 +25,26 @@ namespace Jellyfin.Plugin.JMSFusion
         [JsonPropertyName("globalUserSettingsRevisionMobile")]
         public long GlobalUserSettingsRevisionMobile { get; set; } = 0;
 
+        // Fork ParticularFlix 4.0.0.12: copia do padrao global anterior a ultima publicacao (por perfil de tela),
+        // para desfazer uma publicacao errada pelo botao "Desfazer" sem editar o XML com o Jellyfin parado.
+        [JsonIgnore]
+        public string GlobalUserSettingsPreviousJsonDesktop { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        public string GlobalUserSettingsPreviousJsonMobile { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        public long GlobalUserSettingsPreviousRevisionDesktop { get; set; } = 0;
+
+        [JsonIgnore]
+        public long GlobalUserSettingsPreviousRevisionMobile { get; set; } = 0;
+
+        // Fork ParticularFlix 4.0.0.12: trilha de auditoria das publicacoes do padrao global e das gravacoes recusadas
+        // (quem, quando, de onde, chaves antes e depois). Fica so no XML e sai apenas pela rota de admin
+        // /Plugins/JMSFusion/UserSettings/Audit.
+        [JsonIgnore]
+        public List<UserSettingsAuditEntry> UserSettingsAudit { get; set; } = new();
+
         [JsonPropertyName("globalUserSettingsJson")]
         public string GlobalUserSettingsJson { get; set; } = "{}";
 
@@ -459,6 +479,26 @@ namespace Jellyfin.Plugin.JMSFusion
         public string Json { get; set; } = "{}";
         public long Revision { get; set; } = 0;
         public long UpdatedAtUtc { get; set; } = 0;
+    }
+
+    public class UserSettingsAuditEntry
+    {
+        public long AtUtc { get; set; } = 0;
+        public string Action { get; set; } = string.Empty;
+        public string Result { get; set; } = string.Empty;
+        public string Profile { get; set; } = "desktop";
+        public string? UserId { get; set; }
+        public string? UserName { get; set; }
+        public string? Host { get; set; }
+        public string? Origin { get; set; }
+        public string? RemoteIp { get; set; }
+        public string? UserAgent { get; set; }
+        public int KeysBefore { get; set; } = 0;
+        public int KeysAfter { get; set; } = 0;
+        public long RevisionBefore { get; set; } = 0;
+        public long RevisionAfter { get; set; } = 0;
+        public long BaseRevision { get; set; } = 0;
+        public string? Detail { get; set; }
     }
 
     public class StudioHubVisibilityEntry

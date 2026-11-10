@@ -428,6 +428,15 @@ o icone animado (estilo Netflix); barra de progresso fina; sem trailer no celula
 ## 10. Pendencias e ideias (fork)
 
 - Nenhuma pendencia aberta da 4.0.0.11.
+- 4.0.0.12 (branch `hebolysouza/dazzling-maxwell-u1y37q`, em teste): layout por usuario e padrao global so por gesto
+  explicito. Causa das sobrescritas do global na VM (471/519 chaves): com Force ligado, (1) Salvar/Aplicar e o botao de
+  tema mandavam o objeto do `getConfig()` (~471 chaves) por cima do global; (2) leitura do servidor que falhava (Jellyfin
+  reiniciando) deixava o navegador semear o servidor com o localStorage local, sem clique; (3) o botao da pagina do plugin
+  mandava o localStorage inteiro da origem. Agora: Salvar grava so o snapshot do usuario (admin inclusive, com Force);
+  `POST UserSettings/PublishGlobal` (origem = snapshot do admin no servidor, confirmacao com contagens) e `RevertGlobal`;
+  recusa de gravacao sem estado carregado (`loaded`) e de queda > 10% de chaves; trilha em `GET UserSettings/Audit`
+  (admin). Tambem: limpa o cache do Home Screen Sections do usuario ao marcar assistido/nao assistido ou terminar de ver.
+  Depois de implantar na VM, pode-se pensar em desligar o Force (`pf-vm-force.ps1`), decisao do Heboly.
 - Seletor de perfis: o Heboly decidiu NAO fazer "esconder usuarios do admin" nem mudar o padrao da opcao para novas
   instalacoes (cada testador so tem o proprio perfil).
 - Log da producao: erros de banco (`GET /Items`, EntityFramework) em 07/11 16:20, 19:15, 19:20 (antes desta versao) e

@@ -871,7 +871,7 @@ function computeConfig() {
     useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
     fullscreenMode: localStorage.getItem('fullscreenMode') === 'true' ? true : false,
     listLimit: 20,
-    version: "v4.0.0.11",
+    version: "v4.0.0.12",
     historySize: 20,
     updateInterval: 300000,
     nextTracksSource: localStorage.getItem('nextTracksSource') || 'playlist',
@@ -1693,57 +1693,61 @@ function pruneGlobalConfig(cfg) {
   return out;
 }
 
+// Fork ParticularFlix 4.0.0.12: Salvar/Aplicar e o botao de tema NAO publicam mais o padrao global. Antes, com "forcar
+// configuracoes globais" ligado, cada Salvar do admin mandava o objeto do getConfig() (~471 chaves, sem as chaves
+// proprias de posicao e afins) por cima do global de 612 chaves. Agora o Salvar grava so o snapshot do admin e o
+// padrao muda apenas pelo botao "Publicar como padrao" (publishGlobalDefault), com confirmacao.
 export async function publishAdminSnapshotIfForced() {
-  try {
-    const cfg = getConfig();
-    if (!cfg?.currentUserIsAdmin) {
-      return { attempted: false, forced: false, ok: true, reason: "not-admin" };
-    }
+  return { attempted: false, forced: false, ok: true, reason: "explicit-publish-only" };
+}
 
-    const targetProfile = getAdminTargetProfile();
-    const j = await getSharedUserSettingsSnapshot(targetProfile);
-    if (!j?.forceGlobal) {
-      return { attempted: false, forced: false, ok: true, reason: "not-forced", profile: targetProfile };
-    }
+function userSettingsAuthHeaders() {
+  const token =
+    window.ApiClient?.accessToken?.() ||
+    window.ApiClient?._accessToken ||
+    "";
+  return token ? { "X-Emby-Token": token } : {};
+}
 
-    const globalConfig = pruneGlobalConfig(cfg);
-    const token =
-      window.ApiClient?.accessToken?.() ||
-      window.ApiClient?._accessToken ||
-      "";
+async function postUserSettingsAction(action, body) {
+  const response = await fetch(`/Plugins/JMSFusion/UserSettings/${action}?ts=${Date.now()}`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      ...userSettingsAuthHeaders()
+    },
+    body: JSON.stringify(body || {})
+  });
+  const data = await response.json().catch(() => ({}));
+  return { status: response.status, ok: response.ok && data?.ok !== false, ...data };
+}
 
-    if (!token) {
-      console.warn("[JMSFusion] Auto publish skipped (no token).");
-      return { attempted: true, forced: true, ok: false, reason: "no-token", profile: targetProfile };
-    }
-
-    const pr = await fetch(`/Plugins/JMSFusion/UserSettings/Publish?ts=${Date.now()}&profile=${targetProfile}`, {
-      method: "POST",
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Emby-Token": token
-      },
-      body: JSON.stringify({ global: globalConfig, profile: targetProfile })
-    });
-
-    if (!pr.ok) {
-      console.warn("[JMSFusion] Auto publish failed:", pr.status);
-      return { attempted: true, forced: true, ok: false, reason: "http-error", status: pr.status, profile: targetProfile };
-    }
-
-    console.log("[JMSFusion] Auto publish success.");
-    return { attempted: true, forced: true, ok: true, profile: targetProfile };
-  } catch (e) {
-    console.warn("[JMSFusion] Auto publish error:", e);
-    return {
-      attempted: true,
-      forced: true,
-      ok: false,
-      reason: "exception",
-      error: e?.message || String(e)
-    };
+// Fork ParticularFlix 4.0.0.12: publica como padrao global (perfil targetProfile) o snapshot do admin JA GRAVADO no
+// servidor para sourceProfile. dryRun devolve as contagens para a confirmacao. Antes de publicar de verdade, grava o
+// estado atual do admin (flush), para o servidor ter a ultima versao.
+export async function publishGlobalDefault({ targetProfile, sourceProfile, dryRun = false, allowShrink = false, sourceRev } = {}) {
+  const profile = targetProfile || getAdminTargetProfile();
+  const source = sourceProfile || getDeviceProfileAuto();
+  if (!dryRun) {
+    const bridge = getManagedStorageBridge();
+    if (bridge?.flush) await bridge.flush();
   }
+  return postUserSettingsAction("PublishGlobal", {
+    profile,
+    sourceProfile: source,
+    dryRun,
+    allowShrink,
+    sourceRev
+  });
+}
+
+export async function revertGlobalDefault({ targetProfile, dryRun = false } = {}) {
+  return postUserSettingsAction("RevertGlobal", {
+    profile: targetProfile || getAdminTargetProfile(),
+    dryRun
+  });
 }
 
 export function getServerAddress() {

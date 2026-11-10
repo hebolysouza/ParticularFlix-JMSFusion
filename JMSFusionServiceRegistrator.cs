@@ -18,6 +18,7 @@ namespace Jellyfin.Plugin.JMSFusion
             services.AddHostedService<TrailerWatcher>();
             services.AddHostedService<AccessRelockService>();
             services.AddHostedService<StartupTaskGuardService>();
+            services.AddHostedService<HomeSectionsWatchInvalidator>();
             services.AddTransient<IStartupFilter, JMSStartupFilter>();
         }
     }

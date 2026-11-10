@@ -5,6 +5,18 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## 4.0.0.12 (fork build, Jellyfin 12)
+
+Layout settings are now saved per user and the global default only changes on purpose. Same requirements as 4.0.0.11 (Jellyfin 12.x, net10.0); settings are kept.
+
+### Fixes
+- **The global default layout was overwritten without anyone publishing it**: with "Force global user settings" on, three paths of the administrator's browser wrote over the global snapshot that every user receives. (1) Save/Apply in the JMS settings (and the theme button) sent the settings object of the page, about 470 keys, over the global default of about 610 keys, dropping the keys stored outside that object (positions, layout tuning and similar): slider buttons, dots, the settings icon, library covers and row order changed for everyone. (2) When the page could not read the server state (for example while Jellyfin was restarting), it treated the server as empty and seeded it with the browser's own, possibly outdated, local copy, with no click at all. (3) The "Publish admin settings globally" button of the plugin page sent the whole local storage of that site address. Local storage is per site address, so a browser with an old copy under a second address of the same server could publish it.
+- Now **Save/Apply and the automatic save store only the signed-in user's own snapshot**, with or without forced global settings. With forced settings, regular users still receive the global default, and the administrator now reads and edits their own snapshot.
+- **Publishing the default is a separate, explicit action**: "Publish as default for everyone" in the JMS settings (administrators only) and the button of the plugin page publish the administrator's layout already saved on the server, never the browser's local copy. A confirmation shows the number of keys of the current default and of the new one; "Undo last default publication" restores the previous default.
+- **Server-side protection against regressions**: the browser only saves after it has loaded the server state in that page, and the server refuses a save without it (old cached pages included). A save or publication that drops more than 10% of the keys of a snapshot with at least 20 keys is refused unless asked for explicitly (Reset, or a second confirmation of the administrator).
+- **Audit trail**: every default publication, undo and refused save is written to the Jellyfin log and to a list of the last 100 events (time, user, address, origin, IP, browser, keys before and after, revisions), available to administrators at `/Plugins/JMSFusion/UserSettings/Audit`, together with the key count of each saved snapshot.
+- **Home Screen Sections home refreshed after watching**: Home Screen Sections keeps each user's built home in memory for an hour after the last visit, so marking a title as watched or finishing it did not change "Because you watched" or "Continue watching". The plugin now clears only that user's cached home when an item is marked played or unplayed, or a playback finishes (not on playback progress).
+
 ## 4.0.0.11 (fork build, Jellyfin 12)
 
 First step of the mobile layout redesign (phones in portrait and landscape, tablets), measured in the browser device mode at 360x800, 440x956, 924x412 and 960x1440. Same requirements as 4.0.0.10 (Jellyfin 12.x, net10.0); settings are kept. Goes together with a new `particularflix-modern-header.js` in the JMS `custom` folder (header part below).

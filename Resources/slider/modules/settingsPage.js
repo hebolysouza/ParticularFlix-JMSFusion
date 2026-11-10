@@ -1,4 +1,4 @@
-import { getConfig, publishAdminSnapshotIfForced, getAdminTargetProfile, getDeviceProfileAuto, getSettingsHotkey, normalizeSettingsHotkey, SETTINGS_HOTKEY_DEFAULT } from "./config.js";
+import { getConfig, publishAdminSnapshotIfForced, publishGlobalDefault, revertGlobalDefault, getAdminTargetProfile, getDeviceProfileAuto, getSettingsHotkey, normalizeSettingsHotkey, SETTINGS_HOTKEY_DEFAULT } from "./config.js";
 import { isLocalStorageAvailable, updateConfig } from "./configPersistence.js";
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 import { loadCSS } from "./playerStyles.js";
@@ -131,14 +131,11 @@ export function createSettingsModal() {
       } catch {}
     }
 
-    if (config?.currentUserIsAdmin && config?.forceGlobalUserSettings) {
-      const forcedHint = document.createElement('div');
-      forcedHint.className = 'description-text2';
-      forcedHint.style.margin = '0 0 12px';
-      forcedHint.textContent =
-        labels?.forceGlobalAdminHint ||
-        'Genel Kullanıcı Ayarlarını Zorla aktif. Kaydet/Uygula seçili ayar profilini tum kullanicilar icin global publish eder.';
-      modalContent.appendChild(forcedHint);
+    // Fork ParticularFlix 4.0.0.12: Salvar grava so o layout do admin; publicar o padrao de todos e este gesto separado.
+    if (config?.currentUserIsAdmin) {
+      try {
+        modalContent.appendChild(createGlobalDefaultControls(labels, !!config?.forceGlobalUserSettings));
+      } catch {}
     }
 
     const tabContainer = document.createElement('div');
@@ -504,10 +501,17 @@ themeToggleBtn.onclick = async () => {
 
 
     function resetAllSettings() {
+        // Fork ParticularFlix 4.0.0.12: o servidor recusa gravacao que apaga muitas chaves de uma vez (protecao contra
+        // estado velho do navegador); o Resetar e intencional, entao libera a proxima gravacao e grava antes de recarregar.
+        const bridge = window.__JMS_MANAGED_STORAGE__;
+        try { bridge?.allowShrinkNext?.(); } catch {}
         Object.keys(config).forEach(key => {
             localStorage.removeItem(key);
         });
-        location.reload();
+        Promise.resolve()
+          .then(() => bridge?.flush?.())
+          .catch((err) => console.warn('[JMSFusion] Reset flush failed:', err))
+          .finally(() => location.reload());
     }
 
      setTimeout(() => {
@@ -702,6 +706,152 @@ function activateSettingsPanel(modal, tab = 'monwui') {
         tabContent.scrollLeft = 0;
     }
     return fallbackPanel;
+}
+
+// Fork ParticularFlix 4.0.0.12: botoes "Publicar como padrao" e "Desfazer ultima publicacao" (so admin). A origem e o
+// layout do admin JA GRAVADO no servidor; a confirmacao mostra o numero de chaves do padrao atual e do novo, e uma
+// queda grande pede uma segunda confirmacao.
+function fillLabel(text, values) {
+  return String(text || '').replace(/\{(\w+)\}/g, (m, k) => (values && values[k] !== undefined ? String(values[k]) : m));
+}
+
+function createGlobalDefaultControls(labels, forced) {
+  const L = labels || {};
+  const profileName = (p) => p === 'mobile' ? (L.profileMobile || 'Mobile profile') : (L.profileDesktop || 'Desktop profile');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'setting-item jms-global-default';
+  wrap.style.cssText = 'margin:0 0 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;';
+
+  const hint = document.createElement('div');
+  hint.className = 'description-text2';
+  hint.style.flexBasis = '100%';
+  hint.textContent = forced
+    ? (L.globalDefaultHintForced || 'Save/Apply stores only YOUR layout. Regular users see the default layout (forced). To change it for everyone, use "Publish as default".')
+    : (L.globalDefaultHint || 'Save/Apply stores only YOUR layout. Users who never customized theirs receive the default layout. To change it, use "Publish as default".');
+
+  const mkBtn = (text) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'jms-global-default-btn';
+    b.textContent = text;
+    return b;
+  };
+  const publishBtn = mkBtn(L.globalDefaultPublish || 'Publish as default for everyone');
+  const undoBtn = mkBtn(L.globalDefaultUndo || 'Undo last default publication');
+
+  const notify = (html, kind = 'info', ms = 4200) => {
+    try { showNotification(html, ms, kind); } catch {}
+  };
+  const setBusy = (busy) => {
+    [publishBtn, undoBtn].forEach((b) => { b.disabled = busy; b.style.opacity = busy ? '0.6' : ''; });
+  };
+
+  publishBtn.onclick = async () => {
+    const target = getAdminTargetProfile();
+    const source = getDeviceProfileAuto();
+    setBusy(true);
+    try {
+      try {
+        await window.__JMS_MANAGED_STORAGE__?.flush?.();
+      } catch (err) {
+        notify(`<i class="fas fa-triangle-exclamation" style="margin-right:8px;"></i> ${err?.message || err}`, 'error', 6000);
+        return;
+      }
+      const dry = await publishGlobalDefault({ targetProfile: target, sourceProfile: source, dryRun: true });
+      if (!dry?.ok) {
+        const msg = dry?.error === 'no-source'
+          ? fillLabel(L.globalDefaultNoSource || 'There is no saved layout of yours for {source} yet. Save your settings first.', { source: profileName(source) })
+          : `${L.forceGlobalPublishFailed || 'Global user settings could not be published.'} (${dry?.error || dry?.status})`;
+        notify(`<i class="fas fa-triangle-exclamation" style="margin-right:8px;"></i> ${msg}`, 'error', 6000);
+        return;
+      }
+      if (dry.same) {
+        notify(`<i class="fas fa-circle-check" style="margin-right:8px;"></i> ${fillLabel(L.globalDefaultSame || 'The {target} default is already identical to your layout.', { target: profileName(target) })}`, 'info');
+        return;
+      }
+      const values = { source: profileName(source), target: profileName(target), before: dry.keysBefore, after: dry.keysAfter };
+      let message = fillLabel(L.globalDefaultConfirm || 'Publish your layout ({source}, {after} keys) as the {target} default for everyone? Current default: {before} keys.', values);
+      if (forced) message += ' ' + (L.globalDefaultConfirmForced || 'With forced global settings, every regular user will see this layout right away.');
+
+      const doPublish = async () => {
+        setBusy(true);
+        try {
+          const res = await publishGlobalDefault({
+            targetProfile: target,
+            sourceProfile: source,
+            allowShrink: dry.shrink === true,
+            sourceRev: dry.sourceRev
+          });
+          if (!res?.ok) {
+            const why = res?.error === 'source-changed'
+              ? (L.globalDefaultSourceChanged || 'Your layout changed while confirming. Try again.')
+              : `${L.forceGlobalPublishFailed || 'Global user settings could not be published.'} (${res?.error || res?.status})`;
+            notify(`<i class="fas fa-triangle-exclamation" style="margin-right:8px;"></i> ${why}`, 'error', 6000);
+            return;
+          }
+          notify(`<i class="fas fa-globe" style="margin-right:8px;"></i> ${fillLabel(L.globalDefaultDone || '{target} default published: {before} -> {after} keys.', { ...values, before: res.keysBefore ?? values.before, after: res.keysAfter ?? values.after })}`, 'info', 5000);
+        } catch (err) {
+          notify(`<i class="fas fa-triangle-exclamation" style="margin-right:8px;"></i> ${err?.message || err}`, 'error', 6000);
+        } finally {
+          setBusy(false);
+        }
+      };
+
+      createConfirmationModal(message, () => {
+        if (!dry.shrink) { void doPublish(); return; }
+        createConfirmationModal(
+          fillLabel(L.globalDefaultShrinkConfirm || 'WARNING: the new default has far fewer keys than the current one ({before} -> {after}). This usually means an outdated layout. Publish anyway?', values),
+          () => { void doPublish(); },
+          L
+        );
+      }, L);
+    } catch (err) {
+      notify(`<i class="fas fa-triangle-exclamation" style="margin-right:8px;"></i> ${err?.message || err}`, 'error', 6000);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  undoBtn.onclick = async () => {
+    const target = getAdminTargetProfile();
+    setBusy(true);
+    try {
+      const dry = await revertGlobalDefault({ targetProfile: target, dryRun: true });
+      if (!dry?.ok) {
+        const msg = dry?.error === 'no-previous'
+          ? (L.globalDefaultNoPrevious || 'There is no previous default to restore.')
+          : `${L.forceGlobalPublishFailed || 'Global user settings could not be published.'} (${dry?.error || dry?.status})`;
+        notify(`<i class="fas fa-triangle-exclamation" style="margin-right:8px;"></i> ${msg}`, 'error', 5000);
+        return;
+      }
+      const values = { target: profileName(target), before: dry.keysBefore, after: dry.keysAfter };
+      createConfirmationModal(
+        fillLabel(L.globalDefaultUndoConfirm || 'Restore the previous {target} default ({after} keys)? Current default: {before} keys.', values),
+        async () => {
+          setBusy(true);
+          try {
+            const res = await revertGlobalDefault({ targetProfile: target });
+            if (!res?.ok) {
+              notify(`<i class="fas fa-triangle-exclamation" style="margin-right:8px;"></i> ${L.forceGlobalPublishFailed || 'Global user settings could not be published.'} (${res?.error || res?.status})`, 'error', 5000);
+              return;
+            }
+            notify(`<i class="fas fa-rotate-left" style="margin-right:8px;"></i> ${fillLabel(L.globalDefaultUndoDone || '{target} default restored: {before} -> {after} keys.', values)}`, 'info', 5000);
+          } finally {
+            setBusy(false);
+          }
+        },
+        L
+      );
+    } catch (err) {
+      notify(`<i class="fas fa-triangle-exclamation" style="margin-right:8px;"></i> ${err?.message || err}`, 'error', 6000);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  wrap.append(hint, publishBtn, undoBtn);
+  return wrap;
 }
 
 function createConfirmationModal(message, callback, labels) {
