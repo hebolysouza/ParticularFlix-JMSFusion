@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/hebolysouza/ParticularFlix-JMSFusion/main/img/icon.png",
     "versions": [
     {
+      "version": "4.0.0.13",
+      "changelog": "v4.0.0.13 (ParticularFlix fork)\n\nSecurity release for Jellyfin 12 (net10.0, validated on 12.3). Same plugin GUID, settings kept. Jellyfin 10.11.x: stay on 3.8.2.45. Reload open tabs after updating.\n\nSecurity: the list caches (slider, home rows, recommendations) could be read, overwritten or deleted by anyone who could reach the server, for any user, without signing in; they now require sign-in and each regular user only reaches their own cache. The cinema pre-roll cache, Status and Snippet also required no sign-in. The configuration sent to regular users no longer carries other users' watchlists, comments, requests, parental PIN rules or internal service addresses. Comment author names come from the signed-in user.\n\nNew: return one user's layout to the default from the plugin page; removed movies, series and collections leave the slider and rows. Header (extras/particularflix-modern-header.js, JMS custom folder): the library toolbar (sort, filter, A-Z) is back on phones.\n\nFull notes: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
+      "targetAbi": "12.0.0.0",
+      "sourceUrl": "https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases/download/v4.0.0.13/JMSFusion-4.0.0.13-server.zip",
+      "checksum": "3fa3966f84adca859e1d4821ad02e80c",
+      "timestamp": "2026-11-10T19:54:51.0000000Z"
+    },
+    {
       "version": "4.0.0.12",
       "changelog": "v4.0.0.12 (ParticularFlix fork)\n\nLayout, mobile header and Home Screen Sections release for Jellyfin 12 (net10.0, validated on 12.3). Same plugin GUID, settings kept. Jellyfin 10.11.x: stay on 3.8.2.45. Reload open tabs after updating.\n\nLayout: Save/Apply and the automatic save now store only the signed-in user's snapshot, also for administrators with forced global settings. The global default changes only through \"Publish as default for everyone\" (administrator layout saved on the server, confirmation with key counts, undo). The server refuses saves from pages that did not load its state and saves that drop more than 10% of the keys; every publication and refusal is audited. This fixes the global default being overwritten by an outdated browser copy.\n\nMobile header (extras/particularflix-modern-header.js, JMS custom folder): on real phones below 900 px SyncPlay and Cast stayed in the bar and the More button was missing; fixed.\n\nHome Screen Sections: optional model user whose home is copied, without a restart, to users without their own section list; a user's cached home is cleared when an item is marked played or unplayed or a playback finishes.\n\nFull notes: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
       "targetAbi": "12.0.0.0",
