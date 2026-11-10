@@ -698,6 +698,68 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             }
         }
 
+        public sealed class ResetUserReq
+        {
+            public string? UserId { get; set; }
+            public string? Profile { get; set; }
+            public bool? DryRun { get; set; }
+        }
+
+        // Fork ParticularFlix 4.0.0.13: o admin volta o layout de UM usuario ao padrao global apagando o snapshot
+        // dele (desktop, mobile ou os dois). Sem snapshot proprio, o usuario recebe o padrao na proxima carga da
+        // pagina e volta a ter um snapshot proprio quando salvar. Nao mexe no padrao nem nos outros usuarios.
+        [HttpPost("ResetUser")]
+        public IActionResult ResetUser([FromBody] ResetUserReq req)
+        {
+            var denied = RequireAdminUser(out var adminId);
+            if (denied is not null) return denied;
+
+            req ??= new ResetUserReq();
+            if (!Guid.TryParse(req.UserId, out var targetId) || targetId == Guid.Empty)
+            {
+                NoCache();
+                return BadRequest(new { ok = false, error = "user-required" });
+            }
+
+            var target = _users.GetUserById(targetId);
+            var rawProfile = (req.Profile ?? "all").Trim().ToLowerInvariant();
+            var profiles = rawProfile == "all" ? new[] { "desktop", "mobile" } : new[] { NormalizeProfile(rawProfile) };
+
+            var plugin = JMSFusionPlugin.Instance;
+            var cfg = plugin.Configuration;
+            EnsureMigrated(cfg, plugin);
+
+            lock (ConfigGate)
+            {
+                cfg.UserSettingsSnapshots ??= new();
+                var matches = cfg.UserSettingsSnapshots
+                    .Where(e => e is not null
+                        && Guid.TryParse(e.UserId, out var id) && id == targetId
+                        && profiles.Contains(NormalizeProfile(e.Profile), StringComparer.OrdinalIgnoreCase))
+                    .ToList();
+
+                var removed = matches.Select(e => new { profile = NormalizeProfile(e.Profile), keys = CountKeys(e.Json) }).ToList();
+                if (req.DryRun == true || matches.Count == 0)
+                {
+                    NoCache();
+                    return Ok(new { ok = true, dryRun = req.DryRun == true, userName = target?.Username, removed, none = matches.Count == 0 });
+                }
+
+                cfg.UserSettingsSnapshots.RemoveAll(e => matches.Contains(e));
+                var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                foreach (var m in matches)
+                {
+                    var prof = NormalizeProfile(m.Profile);
+                    Audit(cfg, "reset-user", "ok", prof, adminId, CountKeys(m.Json), CountKeys(GlobalJson(cfg, prof)), m.Revision, now, 0,
+                        "target=" + (target?.Username ?? targetId.ToString("N")), persistInConfig: true);
+                }
+
+                plugin.UpdateConfiguration(cfg);
+                NoCache();
+                return Ok(new { ok = true, userName = target?.Username, removed });
+            }
+        }
+
         // Fork ParticularFlix 4.0.0.12: estado dos padroes e trilha de auditoria (somente admin, sem conteudo dos
         // snapshots). Diagnostico em um comando: GET /Plugins/JMSFusion/UserSettings/Audit
         [HttpGet("Audit")]

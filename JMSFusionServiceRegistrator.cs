@@ -20,6 +20,7 @@ namespace Jellyfin.Plugin.JMSFusion
             services.AddHostedService<StartupTaskGuardService>();
             services.AddHostedService<HomeSectionsWatchInvalidator>();
             services.AddHostedService<HomeSectionsSeeder>();
+            services.AddHostedService<ItemRemovalCacheInvalidator>();
             services.AddTransient<IStartupFilter, JMSStartupFilter>();
         }
     }

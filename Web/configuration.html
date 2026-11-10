@@ -110,6 +110,20 @@
 
         <div class="jms-card">
           <div class="jms-card-head">
+            <h3 id="resetUserCardTitle">JMS layout of a user</h3>
+            <p id="resetUserCardBody">Return one user's JMS layout to the default for everyone. Only that user changes; they get the default on the next page load.</p>
+          </div>
+          <div class="inputContainer">
+            <label class="inputLabel" id="resetUserLabel" for="resetUserSelect">User with their own layout</label>
+            <select id="resetUserSelect" is="emby-select" class="emby-select-withcolor emby-select"></select>
+          </div>
+          <div class="buttonContainer">
+            <button id="resetUserBtn" type="button" class="raised">Return to the default layout</button>
+          </div>
+        </div>
+
+        <div class="jms-card">
+          <div class="jms-card-head">
             <h3 id="hssCardTitle">Home Screen Sections: user home</h3>
             <p id="hssCardBody">Users without their own section list get a copy of the model user's home (checked every minute, no restart).</p>
           </div>

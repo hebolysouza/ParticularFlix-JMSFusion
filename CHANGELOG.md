@@ -15,6 +15,10 @@ original authors (G-grbz and contributors) are kept.
 - **Comment author name**: the name shown on a comment came from a request header, so an account could post using someone else's name. It now comes from the signed-in user.
 
 
+### Features and fixes
+- **Return one user's layout to the default**: new "JMS layout of a user" card on the plugin page (administrators only). It lists the users that have their own saved layout, with the key count of each profile, and deletes the chosen user's own layout (desktop and mobile) after a confirmation. Only that user changes; they get the default for everyone on the next page load. Recorded in the audit trail. Also available at `/Plugins/JMSFusion/UserSettings/ResetUser` (`userId`, `profile`: `desktop`, `mobile` or `all`, `dryRun`).
+- **Removed titles leave the slider and rows**: the list caches kept a movie or series deleted from the library until they expired, and opening it gave "item not found". When a movie, series or collection is removed, the list caches of every user are now discarded once, two minutes after the last removal (deleting a whole folder triggers it only once); episodes, seasons and music do not trigger it. Each user rebuilds the slider on the next page load. Can be turned off with `InvalidateListCachesOnItemRemoval` in the plugin XML.
+
 ### Header (`extras/particularflix-modern-header.js`, JMS `custom` folder)
 - **Library toolbar back on phones**: on library pages Jellyfin 12 adds a second toolbar under the main one (sort, filter, A-Z, view settings, pagination). The header script treated its button row as the navigation pills: on phones it was hidden (no sort or filter at all), and the logo and the "More" button were added to it a second time; on desktop it got the pill styles. The script now only touches the main toolbar.
 

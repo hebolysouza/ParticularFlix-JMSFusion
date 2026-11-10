@@ -379,6 +379,10 @@
     setText(view, "#saveBtn", t("webConfig.actions.save", "Save"));
     setText(view, "#publishGlobalBtn", t("webConfig.actions.publishGlobal", "Publish admin settings globally"));
     setText(view, "#revertGlobalBtn", t("webConfig.actions.revertGlobal", "Undo last default publication"));
+    setText(view, "#resetUserCardTitle", t("webConfig.messages.resetUserTitle", "JMS layout of a user"));
+    setText(view, "#resetUserCardBody", t("webConfig.messages.resetUserBody", "Return one user's JMS layout to the default for everyone. Only that user changes; they get the default on the next page load."));
+    setText(view, "#resetUserLabel", t("webConfig.messages.resetUserLabel", "User with their own layout"));
+    setText(view, "#resetUserBtn", t("webConfig.messages.resetUserButton", "Return to the default layout"));
     setText(view, "#hssCardTitle", t("webConfig.messages.hssTitle", "Home Screen Sections: user home"));
     setText(view, "#hssCardBody", t("webConfig.messages.hssBody", "Users without their own section list get a copy of the model user's home (checked every minute, no restart)."));
     setText(view, "#hssTemplateLabel", t("webConfig.messages.hssTemplateLabel", "Model user"));
@@ -801,6 +805,50 @@
         const res = await postUserSettings("RevertGlobal", { profile });
         if (!res.ok) throw new Error(`Undo failed (${res.error || res.status})`);
         showMessage(view, fill(t("webConfig.messages.revertDone", "Default restored: {before} -> {after} keys."), values), "ok");
+      } catch (e) {
+        showMessage(view, e.message || String(e), "err");
+      }
+    });
+
+    // Fork ParticularFlix 4.0.0.13: voltar o layout JMS de UM usuario ao padrao (apaga so o snapshot dele).
+    const resetUserRefresh = async () => {
+      const sel = view.querySelector("#resetUserSelect");
+      if (!sel) return;
+      const r = await fetch(api("UserSettings/Audit"), { cache: "no-store", headers: { Accept: "application/json", ...authHeaders() } });
+      if (!r.ok) return;
+      const data = await r.json().catch(() => ({}));
+      const byUser = new Map();
+      (data.snapshots || []).forEach((s) => {
+        if (!s?.userId) return;
+        const cur = byUser.get(s.userId) || { name: s.userName || s.userId, parts: [] };
+        cur.parts.push(`${s.profile} ${s.keys}`);
+        byUser.set(s.userId, cur);
+      });
+      sel.innerHTML = "";
+      const none = document.createElement("option");
+      none.value = "";
+      none.textContent = "-";
+      sel.appendChild(none);
+      [...byUser.entries()].sort((a, b) => String(a[1].name).localeCompare(String(b[1].name))).forEach(([id, u]) => {
+        const o = document.createElement("option");
+        o.value = id;
+        o.textContent = `${u.name} (${u.parts.join(", ")})`;
+        sel.appendChild(o);
+      });
+    };
+    setTimeout(() => { resetUserRefresh().catch(() => {}); }, 0);
+
+    view.querySelector("#resetUserBtn")?.addEventListener("click", async () => {
+      try {
+        const sel = view.querySelector("#resetUserSelect");
+        const userId = sel?.value || "";
+        if (!userId) throw new Error(t("webConfig.messages.resetUserPick", "Choose the user first."));
+        const name = sel.options[sel.selectedIndex]?.textContent || userId;
+        if (!window.confirm(fill(t("webConfig.messages.resetUserConfirm", "Return the JMS layout of {name} to the default for everyone? Their own layout (desktop and mobile) is deleted."), { name }))) return;
+        const res = await postUserSettings("ResetUser", { userId, profile: "all" });
+        if (!res.ok) throw new Error(`Error ${res.error || res.status}`);
+        showMessage(view, fill(t("webConfig.messages.resetUserDone", "Layout of {name} returned to the default. They see it on the next page load."), { name: res.userName || name }), "ok");
+        await resetUserRefresh();
       } catch (e) {
         showMessage(view, e.message || String(e), "err");
       }

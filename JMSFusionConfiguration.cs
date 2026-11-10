@@ -190,6 +190,11 @@ namespace Jellyfin.Plugin.JMSFusion
         [JsonPropertyName("enableCastModule")]
         public bool EnableCastModule { get; set; } = true;
 
+        // Fork ParticularFlix 4.0.0.13: quando um filme, serie ou colecao sai da biblioteca, os caches de lista de todos
+        // os usuarios (slider, fileiras, recomendacoes) sao descartados uma vez, 2 minutos depois da ultima remocao.
+        // Custo: na proxima abertura cada usuario remonta o slider. Desligar aqui se as remocoes forem muito frequentes.
+        public bool InvalidateListCachesOnItemRemoval { get; set; } = true;
+
         [JsonPropertyName("allowSharedCastViewerForUsers")]
         public bool AllowSharedCastViewerForUsers { get; set; } = false;
 
