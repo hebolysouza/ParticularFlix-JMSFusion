@@ -15,8 +15,12 @@
     var HIDE = [];
 
     var ROOT = "html.pf-modern-on header.MuiAppBar-root";
-    var STACK = ROOT + " .MuiToolbar-root > .MuiStack-root";
-    var HDR = "header.MuiAppBar-root .MuiToolbar-root > .MuiStack-root";
+    // Fork ParticularFlix 4.0.0.12: so a barra PRINCIPAL do cabecalho (a primeira, marcada com pf-apptb). Nas paginas de
+    // biblioteca o Jellyfin 12 poe uma segunda barra (LibraryToolbar) logo abaixo, com um Stack de Ordenar, Filtrar, A-Z,
+    // Visualizacao e Paginacao; ".MuiToolbar-root > .MuiStack-root" pegava esse Stack tambem: no celular ele sumia (e o
+    // logo e o "Mais" iam para a barra da biblioteca) e no desktop ele era estilizado como as pilulas da navegacao.
+    var STACK = ROOT + " .pf-apptb > .MuiStack-root";
+    var HDR = "header.MuiAppBar-root .pf-apptb > .MuiStack-root";
     var STYLE_ID = "pf-modern-header-style";
 
     var CSS = [
@@ -90,8 +94,8 @@
         // Modo so icones (ultimo recurso): o texto some e fica como dica ao passar o mouse.
         "html.pf-modern-on.pf-nav-icons " + HDR + " a:not(.pf-logo-modern){font-size:0 !important;gap:0 !important;padding:8px 10px !important;}",
         "html.pf-modern-on.pf-nav-icons " + HDR + " a:not(.pf-logo-modern) svg{display:inline-block !important;width:20px;height:20px;}",
-        "html.pf-modern-on.pf-nav-flow header.MuiAppBar-root .MuiToolbar-root{flex-wrap:nowrap !important;}",
-        "html.pf-modern-on.pf-nav-flow header.MuiAppBar-root .MuiToolbar-root > :not(.MuiStack-root):not(.pf-logo-modern){flex-shrink:0;}",
+        "html.pf-modern-on.pf-nav-flow header.MuiAppBar-root .pf-apptb{flex-wrap:nowrap !important;}",
+        "html.pf-modern-on.pf-nav-flow header.MuiAppBar-root .pf-apptb > :not(.MuiStack-root):not(.pf-logo-modern){flex-shrink:0;}",
         STACK + " a:not(.pf-logo-modern) svg{width:18px;height:18px;fill:currentColor;}",
         STACK + " a:not(.pf-logo-modern):hover{background:rgba(229,9,20,0.38);}",
         STACK + " a.pf-nav-active{background:#E50914 !important;color:#FFFFFF !important;box-shadow:0 4px 14px rgba(229,9,20,0.35);}",
@@ -362,10 +366,17 @@
         if (vis !== root.classList.contains("pf-modern-active")) root.classList.toggle("pf-modern-active", vis);
     }
 
+    // A barra principal e sempre a primeira .MuiToolbar-root do cabecalho (AppToolbar); a da biblioteca vem depois.
+    function appToolbar(header) {
+        var tb = header.querySelector(".MuiToolbar-root");
+        if (tb && !tb.classList.contains("pf-apptb")) tb.classList.add("pf-apptb");
+        return tb;
+    }
+
     function placeLogoOnly(header) {
         // Modo gaveta (janela estreita): o Jellyfin nao desenha as pilulas, so o hamburguer. O logo entra na barra
         // e a ordem visual (hamburguer, logo) vem do CSS.
-        var toolbar = header.querySelector(".MuiToolbar-root");
+        var toolbar = appToolbar(header);
         if (!toolbar) return;
         ensureStyle();
         var root = document.documentElement;
@@ -534,7 +545,7 @@
             scroll.appendChild(media);
         }
         [].forEach.call(media.querySelectorAll("a.pf-dr-lib"), function (x) { x.remove(); });
-        var stack = document.querySelector("header.MuiAppBar-root .MuiToolbar-root > .MuiStack-root");
+        var stack = document.querySelector("header.MuiAppBar-root .pf-apptb > .MuiStack-root");
         var re = /^#\/(tv|movies|boxsets|music|livetv|books|homevideos|musicvideos|playlists|list)(\?|$)/;
         var seen = {};
         if (stack) {
@@ -718,8 +729,8 @@
     var GEAR_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19.14 12.94a7.07 7.07 0 0 0 0-1.88l2.03-1.58a.48.48 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54A.48.48 0 0 0 13.93 2h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.73 8.47a.47.47 0 0 0 .12.61l2.03 1.58a7.07 7.07 0 0 0 0 1.88l-2.03 1.58a.48.48 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.25.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54a7.03 7.03 0 0 0 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.47.47 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>';
     var MOB_CSS = [
         // Pilulas: no mobile ficam so na gaveta (hamburguer), que ja tem Inicio, Favoritos, bibliotecas e as abas do Enhanced.
-        MOB_R + " .MuiToolbar-root > .MuiStack-root{display:none !important;}",
-        MOB_R + " .MuiToolbar-root{flex-wrap:nowrap !important;}",
+        MOB_R + " .pf-apptb > .MuiStack-root{display:none !important;}",
+        MOB_R + " .pf-apptb{flex-wrap:nowrap !important;}",
         // Logo: so o icone animado (sem a palavra), e ele empurra os botoes para a direita.
         MOB_R + " .MuiToolbar-root > .pf-logo-modern{margin-right:auto !important;padding:4px 6px 4px 2px;}",
         MOB_R + " .pf-logo-modern .pf-wm{display:none !important;}",
@@ -942,7 +953,8 @@
         var header = document.querySelector("header.MuiAppBar-root");
         if (!header) return;
         ensureAdminLinks();
-        var stack = header.querySelector(".MuiToolbar-root > .MuiStack-root");
+        var apptb = appToolbar(header);
+        var stack = apptb ? apptb.querySelector(":scope > .MuiStack-root") : null;
         if (!stack || !stack.parentElement) {
             placeLogoOnly(header);
             // Fork ParticularFlix 4.0.0.12: abaixo de 900 px (celular em pe) o Jellyfin 12 nao desenha as pilulas (a gaveta
@@ -950,8 +962,7 @@
             // celular ficava com o logo so de icone, mas SyncPlay e Transmitir apareciam na barra e o "Mais" sumia depois de
             // entrar (visto no celular de uma testadora em 09/11; no modo dispositivo do navegador nao aparecia porque a
             // pagina vinha da largura de desktop). O cabecalho mobile agora roda tambem sem as pilulas.
-            var tb = header.querySelector(".MuiToolbar-root");
-            if (tb) placeMobile(tb, null);
+            if (apptb) placeMobile(apptb, null);
             return;
         }
         var toolbar = stack.parentElement;

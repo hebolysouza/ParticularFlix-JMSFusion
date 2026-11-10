@@ -5,6 +5,11 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## Unreleased
+
+### Header (`extras/particularflix-modern-header.js`, JMS `custom` folder)
+- **Library toolbar back on phones**: on library pages Jellyfin 12 adds a second toolbar under the main one (sort, filter, A-Z, view settings, pagination). The header script treated its button row as the navigation pills: on phones it was hidden (no sort or filter at all), and the logo and the "More" button were added to it a second time; on desktop it got the pill styles. The script now only touches the main toolbar.
+
 ## 4.0.0.12 (fork build, Jellyfin 12)
 
 Layout settings are now saved per user and the global default only changes on purpose. Same requirements as 4.0.0.11 (Jellyfin 12.x, net10.0); settings are kept.
