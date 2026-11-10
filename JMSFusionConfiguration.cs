@@ -45,6 +45,11 @@ namespace Jellyfin.Plugin.JMSFusion
         [JsonIgnore]
         public List<UserSettingsAuditEntry> UserSettingsAudit { get; set; } = new();
 
+        // Fork ParticularFlix 4.0.0.12: usuario modelo da Home do Home Screen Sections. Quem ainda nao tem lista de secoes
+        // propria recebe uma copia da lista deste usuario (sem reiniciar o Jellyfin). Vazio = desligado.
+        [JsonPropertyName("homeSectionsTemplateUserId")]
+        public string HomeSectionsTemplateUserId { get; set; } = string.Empty;
+
         [JsonPropertyName("globalUserSettingsJson")]
         public string GlobalUserSettingsJson { get; set; } = "{}";
 

@@ -711,7 +711,7 @@
         es: { more: "Más", search: "Buscar", jms: "Configuración de JMS" },
         en: { more: "More", search: "Search", jms: "JMS settings" }
     };
-    var MOB_KEEP = ".pf-dr-btn,.pf-logo-modern,.pf-more-btn,#jfNotifBtn,#jfProfileChooserBtn,a[href=\"#/search\"],[aria-controls=\"app-user-menu\"]";
+    var MOB_KEEP = ".pf-dr-btn,.pf-logo-modern,.pf-more-btn,#jfNotifBtn,#jfProfileChooserBtn,a[href^=\"#/search\"],[aria-controls=\"app-user-menu\"]";
     var MOB_R = "html.pf-modern-on.pf-mob header.MuiAppBar-root";
     var MORE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>';
     var SEARCH_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>';
@@ -726,7 +726,7 @@
         // Botoes que foram para o menu "Mais": invisiveis, fora do fluxo, no canto de cima a direita.
         MOB_R + " .pf-mob-park{position:fixed !important;top:0 !important;right:0 !important;left:auto !important;bottom:auto !important;width:44px !important;min-width:0 !important;height:48px !important;margin:0 !important;opacity:0 !important;pointer-events:none !important;z-index:-1 !important;}",
         // A Busca o Jellyfin some em tela estreita; no mobile ela volta (e, se mesmo assim nao aparecer, entra no menu).
-        MOB_R + " a[href=\"#/search\"]{display:inline-flex !important;}",
+        MOB_R + " a[href^=\"#/search\"]{display:inline-flex !important;}",
         // Mudar perfil: so o avatar, alvo de toque de 44 px.
         MOB_R + " #jfProfileChooserBtn .jf-profile-header-name," + MOB_R + " #jfProfileChooserBtn .jf-profile-header-caret{display:none !important;}",
         MOB_R + " #jfProfileChooserBtn{display:inline-flex !important;align-items:center;justify-content:center;width:44px !important;min-width:44px !important;height:44px !important;padding:0 !important;gap:0 !important;margin:0 !important;border:0 !important;background:transparent !important;box-shadow:none !important;}",
@@ -795,7 +795,7 @@
         var out = [];
         var header = document.querySelector("header.MuiAppBar-root");
         if (!header) return out;
-        var s = header.querySelector('a[href="#/search"]');
+        var s = header.querySelector('a[href^="#/search"]');
         if (!s || !s.getClientRects().length) out.push({ label: T.search, html: SEARCH_ICON, run: function () { window.location.hash = "#/search"; } });
         var parked = header.querySelectorAll(".pf-mob-park");
         for (var i = 0; i < parked.length; i++) {
@@ -919,13 +919,41 @@
     }
 
     var lastFitSig = "";
+
+    // Cabecalho mobile (com ou sem as pilulas na barra). Devolve true quando o perfil e mobile.
+    function placeMobile(toolbar, stack) {
+        var mob = syncMobFlag();
+        mobPark(toolbar, stack, mob);
+        if (mob) {
+            mobEnsure(toolbar);
+            if (lastFitSig !== "mob") {
+                lastFitSig = "mob";
+                var root = document.documentElement;
+                ["pf-nav-compact", "pf-nav-flow", "pf-nav-icons"].forEach(function (c) { root.classList.remove(c); });
+            }
+            return true;
+        }
+        mobRemove(toolbar);
+        return false;
+    }
+
     function place() {
         syncVideo();
         var header = document.querySelector("header.MuiAppBar-root");
         if (!header) return;
         ensureAdminLinks();
         var stack = header.querySelector(".MuiToolbar-root > .MuiStack-root");
-        if (!stack || !stack.parentElement) { placeLogoOnly(header); return; }
+        if (!stack || !stack.parentElement) {
+            placeLogoOnly(header);
+            // Fork ParticularFlix 4.0.0.12: abaixo de 900 px (celular em pe) o Jellyfin 12 nao desenha as pilulas (a gaveta
+            // nativa assume) e o place() parava aqui, antes do cabecalho mobile. Na tela de login as pilulas existem, entao o
+            // celular ficava com o logo so de icone, mas SyncPlay e Transmitir apareciam na barra e o "Mais" sumia depois de
+            // entrar (visto no celular de uma testadora em 09/11; no modo dispositivo do navegador nao aparecia porque a
+            // pagina vinha da largura de desktop). O cabecalho mobile agora roda tambem sem as pilulas.
+            var tb = header.querySelector(".MuiToolbar-root");
+            if (tb) placeMobile(tb, null);
+            return;
+        }
         var toolbar = stack.parentElement;
 
         ensureStyle();
@@ -961,18 +989,10 @@
         drSync();
         // Fork ParticularFlix: no perfil mobile as pilulas ficam escondidas (so na gaveta), entao a escada do fitNav nao roda
         // (ela mede a barra a cada mudanca) e os botoes extras vao para o menu "Mais".
-        var mob = syncMobFlag();
-        mobPark(toolbar, stack, mob);
-        if (mob) {
-            mobEnsure(toolbar);
-            if (lastFitSig !== "mob") {
-                lastFitSig = "mob";
-                ["pf-nav-compact", "pf-nav-flow", "pf-nav-icons"].forEach(function (c) { root.classList.remove(c); });
-            }
+        if (placeMobile(toolbar, stack)) {
             syncModernFlag(header);
             return;
         }
-        mobRemove(toolbar);
         var sig = toolbar.clientWidth + "|" + window.innerWidth + "|" + stack.children.length + "|" + stack.textContent.length + "|" + (document.getElementById("jfNotifBtn") ? 1 : 0) + "|" + toolbar.children.length;
         if (sig !== lastFitSig) { lastFitSig = sig; fitNav(toolbar, stack, logo); }
         syncModernFlag(header);

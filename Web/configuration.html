@@ -107,6 +107,23 @@
             <button id="revertGlobalBtn" type="button" class="raised">Undo Last Default Publication</button>
           </div>
         </div>
+
+        <div class="jms-card">
+          <div class="jms-card-head">
+            <h3 id="hssCardTitle">Home Screen Sections: user home</h3>
+            <p id="hssCardBody">Users without their own section list get a copy of the model user's home (checked every minute, no restart).</p>
+          </div>
+          <div class="inputContainer">
+            <label class="inputLabel" id="hssTemplateLabel" for="hssTemplate">Model user</label>
+            <select id="hssTemplate" is="emby-select" class="emby-select-withcolor emby-select"></select>
+          </div>
+          <div id="hssStatus" class="fieldDescription"></div>
+          <div class="buttonContainer">
+            <button id="hssSaveTemplateBtn" type="button" class="raised">Save model user</button>
+            <button id="hssCopyMissingBtn" type="button" class="raised">Copy the model home to users without their own</button>
+            <button id="hssCopyAllBtn" type="button" class="raised">Copy the model home to everyone (overwrite)</button>
+          </div>
+        </div>
       </div>
     </section>
 

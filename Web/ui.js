@@ -379,6 +379,12 @@
     setText(view, "#saveBtn", t("webConfig.actions.save", "Save"));
     setText(view, "#publishGlobalBtn", t("webConfig.actions.publishGlobal", "Publish admin settings globally"));
     setText(view, "#revertGlobalBtn", t("webConfig.actions.revertGlobal", "Undo last default publication"));
+    setText(view, "#hssCardTitle", t("webConfig.messages.hssTitle", "Home Screen Sections: user home"));
+    setText(view, "#hssCardBody", t("webConfig.messages.hssBody", "Users without their own section list get a copy of the model user's home (checked every minute, no restart)."));
+    setText(view, "#hssTemplateLabel", t("webConfig.messages.hssTemplateLabel", "Model user"));
+    setText(view, "#hssSaveTemplateBtn", t("webConfig.messages.hssSaveTemplate", "Save model user"));
+    setText(view, "#hssCopyMissingBtn", t("webConfig.messages.hssCopyMissing", "Copy the model home to users without their own"));
+    setText(view, "#hssCopyAllBtn", t("webConfig.messages.hssCopyAll", "Copy the model home to everyone (overwrite)"));
     setText(view, "#reloadMonwuiSettingsBtn", t("webConfig.actions.reloadMonwuiSettings", "Reload MonWUI Settings"));
     setText(view, "#refreshEnvBtn", t("webConfig.actions.refreshEnv", "Refresh Web Path & Permissions"));
     setText(view, "#copyAclBtn", t("webConfig.actions.copyAcl", "Copy permission commands"));
@@ -799,6 +805,81 @@
         showMessage(view, e.message || String(e), "err");
       }
     });
+
+    // Fork ParticularFlix 4.0.0.12: Home do Home Screen Sections por usuario (modelo e copia), sem reiniciar o Jellyfin.
+    const hssFetch = async (path, body) => {
+      const r = await fetch(api(`HomeSections${path}`), body === undefined
+        ? { cache: "no-store", headers: { Accept: "application/json", ...authHeaders() } }
+        : { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json", Accept: "application/json", ...authHeaders() }, body: JSON.stringify(body) });
+      const data = await r.json().catch(() => ({}));
+      return { status: r.status, ok: r.ok && data?.ok !== false, ...data };
+    };
+    const hssRefresh = async () => {
+      const sel = view.querySelector("#hssTemplate");
+      const box = view.querySelector("#hssStatus");
+      if (!sel || !box) return null;
+      const st = await hssFetch("");
+      if (!st.ok) { box.textContent = `Error ${st.error || st.status}`; return null; }
+      if (!st.available) {
+        box.textContent = t("webConfig.messages.hssNotAvailable", "Home Screen Sections is not installed or not loaded.");
+        return st;
+      }
+      const current = sel.value || st.templateUserId || "";
+      sel.innerHTML = "";
+      const off = document.createElement("option");
+      off.value = "";
+      off.textContent = t("webConfig.messages.hssTemplateOff", "(off)");
+      sel.appendChild(off);
+      (st.users || []).forEach((u) => {
+        const o = document.createElement("option");
+        o.value = u.id;
+        o.textContent = `${u.name} (${u.enabledSections})`;
+        sel.appendChild(o);
+      });
+      sel.value = st.templateUserId || current || "";
+      const own = (st.users || []).filter((u) => u.hasOwnHome).map((u) => u.name);
+      const none = (st.users || []).filter((u) => !u.hasOwnHome).map((u) => u.name);
+      box.textContent = `${t("webConfig.messages.hssWithOwn", "With their own home")}: ${own.join(", ") || "-"} | ${t("webConfig.messages.hssWithoutOwn", "Without (plugin default)")}: ${none.join(", ") || "-"}`;
+      return st;
+    };
+    view.__hssRefresh = hssRefresh;
+    setTimeout(() => { hssRefresh().catch(() => {}); }, 0);
+
+    view.querySelector("#hssSaveTemplateBtn")?.addEventListener("click", async () => {
+      try {
+        const userId = view.querySelector("#hssTemplate")?.value || "";
+        const res = await hssFetch("/Template", { userId });
+        if (!res.ok) throw new Error(`Error ${res.error || res.status}`);
+        showMessage(view, t("webConfig.messages.hssTemplateSaved", "Model user saved."), "ok");
+        await hssRefresh();
+      } catch (e) {
+        showMessage(view, e.message || String(e), "err");
+      }
+    });
+
+    const hssCopy = async (onlyMissing) => {
+      try {
+        const sourceUserId = view.querySelector("#hssTemplate")?.value || "";
+        if (!sourceUserId) throw new Error(t("webConfig.messages.hssPickTemplate", "Choose the model user first."));
+        const dry = await hssFetch("/Copy", { sourceUserId, allUsers: true, onlyMissing, dryRun: true });
+        if (!dry.ok) throw new Error(`Error ${dry.error || dry.status}`);
+        const names = (dry.results || []).filter((r) => r.result === "would-copy" || r.result === "would-overwrite").map((r) => r.name);
+        if (!names.length) {
+          showMessage(view, t("webConfig.messages.hssNothing", "Nobody to update."), "ok");
+          return;
+        }
+        if (!window.confirm(`${t("webConfig.messages.hssConfirm", "Copy the model home to")}: ${names.join(", ")}?`)) return;
+        const res = await hssFetch("/Copy", { sourceUserId, allUsers: true, onlyMissing });
+        if (!res.ok) throw new Error(`Error ${res.error || res.status}`);
+        const failed = (res.results || []).filter((r) => r.result === "failed");
+        showMessage(view, failed.length ? `Failed: ${failed.map((r) => r.name).join(", ")}` : t("webConfig.messages.hssDone", "Home copied. Users see it on the next home load."), failed.length ? "err" : "ok");
+        await hssRefresh();
+      } catch (e) {
+        showMessage(view, e.message || String(e), "err");
+      }
+    };
+    view.querySelector("#hssCopyMissingBtn")?.addEventListener("click", () => hssCopy(true));
+    view.querySelector("#hssCopyAllBtn")?.addEventListener("click", () => hssCopy(false));
 
     view.querySelector("#reloadMonwuiSettingsBtn")?.addEventListener("click", async () => {
       try {

@@ -19,6 +19,7 @@ namespace Jellyfin.Plugin.JMSFusion
             services.AddHostedService<AccessRelockService>();
             services.AddHostedService<StartupTaskGuardService>();
             services.AddHostedService<HomeSectionsWatchInvalidator>();
+            services.AddHostedService<HomeSectionsSeeder>();
             services.AddTransient<IStartupFilter, JMSStartupFilter>();
         }
     }
