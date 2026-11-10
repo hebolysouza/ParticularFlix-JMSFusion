@@ -99,6 +99,10 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         [HttpGet("Status")]
         public IActionResult GetStatus()
         {
+            // Fork ParticularFlix: o status mostra caminhos do servidor; so administradores veem.
+            var denied = RequireAdmin();
+            if (denied is not null) return denied;
+
             var cfg = JMSFusionPlugin.Instance.Configuration;
             var usingEmbedded = string.IsNullOrWhiteSpace(cfg.ScriptDirectory) || !Directory.Exists(cfg.ScriptDirectory);
 
@@ -124,8 +128,12 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
 
 
         [HttpGet("Snippet")]
-        public ContentResult GetSnippet()
+        public IActionResult GetSnippet()
         {
+            // Fork ParticularFlix: diagnostico da pagina do plugin; so administradores veem.
+            var denied = RequireAdmin();
+            if (denied is not null) return denied;
+
             var pathBase = HttpContext?.Request.PathBase.Value ?? string.Empty;
             var html = JMSFusionPlugin.Instance.BuildScriptsHtml(pathBase);
             var safe = System.Net.WebUtility.HtmlEncode(html);

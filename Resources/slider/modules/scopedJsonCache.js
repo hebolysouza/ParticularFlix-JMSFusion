@@ -6,6 +6,22 @@ const SESSION_MIRROR_PREFIX = "jms:scoped-json-cache:v1:";
 const SESSION_MIRROR_MAX_AGE_MS = 15 * 60 * 1000;
 let lifecycleFlushBound = false;
 
+// Fork ParticularFlix: o servidor agora exige login no cache de listas (antes aceitava qualquer
+// pessoa). Envia o token da sessao atual; o shim do fetch converte em "Authorization".
+function scopedCacheAuthHeaders() {
+  try {
+    const api = window.ApiClient;
+    const token = api && (typeof api.accessToken === "function" ? api.accessToken() : api._accessToken);
+    if (token) return { "X-Emby-Token": String(token) };
+  } catch {}
+  try {
+    const creds = JSON.parse(localStorage.getItem("jellyfin_credentials") || "{}");
+    const server = Array.isArray(creds?.Servers) ? creds.Servers.find((s) => s?.AccessToken) : null;
+    if (server?.AccessToken) return { "X-Emby-Token": String(server.AccessToken) };
+  } catch {}
+  return {};
+}
+
 // Fork ParticularFlix: geracao do cache por escopo (vem do servidor no cabecalho X-JMS-Gen).
 // Sobe a cada mudanca de permissao do usuario; gravacoes com geracao antiga sao recusadas (409).
 const GEN_HEADER = "X-JMS-Gen";
@@ -198,7 +214,8 @@ async function readScopePayload(cacheType, scope, { allowRemoteRead = true } = {
     cache: "no-store",
     credentials: "same-origin",
     headers: {
-      "Accept": "application/json"
+      "Accept": "application/json",
+      ...scopedCacheAuthHeaders()
     }
   });
 
@@ -224,7 +241,8 @@ async function writeScopePayload(cacheType, scope, payload, { keepalive = false 
 
   const headers = {
     "Accept": "application/json",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    ...scopedCacheAuthHeaders()
   };
   const sentGen = SCOPE_GENERATIONS.get(scopeGenKey(cacheType, scope));
   if (sentGen) headers[GEN_HEADER] = String(sentGen);

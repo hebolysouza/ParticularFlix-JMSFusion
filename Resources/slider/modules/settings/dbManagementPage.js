@@ -7,6 +7,22 @@ const BACKUP_FORMAT = "jms-scoped-cache-backup";
 const BACKUP_FILE_VERSION = 1;
 const SCOPED_CACHE_ROOT_HINT = "/plugins/configurations/JMSFusion/scoped-cache";
 
+// Fork ParticularFlix: o servidor agora exige login no cache de listas (antes aceitava qualquer
+// pessoa). Envia o token da sessao atual; o shim do fetch converte em "Authorization".
+function scopedCacheAuthHeaders() {
+  try {
+    const api = window.ApiClient;
+    const token = api && (typeof api.accessToken === "function" ? api.accessToken() : api._accessToken);
+    if (token) return { "X-Emby-Token": String(token) };
+  } catch {}
+  try {
+    const creds = JSON.parse(localStorage.getItem("jellyfin_credentials") || "{}");
+    const server = Array.isArray(creds?.Servers) ? creds.Servers.find((s) => s?.AccessToken) : null;
+    if (server?.AccessToken) return { "X-Emby-Token": String(server.AccessToken) };
+  } catch {}
+  return {};
+}
+
 function setStatus(node, message) {
   node.textContent = message || "";
   node.style.display = message ? "block" : "none";
@@ -119,7 +135,7 @@ async function readScopedCache(cacheType, scope) {
     method: "GET",
     cache: "no-store",
     credentials: "same-origin",
-    headers: { Accept: "application/json" }
+    headers: { Accept: "application/json", ...scopedCacheAuthHeaders() }
   });
 
   if (!response.ok) {
@@ -138,7 +154,8 @@ async function writeScopedCache(cacheType, scope, payload) {
     credentials: "same-origin",
     headers: {
       Accept: "application/json",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...scopedCacheAuthHeaders()
     },
     body: JSON.stringify(payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {})
   });
@@ -156,7 +173,7 @@ async function deleteScopedCache(cacheType, scope) {
     method: "DELETE",
     cache: "no-store",
     credentials: "same-origin",
-    headers: { Accept: "application/json" }
+    headers: { Accept: "application/json", ...scopedCacheAuthHeaders() }
   });
 
   if (!response.ok) {

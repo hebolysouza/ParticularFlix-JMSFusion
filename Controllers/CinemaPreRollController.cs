@@ -31,6 +31,20 @@ public class CinemaPreRollController : ControllerBase
         [FromQuery] bool force,
         CancellationToken ct)
     {
+        // Fork ParticularFlix: antes qualquer pessoa sem login podia chamar esta rota, e com force=true
+        // obrigava o servidor a refazer a lista de trailers na internet a cada pedido. Agora exige login;
+        // force so vale para administrador (para os outros, devolve o cache atual, sem erro).
+        var level = RequestAuth.GetLevel(HttpContext, _users);
+        if (level == RequestAuth.Level.Anonymous)
+        {
+            return Unauthorized();
+        }
+
+        if (force && level != RequestAuth.Level.Admin)
+        {
+            force = false;
+        }
+
         var snapshot = await _cacheService.GetSnapshotAsync(language, region, regionMode, fallbackMode, fallbackRegion, force, ct).ConfigureAwait(false);
         ApplyUserParentalRatingFilter(snapshot);
         NoCache();

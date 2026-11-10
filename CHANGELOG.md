@@ -5,7 +5,15 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## Unreleased
+## Unreleased (4.0.0.13)
+
+### Security
+- **List caches required no sign-in**: the server cache of the slider, the home rows and the personal recommendations (`/Plugins/JMSFusion/ScopedCache`) could be read, overwritten or deleted by anyone who could reach the server, for any user, without signing in. It now requires a signed-in user, and a regular user can only reach the scope that ends with their own user id; administrators and API keys keep full access (cache backup page). Writes are capped at 16 MB. The browser now sends the session token on these calls.
+- **Cinema pre-roll cache required no sign-in**: `/Plugins/JMSFusion/cinema-preroll/cache` answered without sign-in, and `force=true` made the server rebuild the trailer list from the internet on every call. It now requires a signed-in user; `force` only works for administrators (for everyone else the current cache is returned).
+- **Configuration sent to regular users**: besides the API keys (already hidden), the configuration returned to regular users no longer includes data of other users (watchlists, shares, watch history, comments, Seerr requests, parental PIN rules, saved layouts of each user) or internal addresses (Jellyfin, Seerr, Sonarr and Radarr URLs and root folders, script folder). The browser never read these fields from the configuration; each feature has its own route filtered by user. Administrators still get everything.
+- **Status and Snippet** (`/Plugins/JMSFusion/Status`, `/Plugins/JMSFusion/Snippet`) showed server paths without sign-in; administrators only now. The plugin page sends the session token on all of its calls.
+- **Comment author name**: the name shown on a comment came from a request header, so an account could post using someone else's name. It now comes from the signed-in user.
+
 
 ### Header (`extras/particularflix-modern-header.js`, JMS `custom` folder)
 - **Library toolbar back on phones**: on library pages Jellyfin 12 adds a second toolbar under the main one (sort, filter, A-Z, view settings, pagination). The header script treated its button row as the navigation pills: on phones it was hidden (no sort or filter at all), and the logo and the "More" button were added to it a second time; on desktop it got the pill styles. The script now only touches the main toolbar.

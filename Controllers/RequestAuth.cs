@@ -91,15 +91,36 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             copy.ParentalPinSalt = null;
             copy.AccessProfiles = new();
 
+            // Fork ParticularFlix: dados de OUTROS usuarios e enderecos internos tambem nao saem para
+            // usuario comum. Antes qualquer conta logada recebia aqui as listas, comentarios, pedidos
+            // e o layout salvo de todo mundo, alem dos enderecos da rede interna (Seerr, Sonarr, Radarr).
+            // O navegador nao le estes campos da configuracao: cada recurso tem a propria rota, que
+            // filtra pelo usuario. Os campos voltam vazios e o administrador continua vendo tudo.
+            copy.WatchlistEntries = new();
+            copy.WatchlistShares = new();
+            copy.WatchlistHistoryEntries = new();
+            copy.ItemComments = new();
+            copy.SerrRequests = new();
+            copy.ParentalPinRules = new();
+            copy.UserSettingsSnapshots = new();
+            copy.AccessCacheGenerations = new();
+            copy.GlobalUserSettingsPreviousJsonDesktop = string.Empty;
+            copy.GlobalUserSettingsPreviousJsonMobile = string.Empty;
+            copy.ScriptDirectory = string.Empty;
+            copy.JFBase = string.Empty;
+            copy.SerrBaseUrl = string.Empty;
+            copy.ArrSonarrBaseUrl = string.Empty;
+            copy.ArrSonarr4KBaseUrl = string.Empty;
+            copy.ArrRadarrBaseUrl = string.Empty;
+            copy.ArrRadarr4KBaseUrl = string.Empty;
+            copy.ArrSonarrRootFolderPath = string.Empty;
+            copy.ArrSonarr4KRootFolderPath = string.Empty;
+            copy.ArrRadarrRootFolderPath = string.Empty;
+            copy.ArrRadarr4KRootFolderPath = string.Empty;
+
             if (level == Level.Anonymous)
             {
                 copy.TmdbApiKey = string.Empty;
-                copy.WatchlistEntries = new();
-                copy.WatchlistShares = new();
-                copy.WatchlistHistoryEntries = new();
-                copy.ItemComments = new();
-                copy.SerrRequests = new();
-                copy.ParentalPinRules = new();
             }
 
             return copy;

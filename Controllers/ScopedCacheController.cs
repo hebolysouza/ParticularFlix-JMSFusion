@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JMSFusion.Core;
+using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -15,13 +16,57 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
     {
         private readonly ScopedCacheJsonService _cacheService;
         private readonly ILogger<ScopedCacheController> _logger;
+        private readonly IUserManager _userManager;
+
+        // Fork ParticularFlix: limite de tamanho de um cache gravado. Os maiores (slider, fileiras)
+        // ficam bem abaixo disso; o limite so impede que alguem encha o disco do servidor.
+        private const long MaxPayloadBytes = 16L * 1024 * 1024;
 
         public ScopedCacheController(
             ScopedCacheJsonService cacheService,
-            ILogger<ScopedCacheController> logger)
+            ILogger<ScopedCacheController> logger,
+            IUserManager userManager)
         {
             _cacheService = cacheService;
             _logger = logger;
+            _userManager = userManager;
+        }
+
+        // Fork ParticularFlix: antes estas rotas nao pediam login, entao qualquer pessoa na internet
+        // podia ler ou gravar o cache (slider, fileiras, recomendacoes) de qualquer usuario, bastando
+        // montar o escopo "serverId|userId". Agora: precisa estar logado, e um usuario comum so mexe
+        // no escopo que termina com o proprio id. Administrador e chave de API acessam qualquer escopo
+        // (pagina de backup do cache). A identidade vem do token validado pelo Jellyfin, nunca de cabecalho.
+        private IActionResult? Authorize(string scope)
+        {
+            var level = RequestAuth.GetLevel(HttpContext, _userManager);
+            if (level == RequestAuth.Level.Anonymous)
+            {
+                return Unauthorized(new { ok = false, error = "auth-required" });
+            }
+
+            if (level == RequestAuth.Level.Admin)
+            {
+                return null;
+            }
+
+            if (!RequestAuth.TryGetAuthenticatedUserId(HttpContext, out var callerId))
+            {
+                return Unauthorized(new { ok = false, error = "auth-required" });
+            }
+
+            var raw = (scope ?? string.Empty).Trim();
+            var bar = raw.LastIndexOf('|');
+            var userPart = (bar >= 0 ? raw.Substring(bar + 1) : raw)
+                .Replace("-", string.Empty, StringComparison.Ordinal)
+                .Trim();
+
+            if (!string.Equals(userPart, callerId.ToString("N"), StringComparison.OrdinalIgnoreCase))
+            {
+                return StatusCode(403, new { ok = false, error = "scope-forbidden" });
+            }
+
+            return null;
         }
 
         private void NoCache()
@@ -40,6 +85,12 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             if (!_cacheService.TryNormalizeCacheType(cacheType, out var normalizedCacheType))
             {
                 return NotFound();
+            }
+
+            var denied = Authorize(scope);
+            if (denied is not null)
+            {
+                return denied;
             }
 
             try
@@ -61,6 +112,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         }
 
         [HttpPost("{cacheType}/{scope}")]
+        [RequestSizeLimit(MaxPayloadBytes)]
         public async Task<IActionResult> Put(
             string cacheType,
             string scope,
@@ -70,6 +122,12 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             if (!_cacheService.TryNormalizeCacheType(cacheType, out var normalizedCacheType))
             {
                 return NotFound();
+            }
+
+            var denied = Authorize(scope);
+            if (denied is not null)
+            {
+                return denied;
             }
 
             try
@@ -88,6 +146,11 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                 var raw = payload.ValueKind == JsonValueKind.Undefined
                     ? "{}"
                     : payload.GetRawText();
+
+                if (raw.Length > MaxPayloadBytes)
+                {
+                    return StatusCode(413, new { ok = false, error = "too-large" });
+                }
 
                 var written = await _cacheService.WriteAsync(normalizedCacheType, scope, raw, cancellationToken).ConfigureAwait(false);
                 NoCache();
@@ -113,6 +176,12 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             if (!_cacheService.TryNormalizeCacheType(cacheType, out var normalizedCacheType))
             {
                 return NotFound();
+            }
+
+            var denied = Authorize(scope);
+            if (denied is not null)
+            {
+                return denied;
             }
 
             try

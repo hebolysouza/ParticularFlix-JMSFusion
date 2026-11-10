@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Jellyfin.Plugin.JMSFusion.Controllers
@@ -14,6 +15,13 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
         private const int MaxCommentLength = 2000;
         private const int MaxCommentsPerItem = 200;
         private const int MaxCommentsTotal = 4000;
+
+        private readonly IUserManager _users;
+
+        public CommentsController(IUserManager users)
+        {
+            _users = users;
+        }
 
         public sealed class UpsertCommentRequest
         {
@@ -358,6 +366,16 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                 Request.Headers["X-JMSFusion-UserName"].FirstOrDefault() ??
                 Request.Headers["X-Emby-UserName"].FirstOrDefault() ??
                 "";
+            if (!string.IsNullOrEmpty(userId))
+            {
+                // Fork ParticularFlix: o nome do autor vem do usuario real, nao do cabecalho; senao
+                // qualquer conta poderia comentar assinando com o nome de outra pessoa.
+                var realName = _users.GetUserById(claimUserId)?.Username;
+                if (!string.IsNullOrWhiteSpace(realName))
+                {
+                    userName = realName;
+                }
+            }
 
             return new UserContext
             {
