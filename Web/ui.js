@@ -383,9 +383,10 @@
     setText(view, "#resetUserCardBody", t("webConfig.messages.resetUserBody", "Return one user's JMS layout to the default for everyone. Only that user changes; they get the default on the next page load."));
     setText(view, "#resetUserLabel", t("webConfig.messages.resetUserLabel", "User with their own layout"));
     setText(view, "#resetUserBtn", t("webConfig.messages.resetUserButton", "Return to the default layout"));
-    setText(view, "#mobileCopyBody", t("webConfig.messages.mobileCopyBody", "Phones: copy the desktop default (same cards, sources and slider settings) to the phone default. The slider on phones stacks its blocks and ignores the desktop positions."));
+    setText(view, "#mobileCopyBody", t("webConfig.messages.mobileCopyBody", "Phones: copy only the slider cards settings of the desktop default (API Query tab: source, query, count, order, random and manual list) to the phone default. The rest of the phone layout stays as it is."));
     setText(view, "#mobileCopyResetAllLabel", t("webConfig.messages.mobileCopyResetAll", "Also return every non-administrator user's phone layout to the new default"));
-    setText(view, "#mobileCopyBtn", t("webConfig.messages.mobileCopyButton", "Copy the desktop default to phones"));
+    setText(view, "#mobileCopyBtn", t("webConfig.messages.mobileCopyButton", "Copy the slider cards to phones"));
+    setText(view, "#mobileUndoBtn", t("webConfig.messages.mobileUndoButton", "Undo the last change of the phone default"));
     setText(view, "#hssCardTitle", t("webConfig.messages.hssTitle", "Home Screen Sections: user home"));
     setText(view, "#hssCardBody", t("webConfig.messages.hssBody", "Users without their own section list get a copy of the model user's home (checked every minute, no restart)."));
     setText(view, "#hssTemplateLabel", t("webConfig.messages.hssTemplateLabel", "Model user"));
@@ -857,10 +858,28 @@
       }
     });
 
+    // Fork ParticularFlix 4.0.0.15: so as chaves da aba API Query (o que define QUAIS cards o slider mostra). A copia
+    // inteira da 4.0.0.14 levava o layout do computador e quebrava o slider do celular.
+    const SLIDER_CARD_KEYS = ["useRandomContent", "useManualList", "manualListIds", "limit", "queryContentTypes", "queryImageTypes",
+      "querySortBy", "sortingKeywords", "customQueryString", "sliderSourceMode", "sliderSourceWindowMonths", "sliderSourceCacheMinutes",
+      "balanceItemTypes", "onlyUnwatchedRandom", "maxShufflingLimit", "shuffleSeedLimit", "playingLimit", "excludeEpisodesFromPlaying"];
+    view.querySelector("#mobileUndoBtn")?.addEventListener("click", async () => {
+      try {
+        const dry = await postUserSettings("RevertGlobal", { profile: "mobile", dryRun: true });
+        if (!dry.ok) throw new Error(dry.error === "no-previous" ? t("webConfig.messages.revertNoPrevious", "There is no previous default to restore.") : `Error ${dry.error || dry.status}`);
+        if (!window.confirm(fill(t("webConfig.messages.mobileUndoConfirm", "Restore the previous phone default ({after} keys)? Current phone default: {before} keys."), { before: dry.keysBefore, after: dry.keysAfter }))) return;
+        const res = await postUserSettings("RevertGlobal", { profile: "mobile" });
+        if (!res.ok) throw new Error(`Error ${res.error || res.status}`);
+        showMessage(view, fill(t("webConfig.messages.mobileUndoDone", "Phone default restored: {before} -> {after} keys."), { before: dry.keysBefore, after: dry.keysAfter }), "ok");
+      } catch (e) {
+        showMessage(view, e.message || String(e), "err");
+      }
+    });
+
     // Fork ParticularFlix 4.0.0.14: o celular comeca com o mesmo padrao do computador (cards, fontes, slider).
     view.querySelector("#mobileCopyBtn")?.addEventListener("click", async () => {
       try {
-        const dry = await postUserSettings("CopyGlobal", { fromProfile: "desktop", toProfile: "mobile", dryRun: true });
+        const dry = await postUserSettings("CopyGlobal", { fromProfile: "desktop", toProfile: "mobile", keys: SLIDER_CARD_KEYS, dryRun: true });
         if (!dry.ok) throw new Error(dry.error === "source-empty" ? t("webConfig.messages.mobileCopyEmpty", "The desktop default is empty. Publish it first.") : `Error ${dry.error || dry.status}`);
         const all = !!view.querySelector("#mobileCopyResetAll")?.checked;
         let quem = "";
@@ -869,10 +888,10 @@
           if (!prev.ok) throw new Error(`Error ${prev.error || prev.status}`);
           quem = (prev.removed || []).map((r) => r.user).join(", ") || "-";
         }
-        const msg = fill(t("webConfig.messages.mobileCopyConfirm", "Copy the desktop default ({after} keys) to phones? Current phone default: {before} keys."), { before: dry.keysBefore, after: dry.keysAfter })
+        const msg = fill(t("webConfig.messages.mobileCopyConfirm", "Copy the slider cards settings of the desktop to phones? {changed} setting(s) change; the rest of the phone layout stays."), { changed: dry.changed })
           + (all ? "\n\n" + fill(t("webConfig.messages.mobileCopyResetList", "Phone layouts returned to the default: {users}"), { users: quem }) : "");
         if (!window.confirm(msg)) return;
-        const res = await postUserSettings("CopyGlobal", { fromProfile: "desktop", toProfile: "mobile" });
+        const res = await postUserSettings("CopyGlobal", { fromProfile: "desktop", toProfile: "mobile", keys: SLIDER_CARD_KEYS });
         if (!res.ok) throw new Error(`Error ${res.error || res.status}`);
         if (all) {
           const r2 = await postUserSettings("ResetUser", { userId: "*", profile: "mobile" });

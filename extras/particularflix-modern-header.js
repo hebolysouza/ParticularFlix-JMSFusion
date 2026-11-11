@@ -114,6 +114,9 @@
         STACK + " a:not(.pf-nav-home):has(> .MuiButton-startIcon svg) .MuiButton-startIcon{margin:0 !important;}",
         // Bibliotecas do acervo compartilhado (HD externo, fora do disco do servidor): o mesmo icone com um selo ambar e o
         // nome inteiro numa etiqueta ao passar o mouse ou focar. Reconhecidas pelo nome ("Acervo ..."); ver ACERVO.
+        // 4.0.0.15: a barra principal fica numa camada acima da barra da biblioteca (que vem depois no HTML e era
+        // pintada por cima), senao a etiqueta do acervo ficava atras de Reproduzir Tudo, filtro e paginacao.
+        ROOT + " .MuiToolbar-root.pf-apptb{z-index:3;}",
         STACK + " a.pf-nav-acervo{position:relative;overflow:visible !important;}",
         STACK + " a.pf-nav-acervo::before{content:\"\";position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:#F5B041;box-shadow:0 0 0 2px rgba(20,20,24,0.95);pointer-events:none;}",
         STACK + " a.pf-nav-acervo::after{content:attr(data-pf-nome);position:absolute;top:calc(100% + 8px);left:50%;z-index:20;transform:translate(-50%,-4px);opacity:0;pointer-events:none;white-space:nowrap;font-size:12px;line-height:1;padding:7px 10px;border-radius:8px;background:rgba(20,20,24,0.97);border:1px solid rgba(229,9,20,0.55);box-shadow:0 8px 22px rgba(0,0,0,0.45);color:#F2F2F2;transition:opacity 160ms ease,transform 160ms ease;}",

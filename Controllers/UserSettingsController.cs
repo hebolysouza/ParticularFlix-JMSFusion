@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -703,6 +704,36 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             public string? FromProfile { get; set; }
             public string? ToProfile { get; set; }
             public bool? DryRun { get; set; }
+
+            // 4.0.0.15: so estas chaves (ex.: as da aba API Query, que definem os cards do slider). Vazio = tudo.
+            public List<string>? Keys { get; set; }
+        }
+
+        // Fork ParticularFlix 4.0.0.15: copia so as chaves pedidas de um padrao para o outro, mantendo o resto do destino.
+        // A copia inteira (4.0.0.14) levava o layout do computador para o celular e o slider do celular quebrava.
+        // Chave que nao existe na origem sai do destino (o destino passa a usar o mesmo valor padrao da origem).
+        private static string MergeKeys(string sourceJson, string targetJson, IEnumerable<string> keys, out int changed)
+        {
+            changed = 0;
+            var src = (JsonNode.Parse(string.IsNullOrWhiteSpace(sourceJson) ? "{}" : sourceJson) as JsonObject) ?? new JsonObject();
+            var dst = (JsonNode.Parse(string.IsNullOrWhiteSpace(targetJson) ? "{}" : targetJson) as JsonObject) ?? new JsonObject();
+            foreach (var key in keys.Where(k => !string.IsNullOrWhiteSpace(k)).Distinct(StringComparer.Ordinal))
+            {
+                var tem = src.TryGetPropertyValue(key, out var valor);
+                var antes = dst.TryGetPropertyValue(key, out var atual) ? atual?.ToJsonString() : null;
+                if (tem)
+                {
+                    var novo = valor?.DeepClone();
+                    if (antes != novo?.ToJsonString()) changed++;
+                    dst[key] = novo;
+                }
+                else if (dst.Remove(key))
+                {
+                    changed++;
+                }
+            }
+
+            return dst.ToJsonString();
         }
 
         // Fork ParticularFlix 4.0.0.14: copia um padrao global para o outro perfil (normalmente desktop -> celular), para o
@@ -741,10 +772,18 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                     return Conflict(new { ok = false, error = "source-empty", from, keys = sourceKeys });
                 }
 
+                var parcial = req.Keys is { Count: > 0 };
+                var changedKeys = 0;
+                if (parcial)
+                {
+                    source = MergeKeys(source, oldJson, req.Keys!, out changedKeys);
+                    sourceKeys = CountKeys(source);
+                }
+
                 if (req.DryRun == true)
                 {
                     NoCache();
-                    return Ok(new { ok = true, dryRun = true, from, to, keysBefore = oldKeys, keysAfter = sourceKeys, same = string.Equals(oldJson, source, StringComparison.Ordinal) });
+                    return Ok(new { ok = true, dryRun = true, from, to, partial = parcial, changed = changedKeys, keysBefore = oldKeys, keysAfter = sourceKeys, same = string.Equals(oldJson, source, StringComparison.Ordinal) });
                 }
 
                 var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -763,10 +802,11 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                     cfg.GlobalUserSettingsRevisionDesktop = now;
                 }
 
-                Audit(cfg, "copy-global", "ok", to, adminId, oldKeys, sourceKeys, oldRev, now, GlobalRev(cfg, from), "origem " + from, persistInConfig: true);
+                Audit(cfg, "copy-global", "ok", to, adminId, oldKeys, sourceKeys, oldRev, now, GlobalRev(cfg, from),
+                    "origem " + from + (parcial ? ", so " + changedKeys + " chave(s) dos cards" : string.Empty), persistInConfig: true);
                 plugin.UpdateConfiguration(cfg);
                 NoCache();
-                return Ok(new { ok = true, from, to, rev = now, keysBefore = oldKeys, keysAfter = sourceKeys });
+                return Ok(new { ok = true, from, to, partial = parcial, changed = changedKeys, rev = now, keysBefore = oldKeys, keysAfter = sourceKeys });
             }
         }
 

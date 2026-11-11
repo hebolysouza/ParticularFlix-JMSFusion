@@ -5,17 +5,18 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## Unreleased (4.0.0.14)
+## Unreleased (4.0.0.15)
 
 Not released yet: running on the owner's servers, to be published together with the next changes.
 
 ### Phones
 - **Smoother slider on phones**: the low-power mode used on phones switched off every transition, so a card jumped into place and the next card often arrived with its blurred low-quality image. On phones the slide (transform) and fade (opacity) transitions are back, and the full-quality image of the neighbor card is requested right away instead of waiting in the background queue. Shadows and filters stay off.
 - **Settings (F2) on phones**: the panel started 3% below the top with the height of the whole screen, so the Save/Apply row fell below the edge, and the close button covered the title and the tabs. It now fills the screen, the title and the close button share their own row at the top, and the Save/Apply row stays pinned at the bottom.
-- **Phones start from the desktop default**: new "Copy the desktop default to phones" button on the plugin page (JMSFusion tab, administrators). It copies the desktop global default (cards, sources, slider settings) to the phone default; optionally it also returns every non-administrator user's phone layout to the new default. Phones ignore the desktop positions (the phone slider stacks its blocks), so only the content and settings carry over. API: `POST /Plugins/JMSFusion/UserSettings/CopyGlobal`; `ResetUser` accepts `userId: "*"` (every non-administrator user).
+- **Phones show the same slider cards as the desktop**: new "Copy the slider cards to phones" button on the plugin page (JMSFusion tab, administrators). It copies only the settings that decide which cards the slider shows (API Query tab: source, query, count, order, random and manual list) from the desktop global default to the phone default; the rest of the phone layout stays. Optionally it also returns every non-administrator user's phone layout to the default. "Undo the last change of the phone default" restores the previous phone default. API: `POST /Plugins/JMSFusion/UserSettings/CopyGlobal` (`keys` limits the copy; without it the whole default is copied, which breaks the phone layout and is not used by the page); `ResetUser` accepts `userId: "*"` (every non-administrator user).
 
 ### Header (`extras/particularflix-modern-header.js`, JMS `custom` folder)
 - **Library icons no longer flash their names**: after a click Jellyfin recreates the tab link and, until the script marked it again, the name ("Movies") showed for a moment. The icon-only style now comes from CSS for any tab with an icon.
+- **Shared collection label above the library toolbar**: the main bar is layered above the library toolbar, so the name label no longer hides behind Play All, filter and pagination.
 - **Shared collection libraries**: libraries whose name starts with "Acervo" (configurable, `localStorage pf:navAcervo`) keep the icon with an amber dot and show their full name in a label on hover or focus.
 - **Library toolbar centered on desktop**: on library pages the sort, filter, A-Z and pagination bar is centered again on computers (phones keep the Jellyfin layout).
 
