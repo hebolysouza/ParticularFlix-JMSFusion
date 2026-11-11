@@ -698,6 +698,78 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             }
         }
 
+        public sealed class CopyGlobalReq
+        {
+            public string? FromProfile { get; set; }
+            public string? ToProfile { get; set; }
+            public bool? DryRun { get; set; }
+        }
+
+        // Fork ParticularFlix 4.0.0.14: copia um padrao global para o outro perfil (normalmente desktop -> celular), para o
+        // celular comecar com os mesmos cards, fontes e configuracoes do slider do computador. As posicoes manuais do
+        // desktop nao atrapalham o celular: no modo celular o slider empilha os blocos e ignora essas posicoes. O padrao
+        // anterior do destino fica guardado e "Desfazer" (RevertGlobal com o perfil de destino) volta.
+        [HttpPost("CopyGlobal")]
+        public IActionResult CopyGlobal([FromBody] CopyGlobalReq req)
+        {
+            var denied = RequireAdminUser(out var adminId);
+            if (denied is not null) return denied;
+
+            req ??= new CopyGlobalReq();
+            var from = NormalizeProfile(req.FromProfile ?? "desktop");
+            var to = NormalizeProfile(req.ToProfile ?? "mobile");
+            if (from == to)
+            {
+                NoCache();
+                return BadRequest(new { ok = false, error = "same-profile" });
+            }
+
+            var plugin = JMSFusionPlugin.Instance;
+            var cfg = plugin.Configuration;
+            EnsureMigrated(cfg, plugin);
+
+            lock (ConfigGate)
+            {
+                var source = GlobalJson(cfg, from);
+                var sourceKeys = CountKeys(source);
+                var oldJson = GlobalJson(cfg, to);
+                var oldKeys = CountKeys(oldJson);
+                var oldRev = GlobalRev(cfg, to);
+                if (sourceKeys < 20)
+                {
+                    NoCache();
+                    return Conflict(new { ok = false, error = "source-empty", from, keys = sourceKeys });
+                }
+
+                if (req.DryRun == true)
+                {
+                    NoCache();
+                    return Ok(new { ok = true, dryRun = true, from, to, keysBefore = oldKeys, keysAfter = sourceKeys, same = string.Equals(oldJson, source, StringComparison.Ordinal) });
+                }
+
+                var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                if (to == "mobile")
+                {
+                    cfg.GlobalUserSettingsPreviousJsonMobile = oldJson;
+                    cfg.GlobalUserSettingsPreviousRevisionMobile = oldRev;
+                    cfg.GlobalUserSettingsJsonMobile = source;
+                    cfg.GlobalUserSettingsRevisionMobile = now;
+                }
+                else
+                {
+                    cfg.GlobalUserSettingsPreviousJsonDesktop = oldJson;
+                    cfg.GlobalUserSettingsPreviousRevisionDesktop = oldRev;
+                    cfg.GlobalUserSettingsJsonDesktop = source;
+                    cfg.GlobalUserSettingsRevisionDesktop = now;
+                }
+
+                Audit(cfg, "copy-global", "ok", to, adminId, oldKeys, sourceKeys, oldRev, now, GlobalRev(cfg, from), "origem " + from, persistInConfig: true);
+                plugin.UpdateConfiguration(cfg);
+                NoCache();
+                return Ok(new { ok = true, from, to, rev = now, keysBefore = oldKeys, keysAfter = sourceKeys });
+            }
+        }
+
         public sealed class ResetUserReq
         {
             public string? UserId { get; set; }
@@ -715,13 +787,17 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
             if (denied is not null) return denied;
 
             req ??= new ResetUserReq();
-            if (!Guid.TryParse(req.UserId, out var targetId) || targetId == Guid.Empty)
+            // Fork ParticularFlix 4.0.0.14: UserId "*" = todos os usuarios que NAO sao administradores (usado para levar o
+            // padrao novo do celular a todo mundo de uma vez; os administradores mantem o proprio layout).
+            var todos = string.Equals((req.UserId ?? string.Empty).Trim(), "*", StringComparison.Ordinal);
+            var targetId = Guid.Empty;
+            if (!todos && (!Guid.TryParse(req.UserId, out targetId) || targetId == Guid.Empty))
             {
                 NoCache();
                 return BadRequest(new { ok = false, error = "user-required" });
             }
 
-            var target = _users.GetUserById(targetId);
+            var target = todos ? null : _users.GetUserById(targetId);
             var rawProfile = (req.Profile ?? "all").Trim().ToLowerInvariant();
             var profiles = rawProfile == "all" ? new[] { "desktop", "mobile" } : new[] { NormalizeProfile(rawProfile) };
 
@@ -734,11 +810,14 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                 cfg.UserSettingsSnapshots ??= new();
                 var matches = cfg.UserSettingsSnapshots
                     .Where(e => e is not null
-                        && Guid.TryParse(e.UserId, out var id) && id == targetId
+                        && Guid.TryParse(e.UserId, out var id) && (todos ? !IsAdmin(id) : id == targetId)
                         && profiles.Contains(NormalizeProfile(e.Profile), StringComparer.OrdinalIgnoreCase))
                     .ToList();
 
-                var removed = matches.Select(e => new { profile = NormalizeProfile(e.Profile), keys = CountKeys(e.Json) }).ToList();
+                string NomeDe(UserSettingsSnapshotEntry e)
+                    => Guid.TryParse(e.UserId, out var g) ? (_users.GetUserById(g)?.Username ?? e.UserName ?? e.UserId) : (e.UserName ?? e.UserId);
+
+                var removed = matches.Select(e => new { user = NomeDe(e), profile = NormalizeProfile(e.Profile), keys = CountKeys(e.Json) }).ToList();
                 if (req.DryRun == true || matches.Count == 0)
                 {
                     NoCache();
@@ -751,7 +830,7 @@ namespace Jellyfin.Plugin.JMSFusion.Controllers
                 {
                     var prof = NormalizeProfile(m.Profile);
                     Audit(cfg, "reset-user", "ok", prof, adminId, CountKeys(m.Json), CountKeys(GlobalJson(cfg, prof)), m.Revision, now, 0,
-                        "target=" + (target?.Username ?? targetId.ToString("N")), persistInConfig: true);
+                        "target=" + NomeDe(m) + (todos ? " (todos)" : string.Empty), persistInConfig: true);
                 }
 
                 plugin.UpdateConfiguration(cfg);

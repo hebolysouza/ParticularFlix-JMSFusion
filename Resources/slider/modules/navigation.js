@@ -1,6 +1,6 @@
 import { stopSlideTimer, startSlideTimer, SLIDE_DURATION, clearAllTimers } from "./timer.js";
 import { resetProgressBar, updateProgressBarPosition, useSecondsMode } from "./progressBar.js";
-import { getConfig, getDeviceProfileAuto } from './config.js';
+import { getConfig, getDeviceProfileAuto, isMobilePhoneSlider } from './config.js';
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 import { getCurrentIndex, setCurrentIndex, setRemainingTime } from "./sliderState.js";
 import { applyContainerStyles } from "./positionUtils.js";
@@ -304,6 +304,18 @@ function injectPeakLiteCSS() {
       transform: none !important;
       object-position: 50% 50% !important;
     }
+    /* Fork ParticularFlix 4.0.0.14: no celular o modo leve tirava TODA transicao: o card trocava de uma vez, sem
+       deslizar, e o vizinho aparecia com a imagem de baixa qualidade. Aqui volta so o deslize (transform) e o
+       esmaecer (opacity), que a GPU faz sem custo; sombras, filtros e o resto continuam desligados. */
+    html.jms-phone #monwui-slides-container.peak-lite.peak-shifting .monwui-slide {
+      transition:
+        transform var(--peak-shift-ms, 220ms) var(--peak-shift-ease, cubic-bezier(.23,.78,.32,1)),
+        opacity var(--peak-shift-opacity-ms, 200ms) ease-out !important;
+      will-change: transform, opacity !important;
+    }
+    html.jms-phone #monwui-slides-container.peak-lite.peak-shifting .monwui-slide .monwui-backdrop {
+      transition: opacity var(--peak-shift-opacity-ms, 200ms) ease-out !important;
+    }
   `;
   document.head.appendChild(st);
 }
@@ -565,6 +577,12 @@ function syncPeakBackdropForState(slide, prevState, nextState) {
   }
 
   try { backdrop.removeAttribute('fetchpriority'); } catch {}
+  // Fork ParticularFlix 4.0.0.14: no celular o vizinho e o proximo a ficar ativo e a fila de hidratacao demora;
+  // a imagem boa e pedida na hora, para o card nao chegar com a versao borrada ao deslizar.
+  if (isMobilePhoneSlider()) {
+    backdrop.__requestHi?.({ fetchPriority: 'low', immediate: true });
+    return;
+  }
   const wasVisibleNeighbor = !!prevState?.visible && !!prevState?.neighbor;
   const step = Math.max(1, Number(nextState.k) || 1);
   const delay = wasVisibleNeighbor ? 0 : Math.min(160, 35 + (step - 1) * 55);

@@ -5,6 +5,20 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
+## Unreleased (4.0.0.14)
+
+Not released yet: running on the owner's servers, to be published together with the next changes.
+
+### Phones
+- **Smoother slider on phones**: the low-power mode used on phones switched off every transition, so a card jumped into place and the next card often arrived with its blurred low-quality image. On phones the slide (transform) and fade (opacity) transitions are back, and the full-quality image of the neighbor card is requested right away instead of waiting in the background queue. Shadows and filters stay off.
+- **Settings (F2) on phones**: the panel started 3% below the top with the height of the whole screen, so the Save/Apply row fell below the edge, and the close button covered the title and the tabs. It now fills the screen, the title and the close button share their own row at the top, and the Save/Apply row stays pinned at the bottom.
+- **Phones start from the desktop default**: new "Copy the desktop default to phones" button on the plugin page (JMSFusion tab, administrators). It copies the desktop global default (cards, sources, slider settings) to the phone default; optionally it also returns every non-administrator user's phone layout to the new default. Phones ignore the desktop positions (the phone slider stacks its blocks), so only the content and settings carry over. API: `POST /Plugins/JMSFusion/UserSettings/CopyGlobal`; `ResetUser` accepts `userId: "*"` (every non-administrator user).
+
+### Header (`extras/particularflix-modern-header.js`, JMS `custom` folder)
+- **Library icons no longer flash their names**: after a click Jellyfin recreates the tab link and, until the script marked it again, the name ("Movies") showed for a moment. The icon-only style now comes from CSS for any tab with an icon.
+- **Shared collection libraries**: libraries whose name starts with "Acervo" (configurable, `localStorage pf:navAcervo`) keep the icon with an amber dot and show their full name in a label on hover or focus.
+- **Library toolbar centered on desktop**: on library pages the sort, filter, A-Z and pagination bar is centered again on computers (phones keep the Jellyfin layout).
+
 ## 4.0.0.13 (fork build, Jellyfin 12)
 
 Security release: list caches, the cinema pre-roll cache and diagnostics now require sign-in, and regular users no longer receive other users' data in the configuration. Same requirements as 4.0.0.12 (Jellyfin 12.x, net10.0); settings are kept.

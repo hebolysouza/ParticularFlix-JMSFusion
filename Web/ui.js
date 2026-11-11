@@ -383,6 +383,9 @@
     setText(view, "#resetUserCardBody", t("webConfig.messages.resetUserBody", "Return one user's JMS layout to the default for everyone. Only that user changes; they get the default on the next page load."));
     setText(view, "#resetUserLabel", t("webConfig.messages.resetUserLabel", "User with their own layout"));
     setText(view, "#resetUserBtn", t("webConfig.messages.resetUserButton", "Return to the default layout"));
+    setText(view, "#mobileCopyBody", t("webConfig.messages.mobileCopyBody", "Phones: copy the desktop default (same cards, sources and slider settings) to the phone default. The slider on phones stacks its blocks and ignores the desktop positions."));
+    setText(view, "#mobileCopyResetAllLabel", t("webConfig.messages.mobileCopyResetAll", "Also return every non-administrator user's phone layout to the new default"));
+    setText(view, "#mobileCopyBtn", t("webConfig.messages.mobileCopyButton", "Copy the desktop default to phones"));
     setText(view, "#hssCardTitle", t("webConfig.messages.hssTitle", "Home Screen Sections: user home"));
     setText(view, "#hssCardBody", t("webConfig.messages.hssBody", "Users without their own section list get a copy of the model user's home (checked every minute, no restart)."));
     setText(view, "#hssTemplateLabel", t("webConfig.messages.hssTemplateLabel", "Model user"));
@@ -848,6 +851,34 @@
         const res = await postUserSettings("ResetUser", { userId, profile: "all" });
         if (!res.ok) throw new Error(`Error ${res.error || res.status}`);
         showMessage(view, fill(t("webConfig.messages.resetUserDone", "Layout of {name} returned to the default. They see it on the next page load."), { name: res.userName || name }), "ok");
+        await resetUserRefresh();
+      } catch (e) {
+        showMessage(view, e.message || String(e), "err");
+      }
+    });
+
+    // Fork ParticularFlix 4.0.0.14: o celular comeca com o mesmo padrao do computador (cards, fontes, slider).
+    view.querySelector("#mobileCopyBtn")?.addEventListener("click", async () => {
+      try {
+        const dry = await postUserSettings("CopyGlobal", { fromProfile: "desktop", toProfile: "mobile", dryRun: true });
+        if (!dry.ok) throw new Error(dry.error === "source-empty" ? t("webConfig.messages.mobileCopyEmpty", "The desktop default is empty. Publish it first.") : `Error ${dry.error || dry.status}`);
+        const all = !!view.querySelector("#mobileCopyResetAll")?.checked;
+        let quem = "";
+        if (all) {
+          const prev = await postUserSettings("ResetUser", { userId: "*", profile: "mobile", dryRun: true });
+          if (!prev.ok) throw new Error(`Error ${prev.error || prev.status}`);
+          quem = (prev.removed || []).map((r) => r.user).join(", ") || "-";
+        }
+        const msg = fill(t("webConfig.messages.mobileCopyConfirm", "Copy the desktop default ({after} keys) to phones? Current phone default: {before} keys."), { before: dry.keysBefore, after: dry.keysAfter })
+          + (all ? "\n\n" + fill(t("webConfig.messages.mobileCopyResetList", "Phone layouts returned to the default: {users}"), { users: quem }) : "");
+        if (!window.confirm(msg)) return;
+        const res = await postUserSettings("CopyGlobal", { fromProfile: "desktop", toProfile: "mobile" });
+        if (!res.ok) throw new Error(`Error ${res.error || res.status}`);
+        if (all) {
+          const r2 = await postUserSettings("ResetUser", { userId: "*", profile: "mobile" });
+          if (!r2.ok) throw new Error(`Error ${r2.error || r2.status}`);
+        }
+        showMessage(view, t("webConfig.messages.mobileCopyDone", "Phone default updated. Phones get it on the next page load."), "ok");
         await resetUserRefresh();
       } catch (e) {
         showMessage(view, e.message || String(e), "err");

@@ -4,3 +4,19 @@
 /* end Ggrbz css editor */
 .position-block-desc{margin:2px 0 10px;font-size:12.5px;line-height:1.45;color:var(--settings-muted,#9fb0c3);max-width:62ch}.position-modal-desc{margin:4px 0 12px;font-size:12.5px;line-height:1.4;color:var(--settings-muted,#9fb0c3);text-align:center}.position-modal-input-container{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}.position-item label[title]{cursor:help}
 .position-modal-status{margin:0;font-size:12px;line-height:1.4;padding:6px 8px;border-radius:8px;background:rgba(148,163,184,.12);color:var(--settings-muted,#9fb0c3)}.position-modal-status[data-state=visible]{color:#34d399;background:rgba(16,185,129,.12)}.position-modal-status[data-state=hidden],.position-modal-status[data-state=offscreen],.position-modal-status[data-state=missing]{color:#fbbf24;background:rgba(251,191,36,.12)}
+
+/* Fork ParticularFlix 4.0.0.14: menu de configuracoes (F2) no celular. O modal comecava a 3vh do topo com a altura da
+   tela inteira, entao o rodape (Salvar/Aplicar) ficava abaixo da borda; o titulo passava por baixo do botao de fechar
+   e o X cobria o comeco das abas. Agora ocupa a tela toda, o titulo e o X dividem uma faixa propria no topo e o
+   rodape fica preso embaixo, sempre visivel. */
+@media (width <= 780px){
+  .settings-modal#settings-modal{top:0!important;padding:0!important}
+  #settings-modal .settings-modal-content{width:100vw!important;max-width:100vw!important;height:100dvh!important;max-height:100dvh!important;border-radius:0!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:calc(58px + env(safe-area-inset-top,0px)) 10px calc(6px + env(safe-area-inset-bottom,0px))!important}
+  #settings-modal .settings-close{position:absolute!important;top:calc(9px + env(safe-area-inset-top,0px))!important;right:10px!important;width:40px!important;height:40px!important;z-index:6}
+  #settings-modal .settings-modal-content>h2{position:absolute!important;top:calc(17px + env(safe-area-inset-top,0px));left:14px;right:62px;margin:0!important;padding:0!important;font-size:1.05rem!important;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #settings-modal .settings-modal-content>form{flex:1 1 auto!important;min-height:0!important;gap:10px!important}
+  #settings-modal .settings-tabs{padding:8px!important}
+  #settings-modal .btn-item{position:sticky!important;bottom:0!important;z-index:4;margin:0!important;padding:10px 0 4px!important;background:var(--settings-surface)!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  #settings-modal .btn-item>*{grid-column:auto!important;width:100%!important;min-width:0!important;margin:0!important}
+  #settings-modal .btn-item .theme-toggle-btn{grid-column:1/-1!important;flex:none!important}
+}

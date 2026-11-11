@@ -13,6 +13,9 @@
     // Exemplo: var HIDE = ["Filmes", "Colecoes"];
     // Tambem vale, sem editar o arquivo: localStorage.setItem("pf:navHide", "Filmes,Colecoes") e recarregar.
     var HIDE = [];
+    // Fork ParticularFlix 4.0.0.14: bibliotecas do acervo compartilhado, pelo comeco do nome (sem diferenca de maiusculas).
+    // Tambem vale, sem editar o arquivo: localStorage.setItem("pf:navAcervo", "Acervo,Outro prefixo") e recarregar.
+    var ACERVO = ["Acervo"];
 
     var ROOT = "html.pf-modern-on header.MuiAppBar-root";
     // Fork ParticularFlix 4.0.0.12: so a barra PRINCIPAL do cabecalho (a primeira, marcada com pf-apptb). Nas paginas de
@@ -104,6 +107,20 @@
         STACK + " a.pf-nav-iconic{font-size:0 !important;gap:0 !important;padding:8px !important;min-width:36px;justify-content:center;}",
         STACK + " a.pf-nav-iconic .MuiButton-startIcon{margin:0 !important;}",
         STACK + " a.pf-nav-iconic svg,"+ STACK + " a.pf-nav-iconic img{display:inline-block !important;width:20px;height:20px;}",
+        // Fork ParticularFlix 4.0.0.14: ao clicar numa aba, o Jellyfin recria o link e por um instante ele ainda nao tem a
+        // classe pf-nav-iconic (o script so marca no proximo ciclo): o nome ("Filmes") aparecia e depois voltava ao icone.
+        // O CSS agora reconhece sozinho o link que tem icone, sem esperar o script.
+        STACK + " a:not(.pf-logo-modern):not(.pf-nav-home):not([data-pf-home]):has(> .MuiButton-startIcon svg)," + STACK + " a:not(.pf-logo-modern):not(.pf-nav-home):not([data-pf-home]):has(> .MuiButton-startIcon img){font-size:0 !important;gap:0 !important;padding:8px !important;min-width:36px;justify-content:center;}",
+        STACK + " a:not(.pf-nav-home):has(> .MuiButton-startIcon svg) .MuiButton-startIcon{margin:0 !important;}",
+        // Bibliotecas do acervo compartilhado (HD externo, fora do disco do servidor): o mesmo icone com um selo ambar e o
+        // nome inteiro numa etiqueta ao passar o mouse ou focar. Reconhecidas pelo nome ("Acervo ..."); ver ACERVO.
+        STACK + " a.pf-nav-acervo{position:relative;overflow:visible !important;}",
+        STACK + " a.pf-nav-acervo::before{content:\"\";position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:#F5B041;box-shadow:0 0 0 2px rgba(20,20,24,0.95);pointer-events:none;}",
+        STACK + " a.pf-nav-acervo::after{content:attr(data-pf-nome);position:absolute;top:calc(100% + 8px);left:50%;z-index:20;transform:translate(-50%,-4px);opacity:0;pointer-events:none;white-space:nowrap;font-size:12px;line-height:1;padding:7px 10px;border-radius:8px;background:rgba(20,20,24,0.97);border:1px solid rgba(229,9,20,0.55);box-shadow:0 8px 22px rgba(0,0,0,0.45);color:#F2F2F2;transition:opacity 160ms ease,transform 160ms ease;}",
+        STACK + " a.pf-nav-acervo:hover::after," + STACK + " a.pf-nav-acervo:focus-visible::after{opacity:1;transform:translate(-50%,0);}",
+        // Paginas de biblioteca no computador: a barra de Ordenar, Filtrar, A-Z e Paginacao fica no meio, como era antes
+        // da 4.0.0.12 (no celular continua do jeito do Jellyfin).
+        "@media (min-width:900px){" + ROOT + " .MuiToolbar-root:not(.pf-apptb) > .MuiStack-root{margin-left:auto !important;margin-right:auto !important;}}",
         // Seta do chip do usuario: no layout Legado ela sobe 2px de proposito; no Modern fica centralizada com o nome.
         "html.pf-modern-on header.MuiAppBar-root .jf-profile-header-caret{top:0 !important;display:inline-flex;align-items:center;align-self:center;line-height:1;transform:translateY(1px);}",
         ".pf-logo-modern{display:inline-flex !important;align-items:center;gap:10px;flex:0 0 auto;margin-left:4px;padding:4px 14px 4px 4px;line-height:1;text-decoration:none;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
@@ -262,6 +279,17 @@
         return !!(ic && ic.querySelector("svg,img,i,.material-icons,[class*=\"fa-\"]"));
     }
 
+    function ehAcervo(nome) {
+        var lista = ACERVO;
+        try { var ls = localStorage.getItem("pf:navAcervo"); if (ls) lista = ls.split(","); } catch (e) {}
+        var n = norm(nome);
+        for (var i = 0; i < lista.length; i++) {
+            var p = norm(lista[i]);
+            if (p && n.indexOf(p) === 0) return true;
+        }
+        return false;
+    }
+
     function syncLinks(stack) {
         var cur = (window.location.hash || "#/").replace(/^#/, "");
         var parts = cur.split("?");
@@ -277,6 +305,13 @@
             if (iconic && !a.getAttribute("aria-label")) {
                 var nmI = (a.getAttribute("title") || a.textContent || "").trim();
                 if (nmI) a.setAttribute("aria-label", nmI);
+            }
+            var nomeAba = (a.textContent || a.getAttribute("aria-label") || "").trim();
+            var acervo = iconic && ehAcervo(nomeAba);
+            if (acervo !== a.classList.contains("pf-nav-acervo")) a.classList.toggle("pf-nav-acervo", acervo);
+            if (acervo) {
+                if (a.getAttribute("data-pf-nome") !== nomeAba) a.setAttribute("data-pf-nome", nomeAba);
+                if (a.hasAttribute("title")) a.removeAttribute("title");
             }
             var hid = hide.indexOf(norm(a.textContent)) >= 0;
             if (hid !== a.classList.contains("pf-nav-hidden")) a.classList.toggle("pf-nav-hidden", hid);
@@ -316,7 +351,7 @@
         // Dica (tooltip) com o nome de cada pilula, usada quando so os icones cabem.
         var links = stack.querySelectorAll("a:not(.pf-logo-modern)");
         for (var q = 0; q < links.length; q++) {
-            if (!links[q].getAttribute("title")) {
+            if (!links[q].getAttribute("title") && !links[q].classList.contains("pf-nav-acervo")) {
                 var nm = (links[q].textContent || "").trim();
                 if (nm) links[q].setAttribute("title", nm);
             }
