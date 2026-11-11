@@ -304,18 +304,9 @@ function injectPeakLiteCSS() {
       transform: none !important;
       object-position: 50% 50% !important;
     }
-    /* Fork ParticularFlix 4.0.0.14: no celular o modo leve tirava TODA transicao: o card trocava de uma vez, sem
-       deslizar, e o vizinho aparecia com a imagem de baixa qualidade. Aqui volta so o deslize (transform) e o
-       esmaecer (opacity), que a GPU faz sem custo; sombras, filtros e o resto continuam desligados. */
-    html.jms-phone #monwui-slides-container.peak-lite.peak-shifting .monwui-slide {
-      transition:
-        transform var(--peak-shift-ms, 220ms) var(--peak-shift-ease, cubic-bezier(.23,.78,.32,1)),
-        opacity var(--peak-shift-opacity-ms, 200ms) ease-out !important;
-      will-change: transform, opacity !important;
-    }
-    html.jms-phone #monwui-slides-container.peak-lite.peak-shifting .monwui-slide .monwui-backdrop {
-      transition: opacity var(--peak-shift-opacity-ms, 200ms) ease-out !important;
-    }
+    /* Fork ParticularFlix 4.0.0.16: a transicao de deslize/esmaecer da 4.0.0.14 foi retirada. O card novo comecava com a
+       imagem invisivel e o fundo azul do card aparecia por um instante (piscava a cada troca). No celular a troca volta a
+       ser seca, como antes; continua so o pedido imediato da imagem boa do vizinho (ver promotePeakBackdrop). */
   `;
   document.head.appendChild(st);
 }
