@@ -5,9 +5,9 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## Unreleased (4.0.0.17)
+## 4.0.0.17 (fork build, Jellyfin 12)
 
-Not released yet: running on the owner's servers, to be published together with the next changes.
+Phones and header release: no more flashing slider cards on phones, a usable settings panel on phones, the same slider cards as the desktop, and library tab fixes. Rolls up the unpublished builds 4.0.0.14 to 4.0.0.16. Same requirements as 4.0.0.13 (Jellyfin 12.x, net10.0); settings are kept.
 
 ### Phones
 - **No more flashing slider cards on phones**: on phones the new card was drawn in pieces for a moment (badges without text, half of the image, the empty card background) because the neighbor card was kept scaled down, with its image shifted and its content hidden, and everything changed at the instant of the swap, so the phone GPU had to redraw the whole card. The active card and its neighbors now sit on their own layers and the neighbor content is already drawn (visible, transparent); the swap only changes opacity and position.
