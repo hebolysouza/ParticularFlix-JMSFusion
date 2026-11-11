@@ -5,11 +5,12 @@ The upstream project by G-grbz was archived on 2026-08-19; this fork keeps it wo
 fixes bugs, closes a security hole and makes the home page lighter. License: GPL-3.0, credits to the
 original authors (G-grbz and contributors) are kept.
 
-## Unreleased (4.0.0.16)
+## Unreleased (4.0.0.17)
 
 Not released yet: running on the owner's servers, to be published together with the next changes.
 
 ### Phones
+- **No more flashing slider cards on phones**: on phones the new card was drawn in pieces for a moment (badges without text, half of the image, the empty card background) because the neighbor card was kept scaled down, with its image shifted and its content hidden, and everything changed at the instant of the swap, so the phone GPU had to redraw the whole card. The active card and its neighbors now sit on their own layers and the neighbor content is already drawn (visible, transparent); the swap only changes opacity and position.
 - **Sharper next card on phones**: the full-quality image of the neighbor slider card is requested right away instead of waiting in the background queue, so the next card no longer arrives with its blurred low-quality image. (A slide and fade transition tried in an intermediate build made the card flash its empty background on every change and was removed; on phones the card change stays instant.)
 - **Settings (F2) on phones**: the panel started 3% below the top with the height of the whole screen, so the Save/Apply row fell below the edge, and the close button covered the title and the tabs. It now fills the screen, the title and the close button share their own row at the top, and the Save/Apply row stays pinned at the bottom.
 - **Phones show the same slider cards as the desktop**: new "Copy the slider cards to phones" button on the plugin page (JMSFusion tab, administrators). It copies only the settings that decide which cards the slider shows (API Query tab: source, query, count, order, random and manual list) from the desktop global default to the phone default; the rest of the phone layout stays. Optionally it also returns every non-administrator user's phone layout to the default. "Undo the last change of the phone default" restores the previous phone default. API: `POST /Plugins/JMSFusion/UserSettings/CopyGlobal` (`keys` limits the copy; without it the whole default is copied, which breaks the phone layout and is not used by the page); `ResetUser` accepts `userId: "*"` (every non-administrator user).

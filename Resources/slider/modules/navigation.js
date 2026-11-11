@@ -307,6 +307,21 @@ function injectPeakLiteCSS() {
     /* Fork ParticularFlix 4.0.0.16: a transicao de deslize/esmaecer da 4.0.0.14 foi retirada. O card novo comecava com a
        imagem invisivel e o fundo azul do card aparecia por um instante (piscava a cada troca). No celular a troca volta a
        ser seca, como antes; continua so o pedido imediato da imagem boa do vizinho (ver promotePeakBackdrop). */
+    /* Fork ParticularFlix 4.0.0.17: no celular o card novo era desenhado aos pedacos (GPU rasterizando em blocos: badges
+       sem texto, meia imagem, fundo azul) porque o vizinho ficava a 94%, com a imagem deslocada e o conteudo invisivel, e
+       tudo mudava no instante da troca. Agora o ativo e os vizinhos ficam em camadas proprias e o conteudo do vizinho ja
+       fica desenhado (visivel, transparente); a troca so muda transparencia e posicao. Validado no celular pelo dono
+       (testado antes como CSS na pasta custom). So ativo e vizinhos, para nao gastar memoria de GPU. */
+    html.jms-phone #monwui-slides-container.peak-lite .monwui-slide.active,
+    html.jms-phone #monwui-slides-container.peak-lite .monwui-slide.peak-neighbor { will-change: transform !important; }
+    html.jms-phone #monwui-slides-container.peak-lite .monwui-slide.active img.monwui-backdrop,
+    html.jms-phone #monwui-slides-container.peak-lite .monwui-slide.peak-neighbor img.monwui-backdrop { will-change: transform !important; }
+    html.jms-phone #monwui-slides-container.peak-lite .monwui-slide.peak-neighbor > :is(.monwui-meta-container,.monwui-format-container,.monwui-main-button-container,.monwui-info-container,.monwui-director-container),
+    html.jms-phone #monwui-slides-container.peak-lite .monwui-slide.peak-neighbor > .monwui-main-content-container > .monwui-plot-container {
+      visibility: visible !important; opacity: 0.001 !important; will-change: opacity !important;
+    }
+    html.jms-phone #monwui-slides-container.peak-lite .monwui-slide.active > :is(.monwui-meta-container,.monwui-format-container,.monwui-main-button-container,.monwui-info-container,.monwui-director-container),
+    html.jms-phone #monwui-slides-container.peak-lite .monwui-slide.active > .monwui-main-content-container > .monwui-plot-container { will-change: opacity !important; }
   `;
   document.head.appendChild(st);
 }
