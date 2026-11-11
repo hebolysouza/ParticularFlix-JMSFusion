@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/hebolysouza/ParticularFlix-JMSFusion/main/img/icon.png",
     "versions": [
     {
+      "version": "4.0.0.17",
+      "changelog": "v4.0.0.17 (ParticularFlix fork)\n\nPhones and header release for Jellyfin 12 (net10.0, validated on 12.3), rolling up the unpublished builds 4.0.0.14 to 4.0.0.16. Same plugin GUID, settings kept. Jellyfin 10.11.x: stay on 3.8.2.45. Reload open tabs after updating (phones too).\n\nPhones: no more flashing slider cards (the new card was drawn in pieces at every swap; neighbor cards are now already drawn on their own layers), the next card arrives sharp, the settings panel (F2) fills the screen with a visible close button and pinned Save/Apply, and \"Copy the slider cards to phones\" on the plugin page gives phones the same slider cards as the desktop (only the API Query settings; the phone layout stays), with undo.\n\nHeader (extras/particularflix-modern-header.js, JMS custom folder): library icons no longer flash their names after a click, libraries named \"Acervo...\" get an amber dot and a name label on hover, and the library toolbar is centered on desktop.\n\nFull notes: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
+      "targetAbi": "12.0.0.0",
+      "sourceUrl": "https://github.com/hebolysouza/ParticularFlix-JMSFusion/releases/download/v4.0.0.17/JMSFusion-4.0.0.17-server.zip",
+      "checksum": "e02944b65b787064d2f33da02b3c3575",
+      "timestamp": "2026-11-11T22:00:11.0000000Z"
+    },
+    {
       "version": "4.0.0.13",
       "changelog": "v4.0.0.13 (ParticularFlix fork)\n\nSecurity release for Jellyfin 12 (net10.0, validated on 12.3). Same plugin GUID, settings kept. Jellyfin 10.11.x: stay on 3.8.2.45. Reload open tabs after updating.\n\nSecurity: the list caches (slider, home rows, recommendations) could be read, overwritten or deleted by anyone who could reach the server, for any user, without signing in; they now require sign-in and each regular user only reaches their own cache. The cinema pre-roll cache, Status and Snippet also required no sign-in. The configuration sent to regular users no longer carries other users' watchlists, comments, requests, parental PIN rules or internal service addresses. Comment author names come from the signed-in user.\n\nNew: return one user's layout to the default from the plugin page; removed movies, series and collections leave the slider and rows. Header (extras/particularflix-modern-header.js, JMS custom folder): the library toolbar (sort, filter, A-Z) is back on phones.\n\nFull notes: https://github.com/hebolysouza/ParticularFlix-JMSFusion/blob/main/CHANGELOG.md",
       "targetAbi": "12.0.0.0",
