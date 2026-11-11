@@ -120,7 +120,9 @@
         STACK + " a.pf-nav-acervo:hover::after," + STACK + " a.pf-nav-acervo:focus-visible::after{opacity:1;transform:translate(-50%,0);}",
         // Paginas de biblioteca no computador: a barra de Ordenar, Filtrar, A-Z e Paginacao fica no meio, como era antes
         // da 4.0.0.12 (no celular continua do jeito do Jellyfin).
-        "@media (min-width:900px){" + ROOT + " .MuiToolbar-root:not(.pf-apptb) > .MuiStack-root{margin-left:auto !important;margin-right:auto !important;}}",
+        // O Stack ocupa a largura toda (titulo a esquerda, botoes a direita); como antes da 4.0.0.12, ele vira um grupo
+        // do tamanho do conteudo, no meio da barra.
+        "@media (min-width:900px){" + ROOT + " .MuiToolbar-root:not(.pf-apptb) > .MuiStack-root{flex:0 0 auto !important;width:max-content !important;max-width:100%;margin-left:auto !important;margin-right:auto !important;justify-content:center !important;}}",
         // Seta do chip do usuario: no layout Legado ela sobe 2px de proposito; no Modern fica centralizada com o nome.
         "html.pf-modern-on header.MuiAppBar-root .jf-profile-header-caret{top:0 !important;display:inline-flex;align-items:center;align-self:center;line-height:1;transform:translateY(1px);}",
         ".pf-logo-modern{display:inline-flex !important;align-items:center;gap:10px;flex:0 0 auto;margin-left:4px;padding:4px 14px 4px 4px;line-height:1;text-decoration:none;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}",
